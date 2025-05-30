@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -76,7 +75,7 @@ const Login: React.FC = () => {
         </Button>
 
         <div className="text-center">
-          <Link to="/register" className="text-sm text-blue-600 hover:underline">
+          <Link to="/register" className="text-sm text-black hover:underline">
             Criar conta
           </Link>
         </div>
