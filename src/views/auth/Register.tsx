@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -96,13 +95,13 @@ const Register: React.FC = () => {
         <Button
           type="submit"
           disabled={isLoading}
-          className="w-full"
+          className="w-full bg-emerald-800 hover:bg-emerald-700"
         >
           {isLoading ? 'Criando conta...' : 'Criar conta'}
         </Button>
 
         <div className="text-center">
-          <Link to="/login" className="text-sm text-blue-600 hover:underline">
+          <Link to="/login" className="text-sm text-black hover:underline">
             Já tem conta? Entrar
           </Link>
         </div>

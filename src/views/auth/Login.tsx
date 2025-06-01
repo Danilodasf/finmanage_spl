@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -52,6 +51,7 @@ const Login: React.FC = () => {
             value={formData.email}
             onChange={handleInputChange}
             required
+            placeholder="exemplo@email.com"
           />
         </div>
 
@@ -64,19 +64,20 @@ const Login: React.FC = () => {
             value={formData.password}
             onChange={handleInputChange}
             required
+            placeholder="senha123"
           />
         </div>
 
         <Button
           type="submit"
           disabled={isLoading}
-          className="w-full"
+          className="w-full bg-emerald-800 hover:bg-emerald-700"
         >
           {isLoading ? 'Entrando...' : 'Entrar'}
         </Button>
 
         <div className="text-center">
-          <Link to="/register" className="text-sm text-blue-600 hover:underline">
+          <Link to="/register" className="text-sm text-black hover:underline">
             Criar conta
           </Link>
         </div>
