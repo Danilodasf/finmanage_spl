@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { ReportController, ReportData, ReportFilters } from '@/controllers/ReportController';
@@ -9,7 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileDown, Search } from 'lucide-react';
+import { FileDown, Search, Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const Reports: React.FC = () => {
   const [reportData, setReportData] = useState<ReportData | null>(null);
@@ -40,35 +44,99 @@ const Reports: React.FC = () => {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
+        <h1 className="text-2xl font-bold text-emerald-800">Relatórios</h1>
 
         <Card className="p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Filtros do Relatório</h2>
+          <h2 className="text-lg font-medium text-emerald-800 mb-4">Filtros do Relatório</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="startDate">Data Inicial</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={filters.startDate.toISOString().split('T')[0]}
-                onChange={(e) => setFilters({
-                  ...filters,
-                  startDate: new Date(e.target.value)
-                })}
-              />
+              <div className="flex flex-col space-y-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !filters.startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.startDate ? (
+                        format(filters.startDate, "PPP", { locale: ptBR })
+                      ) : (
+                        <span>Selecione uma data</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-2 border-b">
+                      <Input
+                        type="date"
+                        value={filters.startDate.toISOString().split('T')[0]}
+                        onChange={(e) => {
+                          const newDate = new Date(e.target.value);
+                          if (!isNaN(newDate.getTime())) {
+                            setFilters({...filters, startDate: newDate});
+                          }
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+                    <Calendar
+                      mode="single"
+                      selected={filters.startDate}
+                      onSelect={(date) => date && setFilters({...filters, startDate: date})}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             <div>
               <Label htmlFor="endDate">Data Final</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={filters.endDate.toISOString().split('T')[0]}
-                onChange={(e) => setFilters({
-                  ...filters,
-                  endDate: new Date(e.target.value)
-                })}
-              />
+              <div className="flex flex-col space-y-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !filters.endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.endDate ? (
+                        format(filters.endDate, "PPP", { locale: ptBR })
+                      ) : (
+                        <span>Selecione uma data</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-2 border-b">
+                      <Input
+                        type="date"
+                        value={filters.endDate.toISOString().split('T')[0]}
+                        onChange={(e) => {
+                          const newDate = new Date(e.target.value);
+                          if (!isNaN(newDate.getTime())) {
+                            setFilters({...filters, endDate: newDate});
+                          }
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+                    <Calendar
+                      mode="single"
+                      selected={filters.endDate}
+                      onSelect={(date) => date && setFilters({...filters, endDate: date})}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             <div>
@@ -114,7 +182,7 @@ const Reports: React.FC = () => {
           </div>
 
           <div className="flex gap-3 mt-4">
-            <Button onClick={handleGenerateReport} className="flex items-center gap-2">
+            <Button onClick={handleGenerateReport} className="flex items-center gap-2 bg-emerald-800 hover:bg-emerald-700">
               <Search className="h-4 w-4" />
               Gerar Relatório
             </Button>
@@ -134,11 +202,11 @@ const Reports: React.FC = () => {
         {reportData && (
           <>
             <Card className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Resumo do Período</h2>
+              <h2 className="text-lg font-medium text-emerald-800 mb-4">Resumo do Período</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <p className="text-sm text-gray-500">Receitas</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-2xl font-bold text-blue-600">
                     R$ {reportData.summary.totalReceitas.toFixed(2)}
                   </p>
                 </div>
@@ -151,7 +219,7 @@ const Reports: React.FC = () => {
                 <div className="text-center">
                   <p className="text-sm text-gray-500">Saldo</p>
                   <p className={`text-2xl font-bold ${
-                    reportData.summary.saldo >= 0 ? 'text-green-600' : 'text-red-600'
+                    reportData.summary.saldo >= 0 ? 'text-blue-600' : 'text-red-600'
                   }`}>
                     R$ {reportData.summary.saldo.toFixed(2)}
                   </p>
@@ -161,7 +229,7 @@ const Reports: React.FC = () => {
 
             <Card className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-medium text-gray-900">
+                <h2 className="text-lg font-medium text-emerald-800">
                   Transações ({reportData.transactions.length})
                 </h2>
               </div>

@@ -11,8 +11,10 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    // Plugins que são executados apenas em desenvolvimento
     mode === 'development' &&
     componentTagger(),
+    // Nota: O Stagewise Toolbar é inicializado no arquivo main.tsx apenas em desenvolvimento
   ].filter(Boolean),
   resolve: {
     alias: {

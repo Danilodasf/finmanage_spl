@@ -1,4 +1,3 @@
-
 import { Category, CreateCategoryData } from '@/models/Category';
 import { toast } from '@/hooks/use-toast';
 
@@ -12,10 +11,8 @@ export class CategoryController {
     // Se não há categorias, criar algumas padrão
     if (categories.length === 0) {
       const defaultCategories: Category[] = [
-        { id: '1', name: 'Alimentação', type: 'despesa' },
-        { id: '2', name: 'Transporte', type: 'despesa' },
-        { id: '3', name: 'Salário', type: 'receita' },
-        { id: '4', name: 'Freelance', type: 'receita' },
+        { id: '1', name: 'Faculdade', type: 'despesa' },
+        { id: '2', name: 'Salário', type: 'receita' },
       ];
       localStorage.setItem(this.storageKey, JSON.stringify(defaultCategories));
       return defaultCategories;

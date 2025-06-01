@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { CategoryController } from '@/controllers/CategoryController';
@@ -81,10 +80,10 @@ const Categories: React.FC = () => {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Categorias</h1>
+        <h1 className="text-2xl font-bold text-emerald-800">Categorias</h1>
 
         <Card className="p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
+          <h2 className="text-lg font-medium text-emerald-800 mb-4">
             {editingId ? 'Editar Categoria' : 'Nova Categoria'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,7 +115,7 @@ const Categories: React.FC = () => {
             </div>
 
             <div className="flex gap-3">
-              <Button type="submit" className="flex-1">
+              <Button type="submit" className="flex-1 bg-emerald-800 hover:bg-emerald-700">
                 <Plus className="h-4 w-4 mr-2" />
                 {editingId ? 'Atualizar' : 'Adicionar'} Categoria
               </Button>
@@ -130,7 +129,7 @@ const Categories: React.FC = () => {
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Categorias Cadastradas</h2>
+          <h2 className="text-lg font-medium text-emerald-800 mb-4">Categorias Cadastradas</h2>
           <div className="space-y-3">
             {categories.length === 0 ? (
               <p className="text-gray-500">Nenhuma categoria cadastrada.</p>

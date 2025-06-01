@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { TransactionController } from '@/controllers/TransactionController';
@@ -11,7 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Transaction } from '@/models/Transaction';
 import { Category } from '@/models/Category';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const Transactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -23,6 +27,7 @@ const Transactions: React.FC = () => {
     description: '',
     categoryId: ''
   });
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   useEffect(() => {
     loadTransactions();
@@ -82,13 +87,23 @@ const Transactions: React.FC = () => {
     category.type === formData.type || category.type === 'ambos'
   );
 
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      setFormData({
+        ...formData, 
+        date: date.toISOString().split('T')[0]
+      });
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Transações</h1>
+        <h1 className="text-2xl font-bold text-emerald-800">Transações</h1>
 
         <Card className="p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Nova Transação</h2>
+          <h2 className="text-lg font-medium text-emerald-800 mb-4">Nova Transação</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -106,13 +121,48 @@ const Transactions: React.FC = () => {
 
               <div>
                 <Label htmlFor="date">Data</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
-                  required
-                />
+                <div className="flex flex-col space-y-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? (
+                          format(selectedDate, "PPP", { locale: ptBR })
+                        ) : (
+                          <span>Selecione uma data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <div className="p-2 border-b">
+                        <Input
+                          type="date"
+                          value={formData.date}
+                          onChange={(e) => {
+                            const newDate = new Date(e.target.value);
+                            if (!isNaN(newDate.getTime())) {
+                              setSelectedDate(newDate);
+                              setFormData({...formData, date: e.target.value});
+                            }
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={handleDateSelect}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
 
               <div>
@@ -155,14 +205,14 @@ const Transactions: React.FC = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700">
               Cadastrar Transação
             </Button>
           </form>
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Transações Recentes</h2>
+          <h2 className="text-lg font-medium text-emerald-800 mb-4">Transações Recentes</h2>
           <div className="space-y-3">
             {transactions.length === 0 ? (
               <p className="text-gray-500">Nenhuma transação cadastrada.</p>
