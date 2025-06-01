@@ -1,6 +1,9 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Settings, LogOut } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { AuthController } from '@/controllers/AuthController';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -8,8 +11,27 @@ interface MainLayoutProps {
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
+  
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    
+    // Chamar o método de logout do AuthController
+    const success = await AuthController.logout();
+    
+    if (success) {
+      toast({
+        title: "Logout realizado",
+        description: "Você saiu da sua conta com sucesso.",
+      });
+      navigate('/login');
+    }
+    
+    setIsLoggingOut(false);
+  };
 
   return (
     <div className="min-h-screen bg-emerald-50">
@@ -55,6 +77,26 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   Relatórios
                 </Button>
               </Link>
+              <Link to="/settings">
+                <Button 
+                  className={isActive('/settings') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/settings') ? 'default' : 'ghost'}
+                  size="sm"
+                >
+                  <Settings className="w-4 h-4 mr-1" />
+                  Configurações
+                </Button>
+              </Link>
+              <Button 
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                <LogOut className="w-4 h-4 mr-1" />
+                {isLoggingOut ? 'Saindo...' : 'Sair'}
+              </Button>
             </div>
           </div>
         </div>
