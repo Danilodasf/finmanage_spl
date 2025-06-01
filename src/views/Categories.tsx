@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Category } from '@/models/Category';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash, PlusCircle } from 'lucide-react';
 
 const Categories: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -116,7 +116,7 @@ const Categories: React.FC = () => {
 
             <div className="flex gap-3">
               <Button type="submit" className="flex-1 bg-emerald-800 hover:bg-emerald-700">
-                <Plus className="h-4 w-4 mr-2" />
+                <PlusCircle className="h-4 w-4 mr-2" />
                 {editingId ? 'Atualizar' : 'Adicionar'} Categoria
               </Button>
               {editingId && (
@@ -154,14 +154,14 @@ const Categories: React.FC = () => {
                       size="sm"
                       onClick={() => handleEdit(category)}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDelete(category.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

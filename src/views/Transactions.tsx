@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Transaction } from '@/models/Transaction';
 import { Category } from '@/models/Category';
-import { Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { TrashIcon, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from "@/components/ui/calendar";
@@ -131,7 +131,7 @@ const Transactions: React.FC = () => {
                           !selectedDate && "text-muted-foreground"
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarDays className="mr-2 h-4 w-4" />
                         {selectedDate ? (
                           format(selectedDate, "PPP", { locale: ptBR })
                         ) : (
@@ -246,7 +246,7 @@ const Transactions: React.FC = () => {
                       size="sm"
                       onClick={() => handleDelete(transaction.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <TrashIcon className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

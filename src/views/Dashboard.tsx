@@ -5,6 +5,7 @@ import { CategoryController } from '@/controllers/CategoryController';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { Filter } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const [period, setPeriod] = useState<'month' | 'year'>('month');
@@ -46,6 +47,7 @@ const Dashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-emerald-800">Dashboard</h1>
           <Select value={period} onValueChange={(value: 'month' | 'year') => setPeriod(value)}>
             <SelectTrigger className="w-32">
+              <Filter className="mr-2 h-4 w-4" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileDown, Search, Calendar as CalendarIcon } from 'lucide-react';
+import { FileDown, Search, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from "@/components/ui/calendar";
@@ -61,7 +61,7 @@ const Reports: React.FC = () => {
                         !filters.startDate && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarDays className="mr-2 h-4 w-4" />
                       {filters.startDate ? (
                         format(filters.startDate, "PPP", { locale: ptBR })
                       ) : (
@@ -106,7 +106,7 @@ const Reports: React.FC = () => {
                         !filters.endDate && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarDays className="mr-2 h-4 w-4" />
                       {filters.endDate ? (
                         format(filters.endDate, "PPP", { locale: ptBR })
                       ) : (
