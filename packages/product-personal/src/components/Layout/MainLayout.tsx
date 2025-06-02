@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, Target, LineChart } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AuthController } from '@/controllers/AuthController';
 
@@ -38,7 +38,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-bold text-emerald-800">FinManage Personal</h1>
+            <h1 className="text-xl font-bold text-emerald-800 -ml-2">FinManage Personal</h1>
             
             <div className="flex space-x-4">
               <Link to="/dashboard">
@@ -59,6 +59,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   Transações
                 </Button>
               </Link>
+              <Link to="/investments">
+                <Button 
+                  className={isActive('/investments') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/investments') ? 'default' : 'ghost'}
+                  size="sm"
+                >
+                  Investimentos
+                </Button>
+              </Link>
               <Link to="/categories">
                 <Button 
                   className={isActive('/categories') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
@@ -66,6 +75,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   size="sm"
                 >
                   Categorias
+                </Button>
+              </Link>
+              <Link to="/goals">
+                <Button 
+                  className={isActive('/goals') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/goals') ? 'default' : 'ghost'}
+                  size="sm"
+                >
+                  Objetivos
+                </Button>
+              </Link>
+              <Link to="/budgets">
+                <Button 
+                  className={isActive('/budgets') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/budgets') ? 'default' : 'ghost'}
+                  size="sm"
+                >
+                  Orçamentos
                 </Button>
               </Link>
               <Link to="/reports">

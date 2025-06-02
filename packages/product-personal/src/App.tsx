@@ -8,6 +8,9 @@ import Register from "./views/auth/Register";
 import Dashboard from "./views/Dashboard";
 import Transactions from "./views/Transactions";
 import Categories from "./views/Categories";
+import Goals from "./views/Goals";
+import Budgets from "./views/Budgets";
+import Investments from "./views/Investments";
 import Reports from "./views/Reports";
 import Settings from "./views/Settings";
 import NotFound from "./pages/NotFound";
@@ -27,6 +30,9 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/categories" element={<Categories />} />
+          <Route path="/goals" element={<Goals />} />
+          <Route path="/budgets" element={<Budgets />} />
+          <Route path="/investments" element={<Investments />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />

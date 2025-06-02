@@ -10,12 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Transaction } from '@/models/Transaction';
 import { Category } from '@/models/Category';
-import { TrashIcon, CalendarDays } from 'lucide-react';
+import { TrashIcon, CalendarDays, PlusCircle, LineChart } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { toast } from '@/hooks/use-toast';
+import { Link } from 'react-router-dom';
 
 const Transactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -28,15 +30,19 @@ const Transactions: React.FC = () => {
     categoryId: ''
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showForm, setShowForm] = useState(false);
+  const [availableBalance, setAvailableBalance] = useState(0);
 
   useEffect(() => {
     loadTransactions();
     loadCategories();
+    updateAvailableBalance();
   }, []);
 
   const loadTransactions = () => {
     const data = TransactionController.getTransactions();
     setTransactions(data);
+    updateAvailableBalance();
   };
 
   const loadCategories = () => {
@@ -44,11 +50,33 @@ const Transactions: React.FC = () => {
     setCategories(data);
   };
 
+  const updateAvailableBalance = () => {
+    const balance = TransactionController.getAvailableBalance();
+    setAvailableBalance(balance);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.categoryId || !formData.value) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos obrigatórios.",
+        variant: "destructive"
+      });
       return;
+    }
+
+    if (formData.type === 'despesa') {
+      const value = parseFloat(formData.value);
+      if (value > availableBalance) {
+        toast({
+          title: "Saldo insuficiente",
+          description: `Você não possui saldo suficiente. Saldo atual: ${formatCurrency(availableBalance)}`,
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     const success = TransactionController.createTransaction({
@@ -97,10 +125,24 @@ const Transactions: React.FC = () => {
     }
   };
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-emerald-800">Transações</h1>
+        
+        <div className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center">
+          <span className="font-medium">Saldo disponível:</span>
+          <span className={`font-bold text-lg ${availableBalance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {formatCurrency(availableBalance)}
+          </span>
+        </div>
 
         <Card className="p-6">
           <h2 className="text-lg font-medium text-emerald-800 mb-4">Nova Transação</h2>
@@ -254,6 +296,19 @@ const Transactions: React.FC = () => {
             )}
           </div>
         </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <Button onClick={() => setShowForm(true)} className="bg-emerald-800 hover:bg-emerald-700">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nova Transação
+          </Button>
+          <Link to="/investments" className="w-full">
+            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+              <LineChart className="mr-2 h-4 w-4" />
+              Investimentos
+            </Button>
+          </Link>
+        </div>
       </div>
     </MainLayout>
   );
