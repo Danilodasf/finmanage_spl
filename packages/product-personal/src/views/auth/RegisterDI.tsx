@@ -6,11 +6,10 @@ import { Label } from '@/components/ui/label';
 import { AuthLayout } from '@/components/Layout/AuthLayout';
 import { toast } from '@/hooks/use-toast';
 import { RegisterData } from '@/models/User';
-import { useAuth } from '@/lib/AuthContext';
+import { DIAuthController } from '@/controllers/DIAuthController';
 
-const Register: React.FC = () => {
+const RegisterDI: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp } = useAuth();
   const [formData, setFormData] = useState<RegisterData>({
     name: '',
     email: '',
@@ -72,20 +71,10 @@ const Register: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const { success, error } = await signUp(formData.email, formData.password, formData.name);
+      const success = await DIAuthController.register(formData);
       
       if (success) {
-        toast({
-          title: "Cadastro realizado com sucesso!",
-          description: "Sua conta foi criada. Faça login para continuar.",
-        });
         navigate('/login');
-      } else if (error) {
-        toast({
-          title: "Erro no cadastro",
-          description: error,
-          variant: "destructive",
-        });
       }
     } catch (error) {
       console.error('Erro ao cadastrar:', error);
@@ -166,7 +155,7 @@ const Register: React.FC = () => {
         </Button>
 
         <div className="text-center">
-          <Link to="/login" className="text-sm text-black hover:underline">
+          <Link to="/login-di" className="text-sm text-black hover:underline">
             Já tem uma conta? Faça login
           </Link>
         </div>
@@ -175,4 +164,4 @@ const Register: React.FC = () => {
   );
 };
 
-export default Register; 
+export default RegisterDI; 

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
-import { TransactionController } from '@/controllers/TransactionController';
-import { CategoryController } from '@/controllers/CategoryController';
+import { DITransactionController } from '@/controllers/DITransactionController';
+import { DICategoryController } from '@/controllers/DICategoryController';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Filter, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { Transaction } from '@/lib/services/TransactionService';
+import { Transaction } from '@finmanage/core/services';
 
-const Dashboard: React.FC = () => {
+const DashboardDI: React.FC = () => {
   const { user } = useAuth();
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [summary, setSummary] = useState({
@@ -27,12 +27,12 @@ const Dashboard: React.FC = () => {
       setIsLoading(true);
       try {
         if (user) {
-          // Buscar dados reais usando o TransactionController
-          const financialSummary = await TransactionController.getFinancialSummary(period);
+          // Buscar dados reais usando o DITransactionController
+          const financialSummary = await DITransactionController.getFinancialSummary(period);
           setSummary(financialSummary);
           
           // Buscar dados históricos para o gráfico de linha
-          const historicalData = await TransactionController.getMonthlyData(selectedYear);
+          const historicalData = await DITransactionController.getMonthlyData(selectedYear);
           setMonthlyData(historicalData);
         }
       } catch (error) {
@@ -67,7 +67,9 @@ const Dashboard: React.FC = () => {
     <MainLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-emerald-800">Dashboard</h1>
+          <div className="flex items-center">
+            <h1 className="text-2xl font-bold text-emerald-800">Dashboard</h1>
+          </div>
           <Select value={period} onValueChange={(value: 'month' | 'year') => setPeriod(value)}>
             <SelectTrigger className="w-32">
               <Filter className="mr-2 h-4 w-4" />
@@ -180,4 +182,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard; 
+export default DashboardDI; 

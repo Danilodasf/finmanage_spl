@@ -1,22 +1,26 @@
 import { supabase } from '../supabase';
-import { Tables } from '../supabase';
 
-export type Budget = Tables['budgets'];
+export interface Budget {
+  id: string;
+  name: string;
+  amount: number;
+  spent: number;
+  category_id?: string;
+  period: 'monthly' | 'yearly';
+  start_date: Date;
+  end_date?: Date;
+  user_id: string;
+  created_at?: Date;
+  updated_at?: Date;
+}
 
 export class BudgetService {
-  static async getAll(): Promise<{ data: Budget[] | null; error: Error | null }> {
+  static async getAll() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return { data: null, error: new Error('Usuário não autenticado') };
-      }
-      
       const { data, error } = await supabase
         .from('budgets')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name');
+        .select('*, categories:category_id(*)')
+        .order('created_at', { ascending: false });
       
       if (error) {
         console.error('Erro ao buscar orçamentos:', error);
@@ -25,24 +29,17 @@ export class BudgetService {
       
       return { data, error: null };
     } catch (error) {
-      console.error('Erro inesperado ao buscar orçamentos:', error);
-      return { data: null, error: error as Error };
+      console.error('Erro ao buscar orçamentos:', error);
+      return { data: null, error };
     }
   }
-  
-  static async getById(id: string): Promise<{ data: Budget | null; error: Error | null }> {
+
+  static async getById(id: string) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return { data: null, error: new Error('Usuário não autenticado') };
-      }
-      
       const { data, error } = await supabase
         .from('budgets')
-        .select('*')
+        .select('*, categories:category_id(*)')
         .eq('id', id)
-        .eq('user_id', user.id)
         .single();
       
       if (error) {
@@ -52,28 +49,16 @@ export class BudgetService {
       
       return { data, error: null };
     } catch (error) {
-      console.error(`Erro inesperado ao buscar orçamento com ID ${id}:`, error);
-      return { data: null, error: error as Error };
+      console.error(`Erro ao buscar orçamento com ID ${id}:`, error);
+      return { data: null, error };
     }
   }
-  
-  static async create(budget: Omit<Budget, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Budget | null; error: Error | null }> {
+
+  static async create(budget: Omit<Budget, 'id' | 'created_at' | 'updated_at'>) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return { data: null, error: new Error('Usuário não autenticado') };
-      }
-      
-      // Garantir que o user_id esteja definido
-      const budgetWithUserId = {
-        ...budget,
-        user_id: user.id
-      };
-      
       const { data, error } = await supabase
         .from('budgets')
-        .insert(budgetWithUserId)
+        .insert(budget)
         .select()
         .single();
       
@@ -84,24 +69,17 @@ export class BudgetService {
       
       return { data, error: null };
     } catch (error) {
-      console.error('Erro inesperado ao criar orçamento:', error);
-      return { data: null, error: error as Error };
+      console.error('Erro ao criar orçamento:', error);
+      return { data: null, error };
     }
   }
-  
-  static async update(id: string, budget: Partial<Omit<Budget, 'id' | 'created_at' | 'updated_at'>>): Promise<{ data: Budget | null; error: Error | null }> {
+
+  static async update(id: string, updates: Partial<Omit<Budget, 'id' | 'created_at' | 'updated_at' | 'user_id'>>) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return { data: null, error: new Error('Usuário não autenticado') };
-      }
-      
       const { data, error } = await supabase
         .from('budgets')
-        .update({ ...budget, updated_at: new Date().toISOString() })
+        .update(updates)
         .eq('id', id)
-        .eq('user_id', user.id)
         .select()
         .single();
       
@@ -112,24 +90,17 @@ export class BudgetService {
       
       return { data, error: null };
     } catch (error) {
-      console.error(`Erro inesperado ao atualizar orçamento com ID ${id}:`, error);
-      return { data: null, error: error as Error };
+      console.error(`Erro ao atualizar orçamento com ID ${id}:`, error);
+      return { data: null, error };
     }
   }
-  
-  static async delete(id: string): Promise<{ success: boolean; error: Error | null }> {
+
+  static async delete(id: string) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return { success: false, error: new Error('Usuário não autenticado') };
-      }
-      
       const { error } = await supabase
         .from('budgets')
         .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('id', id);
       
       if (error) {
         console.error(`Erro ao excluir orçamento com ID ${id}:`, error);
@@ -138,34 +109,36 @@ export class BudgetService {
       
       return { success: true, error: null };
     } catch (error) {
-      console.error(`Erro inesperado ao excluir orçamento com ID ${id}:`, error);
-      return { success: false, error: error as Error };
+      console.error(`Erro ao excluir orçamento com ID ${id}:`, error);
+      return { success: false, error };
     }
   }
-  
-  static async updateSpentAmount(id: string, spentAmount: number): Promise<{ success: boolean; error: Error | null }> {
+
+  static async updateSpent(id: string, amount: number) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Primeiro buscamos o orçamento atual
+      const { data: budget, error: fetchError } = await this.getById(id);
       
-      if (!user) {
-        return { success: false, error: new Error('Usuário não autenticado') };
+      if (fetchError || !budget) {
+        console.error(`Erro ao buscar orçamento com ID ${id}:`, fetchError);
+        return { success: false, error: fetchError };
       }
       
-      const { error } = await supabase
-        .from('budgets')
-        .update({ spent_amount: spentAmount, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('user_id', user.id);
+      // Calculamos o novo valor gasto
+      const newSpent = budget.spent + amount;
+      
+      // Atualizamos o orçamento
+      const { data, error } = await this.update(id, { spent: newSpent });
       
       if (error) {
-        console.error(`Erro ao atualizar valor gasto do orçamento ${id}:`, error);
+        console.error(`Erro ao atualizar gastos do orçamento com ID ${id}:`, error);
         return { success: false, error };
       }
       
       return { success: true, error: null };
     } catch (error) {
-      console.error(`Erro inesperado ao atualizar valor gasto do orçamento ${id}:`, error);
-      return { success: false, error: error as Error };
+      console.error(`Erro ao atualizar gastos do orçamento com ID ${id}:`, error);
+      return { success: false, error };
     }
   }
 } 

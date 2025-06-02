@@ -16,7 +16,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@finmanage/core": ["../core/src/lib"],
+      "@finmanage/core/*": ["../core/src/lib/*"]
     }
   },
   "include": ["src"],

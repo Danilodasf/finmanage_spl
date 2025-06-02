@@ -1,30 +1,34 @@
-import { LoginCredentials, RegisterData, UserModel } from '@/models/User';
+import { DIContainer, AUTH_SERVICE } from '@finmanage/core/di';
+import { AuthService } from '@finmanage/core/services';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { LoginCredentials, RegisterData } from '@/models/User';
 
-export class AuthController {
+/**
+ * Controlador de autenticação que usa injeção de dependências
+ */
+export class DIAuthController {
+  /**
+   * Obtém o serviço de autenticação do container de DI
+   * @returns Instância do serviço de autenticação
+   */
+  private static getAuthService(): AuthService {
+    return DIContainer.get<AuthService>(AUTH_SERVICE);
+  }
+
+  /**
+   * Realiza login do usuário
+   * @param credentials Credenciais de login
+   * @returns true se o login foi realizado com sucesso
+   */
   static async login(credentials: LoginCredentials): Promise<boolean> {
     try {
-      const errors = UserModel.validateLoginData(credentials);
+      const authService = this.getAuthService();
+      const { success, error } = await authService.signIn(credentials.email, credentials.password);
       
-      if (errors.length > 0) {
-        toast({
-          title: "Erro de validação",
-          description: errors.join(', '),
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: credentials.email,
-        password: credentials.password
-      });
-      
-      if (error) {
+      if (!success) {
         toast({
           title: "Erro no login",
-          description: error.message,
+          description: error || "Credenciais inválidas",
           variant: "destructive",
         });
         return false;
@@ -47,52 +51,42 @@ export class AuthController {
     }
   }
 
+  /**
+   * Registra um novo usuário
+   * @param userData Dados do usuário
+   * @returns true se o registro foi realizado com sucesso
+   */
   static async register(userData: RegisterData): Promise<boolean> {
     try {
-      const errors = UserModel.validateRegisterData(userData);
-      
-      if (errors.length > 0) {
+      // Validar dados
+      if (userData.password !== userData.confirmPassword) {
         toast({
           title: "Erro de validação",
-          description: errors.join(', '),
+          description: "As senhas não coincidem",
           variant: "destructive",
         });
         return false;
       }
 
-      // Registrar usuário no Supabase
-      const { data, error } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          data: {
-            name: userData.name
-          }
-        }
-      });
+      if (!userData.name || !userData.email || !userData.password) {
+        toast({
+          title: "Erro de validação",
+          description: "Todos os campos são obrigatórios",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const authService = this.getAuthService();
+      const { success, error } = await authService.signUp(userData.email, userData.password, userData.name);
       
-      if (error) {
+      if (!success) {
         toast({
           title: "Erro no cadastro",
-          description: error.message,
+          description: error || "Não foi possível criar sua conta",
           variant: "destructive",
         });
         return false;
-      }
-      
-      // Criar perfil do usuário
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            name: userData.name,
-          });
-
-        if (profileError) {
-          console.error('Erro ao criar perfil:', profileError);
-          // Não falhar o registro se apenas o perfil falhar
-        }
       }
       
       toast({
@@ -112,19 +106,14 @@ export class AuthController {
     }
   }
   
+  /**
+   * Realiza logout do usuário
+   * @returns true se o logout foi realizado com sucesso
+   */
   static async logout(): Promise<boolean> {
     try {
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        toast({
-          title: "Erro ao sair",
-          description: error.message,
-          variant: "destructive",
-        });
-        return false;
-      }
-      
+      const authService = this.getAuthService();
+      await authService.signOut();
       return true;
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
@@ -137,6 +126,11 @@ export class AuthController {
     }
   }
   
+  /**
+   * Atualiza o perfil do usuário
+   * @param name Nome do usuário
+   * @returns true se o perfil foi atualizado com sucesso
+   */
   static async updateProfile(name: string): Promise<boolean> {
     try {
       if (!name.trim()) {
@@ -148,42 +142,13 @@ export class AuthController {
         return false;
       }
       
-      // Obter usuário atual
-      const { data: { user } } = await supabase.auth.getUser();
+      const authService = this.getAuthService();
+      const { success, error } = await authService.updateProfile(name);
       
-      if (!user) {
-        toast({
-          title: "Erro",
-          description: "Usuário não autenticado",
-          variant: "destructive",
-        });
-        return false;
-      }
-      
-      // Atualizar metadados do usuário
-      const { error: authError } = await supabase.auth.updateUser({
-        data: { name }
-      });
-      
-      if (authError) {
+      if (!success) {
         toast({
           title: "Erro na atualização",
-          description: authError.message,
-          variant: "destructive",
-        });
-        return false;
-      }
-      
-      // Atualizar perfil
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ name })
-        .eq('id', user.id);
-        
-      if (profileError) {
-        toast({
-          title: "Erro na atualização do perfil",
-          description: profileError.message,
+          description: error || "Não foi possível atualizar seu perfil",
           variant: "destructive",
         });
         return false;
@@ -206,18 +171,24 @@ export class AuthController {
     }
   }
   
+  /**
+   * Atualiza a senha do usuário
+   * @param currentPassword Senha atual
+   * @param newPassword Nova senha
+   * @returns true se a senha foi atualizada com sucesso
+   */
   static async updatePassword(currentPassword: string, newPassword: string): Promise<boolean> {
     try {
-      if (!currentPassword) {
+      if (!currentPassword || !newPassword) {
         toast({
           title: "Erro de validação",
-          description: "Senha atual é obrigatória",
+          description: "Preencha todos os campos",
           variant: "destructive",
         });
         return false;
       }
       
-      if (!UserModel.validatePassword(newPassword)) {
+      if (newPassword.length < 6) {
         toast({
           title: "Erro de validação",
           description: "Nova senha deve ter pelo menos 6 caracteres",
@@ -226,13 +197,13 @@ export class AuthController {
         return false;
       }
       
-      // Atualizar senha
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const authService = this.getAuthService();
+      const { success, error } = await authService.updatePassword(newPassword);
       
-      if (error) {
+      if (!success) {
         toast({
           title: "Erro na atualização da senha",
-          description: error.message,
+          description: error || "Não foi possível atualizar sua senha",
           variant: "destructive",
         });
         return false;

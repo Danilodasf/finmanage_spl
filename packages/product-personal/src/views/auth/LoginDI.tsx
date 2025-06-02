@@ -6,11 +6,10 @@ import { Label } from '@/components/ui/label';
 import { AuthLayout } from '@/components/Layout/AuthLayout';
 import { toast } from '@/hooks/use-toast';
 import { LoginCredentials } from '@/models/User';
-import { useAuth } from '@/lib/AuthContext';
+import { DIAuthController } from '@/controllers/DIAuthController';
 
-const Login: React.FC = () => {
+const LoginDI: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
   const [formData, setFormData] = useState<LoginCredentials>({
     email: '',
     password: '',
@@ -30,20 +29,10 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const { success, error } = await signIn(formData.email, formData.password);
+      const success = await DIAuthController.login(formData);
       
       if (success) {
-        toast({
-          title: "Login realizado com sucesso!",
-          description: "Bem-vindo ao FinManage Personal",
-        });
         navigate('/dashboard');
-      } else if (error) {
-        toast({
-          title: "Erro no login",
-          description: error,
-          variant: "destructive",
-        });
       }
     } catch (error) {
       console.error('Erro ao fazer login:', error);
@@ -98,7 +87,7 @@ const Login: React.FC = () => {
         </Button>
 
         <div className="text-center">
-          <Link to="/register" className="text-sm text-black hover:underline">
+          <Link to="/register-di" className="text-sm text-black hover:underline">
             Criar conta
           </Link>
         </div>
@@ -107,4 +96,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login; 
+export default LoginDI; 

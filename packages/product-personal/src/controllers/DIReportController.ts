@@ -1,12 +1,9 @@
 import { toast } from '@/hooks/use-toast';
-import { TransactionController } from '@/controllers/TransactionController';
-import { CategoryController } from '@/controllers/CategoryController';
+import { DITransactionController } from '@/controllers/DITransactionController';
+import { DICategoryController } from '@/controllers/DICategoryController';
 import jsPDF from 'jspdf';
-import { Tables } from '@/lib/supabase';
+import { Transaction, Category } from '@finmanage/core/services';
 import { supabase } from '@/lib/supabase';
-
-export type Transaction = Tables['transactions'];
-export type Category = Tables['categories'];
 
 export interface ReportData {
   transactions: Transaction[];
@@ -29,7 +26,15 @@ export interface ReportFilters {
   type?: 'receita' | 'despesa' | 'ambos';
 }
 
-export class ReportController {
+/**
+ * Controlador de relatórios que usa injeção de dependências
+ */
+export class DIReportController {
+  /**
+   * Gera um relatório com base nos filtros especificados
+   * @param filters Filtros do relatório
+   * @returns Dados do relatório
+   */
   static async generateReport(filters: ReportFilters): Promise<ReportData> {
     try {
       // Verificar autenticação
@@ -44,8 +49,8 @@ export class ReportController {
         throw new Error('Usuário não autenticado');
       }
       
-      const allTransactions = await TransactionController.getTransactions();
-      const categories = await CategoryController.getCategories();
+      const allTransactions = await DITransactionController.getTransactions();
+      const categories = await DICategoryController.getCategories();
 
       // Filtrar transações por período
       const filteredTransactions = allTransactions.filter((transaction: Transaction) => {
@@ -70,11 +75,11 @@ export class ReportController {
       // Calcular resumo
       const totalReceitas = filteredTransactions
         .filter((t: Transaction) => t.type === 'receita')
-        .reduce((sum: number, t: Transaction) => sum + t.value, 0);
+        .reduce((sum: number, t: Transaction) => sum + Number(t.value), 0);
 
       const totalDespesas = filteredTransactions
         .filter((t: Transaction) => t.type === 'despesa')
-        .reduce((sum: number, t: Transaction) => sum + t.value, 0);
+        .reduce((sum: number, t: Transaction) => sum + Number(t.value), 0);
 
       return {
         transactions: filteredTransactions,
@@ -100,6 +105,10 @@ export class ReportController {
     }
   }
 
+  /**
+   * Exporta os dados do relatório para um arquivo PDF
+   * @param reportData Dados do relatório
+   */
   static async exportToPDF(reportData: ReportData): Promise<void> {
     try {
       const doc = new jsPDF();
@@ -192,7 +201,7 @@ export class ReportController {
           const date = new Date(transaction.date).toLocaleDateString('pt-BR');
           const type = transaction.type === 'receita' ? 'Receita' : 'Despesa';
           const category = this.getCategoryName(transaction.category_id, reportData.categories);
-          const value = `R$ ${transaction.value.toFixed(2)}`;
+          const value = `R$ ${Number(transaction.value).toFixed(2)}`;
 
           doc.text(date, 20, yPosition);
           doc.text(type, 55, yPosition);
@@ -241,37 +250,15 @@ export class ReportController {
     }
   }
 
+  /**
+   * Obtém o nome de uma categoria pelo ID
+   * @param categoryId ID da categoria
+   * @param categories Lista de categorias
+   * @returns Nome da categoria
+   */
   private static getCategoryName(categoryId: string | null | undefined, categories: Category[]): string {
     if (!categoryId) return 'Sem categoria';
     const category = categories.find(c => c.id === categoryId);
     return category?.name || 'Categoria não encontrada';
-  }
-
-  static async getTransactionsByPeriod(startDate: string, endDate: string): Promise<Transaction[]> {
-    try {
-      // Verificar autenticação
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('Usuário não autenticado');
-      }
-      
-      const allTransactions = await TransactionController.getTransactions();
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      // Ajustar para incluir todo o dia final
-      end.setHours(23, 59, 59, 999);
-      
-      const filteredTransactions = allTransactions.filter((transaction: Transaction) => {
-        const transactionDate = new Date(transaction.date);
-        return transactionDate >= start && transactionDate <= end;
-      });
-      
-      return filteredTransactions;
-    } catch (error) {
-      console.error('Erro ao buscar transações por período:', error);
-      return [];
-    }
   }
 } 

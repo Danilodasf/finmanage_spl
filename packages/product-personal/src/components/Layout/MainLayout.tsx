@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut, Target, LineChart } from 'lucide-react';
+import { Settings, LogOut, Target, LineChart, Layers, Database, TrendingUp, CircleCheck, RefreshCw, ListTree, FileWarning } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { AuthController } from '@/controllers/AuthController';
+import { DIAuthController } from '@/controllers/DIAuthController';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -19,15 +19,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     
-    // Chamar o método de logout do AuthController
-    const success = await AuthController.logout();
+    // Chamar o método de logout do DIAuthController
+    const success = await DIAuthController.logout();
     
     if (success) {
       toast({
         title: "Logout realizado",
         description: "Você saiu da sua conta com sucesso.",
       });
-      navigate('/login');
+      navigate('/login-di');
     }
     
     setIsLoggingOut(false);
@@ -43,22 +43,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <div className="flex space-x-4">
               <Link to="/dashboard">
                 <Button 
-                  className={isActive('/dashboard') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/dashboard') ? 'default' : 'ghost'}
+                  className={isActive('/dashboard') || isActive('/dashboard-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/dashboard') || isActive('/dashboard-di') ? 'default' : 'ghost'}
                   size="sm"
                 >
                   Dashboard
                 </Button>
               </Link>
+              
               <Link to="/transactions">
                 <Button 
-                  className={isActive('/transactions') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/transactions') ? 'default' : 'ghost'}
+                  className={isActive('/transactions') || isActive('/transactions-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/transactions') || isActive('/transactions-di') ? 'default' : 'ghost'}
                   size="sm"
                 >
                   Transações
                 </Button>
               </Link>
+              
               <Link to="/investments">
                 <Button 
                   className={isActive('/investments') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
@@ -68,15 +70,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   Investimentos
                 </Button>
               </Link>
+              
               <Link to="/categories">
                 <Button 
-                  className={isActive('/categories') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/categories') ? 'default' : 'ghost'}
+                  className={isActive('/categories') || isActive('/categories-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/categories') || isActive('/categories-di') ? 'default' : 'ghost'}
                   size="sm"
                 >
                   Categorias
                 </Button>
               </Link>
+              
               <Link to="/goals">
                 <Button 
                   className={isActive('/goals') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
@@ -86,6 +90,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   Objetivos
                 </Button>
               </Link>
+              
               <Link to="/budgets">
                 <Button 
                   className={isActive('/budgets') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
@@ -95,25 +100,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   Orçamentos
                 </Button>
               </Link>
+              
               <Link to="/reports">
                 <Button 
-                  className={isActive('/reports') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/reports') ? 'default' : 'ghost'}
+                  className={isActive('/reports') || isActive('/reports-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/reports') || isActive('/reports-di') ? 'default' : 'ghost'}
                   size="sm"
                 >
                   Relatórios
                 </Button>
               </Link>
+              
               <Link to="/settings">
                 <Button 
-                  className={isActive('/settings') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/settings') ? 'default' : 'ghost'}
+                  className={isActive('/settings') || isActive('/settings-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/settings') || isActive('/settings-di') ? 'default' : 'ghost'}
                   size="sm"
                 >
                   <Settings className="w-4 h-4 mr-1" />
                   Configurações
                 </Button>
               </Link>
+              
               <Button 
                 variant="ghost"
                 size="sm"
@@ -121,7 +129,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 onClick={handleLogout}
                 disabled={isLoggingOut}
               >
-                <LogOut className="w-4 h-4 mr-1" />
+                <LogOut className="w-4 w-4 mr-1" />
                 {isLoggingOut ? 'Saindo...' : 'Sair'}
               </Button>
             </div>

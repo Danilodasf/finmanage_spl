@@ -1,216 +1,182 @@
-import { toast } from '@/hooks/use-toast';
-import { InvestmentService, Investment, InvestmentReturn } from '@/lib/services/InvestmentService';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthContext';
+
+export interface Investment {
+  id: string;
+  name: string;
+  amount: number;
+  category_id?: string;
+  description?: string;
+  user_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface InvestmentReturn {
+  id: string;
+  investment_id: string;
+  amount: number;
+  date: string;
+  user_id: string;
+  created_at?: string;
+}
 
 export class InvestmentController {
-  static async getInvestments(): Promise<Investment[]> {
+  static async getInvestments() {
     try {
-      const { data, error } = await InvestmentService.getAll();
+      const { data, error } = await supabase
+        .from('investments')
+        .select('*, categories:category_id(*)')
+        .order('created_at', { ascending: false });
       
       if (error) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os investimentos.",
-          variant: "destructive"
-        });
-        return [];
+        console.error('Erro ao buscar investimentos:', error);
+        throw error;
       }
       
       return data || [];
     } catch (error) {
       console.error('Erro ao buscar investimentos:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os investimentos.",
-        variant: "destructive"
-      });
-      return [];
+      throw error;
     }
   }
 
-  static async getInvestmentReturns(investmentId: string): Promise<InvestmentReturn[]> {
+  static async getInvestmentById(id: string) {
     try {
-      const { data, error } = await InvestmentService.getInvestmentReturns(investmentId);
-      
-      if (error) {
-        console.error('Erro ao buscar rendimentos:', error);
-        return [];
-      }
-      
-      return data || [];
-    } catch (error) {
-      console.error('Erro ao buscar rendimentos:', error);
-      return [];
-    }
-  }
-
-  static async getInvestmentById(id: string): Promise<Investment | null> {
-    try {
-      const { data, error } = await InvestmentService.getById(id);
+      const { data, error } = await supabase
+        .from('investments')
+        .select('*, categories:category_id(*)')
+        .eq('id', id)
+        .single();
       
       if (error) {
         console.error(`Erro ao buscar investimento com ID ${id}:`, error);
-        return null;
+        throw error;
       }
       
       return data;
     } catch (error) {
       console.error(`Erro ao buscar investimento com ID ${id}:`, error);
-      return null;
+      throw error;
     }
   }
 
-  static async createInvestment(data: Omit<Investment, 'id' | 'created_at' | 'updated_at' | 'total_returns'>): Promise<boolean> {
+  static async createInvestment(investment: Omit<Investment, 'id' | 'created_at' | 'updated_at'>) {
     try {
-      // Adicionar o total_returns com valor inicial 0
-      const investmentData = {
-        ...data,
-        total_returns: 0
-      };
-      
-      const { error } = await InvestmentService.create(investmentData);
+      const { data, error } = await supabase
+        .from('investments')
+        .insert(investment)
+        .select()
+        .single();
       
       if (error) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível criar o investimento.",
-          variant: "destructive"
-        });
+        console.error('Erro ao criar investimento:', error);
         return false;
       }
-      
-      toast({
-        title: "Sucesso",
-        description: "Investimento criado com sucesso."
-      });
       
       return true;
     } catch (error) {
       console.error('Erro ao criar investimento:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar o investimento.",
-        variant: "destructive"
-      });
       return false;
     }
   }
 
-  static async updateInvestment(id: string, data: Partial<Omit<Investment, 'id' | 'created_at' | 'updated_at' | 'total_returns'>>): Promise<boolean> {
+  static async updateInvestment(id: string, updates: Partial<Omit<Investment, 'id' | 'created_at' | 'updated_at' | 'user_id'>>) {
     try {
-      const { error } = await InvestmentService.update(id, data);
+      const { data, error } = await supabase
+        .from('investments')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
       
       if (error) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o investimento.",
-          variant: "destructive"
-        });
+        console.error(`Erro ao atualizar investimento com ID ${id}:`, error);
         return false;
       }
-      
-      toast({
-        title: "Sucesso",
-        description: "Investimento atualizado com sucesso."
-      });
       
       return true;
     } catch (error) {
-      console.error('Erro ao atualizar investimento:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o investimento.",
-        variant: "destructive"
-      });
+      console.error(`Erro ao atualizar investimento com ID ${id}:`, error);
       return false;
     }
   }
 
-  static async deleteInvestment(id: string): Promise<boolean> {
+  static async deleteInvestment(id: string) {
     try {
-      const { success, error } = await InvestmentService.delete(id);
+      const { error } = await supabase
+        .from('investments')
+        .delete()
+        .eq('id', id);
       
-      if (error || !success) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o investimento.",
-          variant: "destructive"
-        });
+      if (error) {
+        console.error(`Erro ao excluir investimento com ID ${id}:`, error);
         return false;
       }
-      
-      toast({
-        title: "Sucesso",
-        description: "Investimento excluído com sucesso."
-      });
       
       return true;
     } catch (error) {
-      console.error('Erro ao excluir investimento:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir o investimento.",
-        variant: "destructive"
-      });
+      console.error(`Erro ao excluir investimento com ID ${id}:`, error);
       return false;
     }
   }
 
-  static async addInvestmentReturn(data: Omit<InvestmentReturn, 'id' | 'created_at'>): Promise<boolean> {
+  // Métodos para gerenciar rendimentos
+  static async getInvestmentReturns(investmentId: string) {
     try {
-      const { error } = await InvestmentService.addInvestmentReturn(data);
+      const { data, error } = await supabase
+        .from('investment_returns')
+        .select('*')
+        .eq('investment_id', investmentId)
+        .order('date', { ascending: false });
       
       if (error) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível adicionar o rendimento.",
-          variant: "destructive"
-        });
-        return false;
+        console.error(`Erro ao buscar rendimentos do investimento ${investmentId}:`, error);
+        throw error;
       }
       
-      toast({
-        title: "Sucesso",
-        description: "Rendimento adicionado com sucesso."
-      });
+      return data || [];
+    } catch (error) {
+      console.error(`Erro ao buscar rendimentos do investimento ${investmentId}:`, error);
+      throw error;
+    }
+  }
+
+  static async addInvestmentReturn(returnData: Omit<InvestmentReturn, 'id' | 'created_at'>) {
+    try {
+      const { data, error } = await supabase
+        .from('investment_returns')
+        .insert(returnData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Erro ao adicionar rendimento:', error);
+        return false;
+      }
       
       return true;
     } catch (error) {
       console.error('Erro ao adicionar rendimento:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível adicionar o rendimento.",
-        variant: "destructive"
-      });
       return false;
     }
   }
 
-  static async deleteInvestmentReturn(id: string): Promise<boolean> {
+  static async deleteInvestmentReturn(id: string) {
     try {
-      const { success, error } = await InvestmentService.deleteInvestmentReturn(id);
+      const { error } = await supabase
+        .from('investment_returns')
+        .delete()
+        .eq('id', id);
       
-      if (error || !success) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o rendimento.",
-          variant: "destructive"
-        });
+      if (error) {
+        console.error(`Erro ao excluir rendimento com ID ${id}:`, error);
         return false;
       }
       
-      toast({
-        title: "Sucesso",
-        description: "Rendimento excluído com sucesso."
-      });
-      
       return true;
     } catch (error) {
-      console.error('Erro ao excluir rendimento:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir o rendimento.",
-        variant: "destructive"
-      });
+      console.error(`Erro ao excluir rendimento com ID ${id}:`, error);
       return false;
     }
   }

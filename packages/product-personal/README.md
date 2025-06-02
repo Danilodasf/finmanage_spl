@@ -18,6 +18,19 @@ Este produto faz parte do ecossistema FinManage e compartilha componentes e func
 ## 🎨 Tema e Design
 O FinManage Personal utiliza um tema verde-esmeralda que transmite equilíbrio, crescimento e estabilidade, elementos-chave para uma boa gestão financeira pessoal.
 
+## 💉 Injeção de Dependências (DI)
+O FinManage Personal implementa o padrão de Injeção de Dependências para as funcionalidades principais do sistema, permitindo maior modularidade e testabilidade. 
+
+As principais funcionalidades que utilizam DI são:
+- Autenticação (login/registro)
+- Dashboard
+- Transações
+- Categorias
+- Relatórios
+- Configurações
+
+Para mais detalhes sobre a estrutura de DI, consulte a [documentação específica](./docs/DI-STRUCTURE.md).
+
 ## 🗄️ Banco de Dados e Backend
 O FinManage Personal utiliza o **Supabase** como plataforma de backend, fornecendo:
 
@@ -96,4 +109,5 @@ Para entender melhor as funcionalidades disponíveis no FinManage Personal, cons
 - Os controladores em `/src/controllers` para a lógica de negócio
 - Os serviços em `/src/lib/services` para a comunicação com o Supabase
 - O arquivo `supabase/database-schema.sql` para a estrutura do banco de dados
-- A documentação detalhada em `supabase/database-schema.md` 
+- A documentação detalhada em `supabase/database-schema.md`
+- A documentação de Injeção de Dependências em `docs/DI-STRUCTURE.md` 

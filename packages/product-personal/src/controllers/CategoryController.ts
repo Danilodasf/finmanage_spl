@@ -1,148 +1,122 @@
-import { toast } from '@/hooks/use-toast';
-import { CategoryService, Category } from '@/lib/services/CategoryService';
+import { supabase } from '../lib/supabase';
+import { Category } from '../lib/services/CategoryService';
 
 export class CategoryController {
-  static async getCategories(): Promise<Category[]> {
+  static async getCategories() {
     try {
-      const { data, error } = await CategoryService.getAll();
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name');
       
       if (error) {
-        toast({
-          title: "Erro",
-          description: "Erro ao buscar categorias.",
-          variant: "destructive",
-        });
-        return [];
+        console.error('Erro ao buscar categorias:', error);
+        throw error;
       }
       
-      // Se não há categorias, criar algumas padrão
-      if (!data || data.length === 0) {
-        await this.createDefaultCategories();
-        const { data: defaultCategories } = await CategoryService.getAll();
-        return defaultCategories || [];
+      return data || [];
+    } catch (error) {
+      console.error('Erro ao buscar categorias:', error);
+      throw error;
+    }
+  }
+
+  static async getCategoryById(id: string) {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        console.error(`Erro ao buscar categoria com ID ${id}:`, error);
+        throw error;
       }
       
       return data;
     } catch (error) {
-      console.error('Erro ao buscar categorias:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao buscar categorias.",
-        variant: "destructive",
-      });
-      return [];
+      console.error(`Erro ao buscar categoria com ID ${id}:`, error);
+      throw error;
     }
   }
 
-  private static async createDefaultCategories(): Promise<void> {
+  static async getCategoriesByType(type: string) {
     try {
-      // Obter o ID do usuário através do serviço
-      const { data: currentUser } = await CategoryService.getCurrentUser();
-      
-      if (!currentUser || !currentUser.id) return;
-      
-      const defaultCategories: Omit<Category, 'id' | 'created_at' | 'updated_at'>[] = [
-        { name: 'Faculdade', type: 'despesa', user_id: currentUser.id },
-        { name: 'Salário', type: 'receita', user_id: currentUser.id },
-        { name: 'Alimentação', type: 'despesa', user_id: currentUser.id },
-        { name: 'Transporte', type: 'despesa', user_id: currentUser.id },
-        { name: 'Lazer', type: 'despesa', user_id: currentUser.id },
-      ];
-      
-      for (const category of defaultCategories) {
-        await CategoryService.create(category);
-      }
-    } catch (error) {
-      console.error('Erro ao criar categorias padrão:', error);
-    }
-  }
-
-  static async createCategory(data: Omit<Category, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> {
-    try {
-      const { data: newCategory, error } = await CategoryService.create(data);
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('type', type)
+        .order('name');
       
       if (error) {
-        toast({
-          title: "Erro",
-          description: "Erro ao criar categoria.",
-          variant: "destructive",
-        });
-        return false;
+        console.error(`Erro ao buscar categorias do tipo ${type}:`, error);
+        throw error;
       }
       
-      toast({
-        title: "Sucesso",
-        description: "Categoria criada com sucesso!",
-      });
+      return data || [];
+    } catch (error) {
+      console.error(`Erro ao buscar categorias do tipo ${type}:`, error);
+      throw error;
+    }
+  }
+
+  static async createCategory(category: Omit<Category, 'id' | 'created_at'>) {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert(category)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Erro ao criar categoria:', error);
+        return false;
+      }
       
       return true;
     } catch (error) {
       console.error('Erro ao criar categoria:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao criar categoria.",
-        variant: "destructive",
-      });
       return false;
     }
   }
 
-  static async updateCategory(id: string, data: Partial<Omit<Category, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
+  static async updateCategory(id: string, updates: Partial<Omit<Category, 'id' | 'created_at' | 'user_id'>>) {
     try {
-      const { data: updatedCategory, error } = await CategoryService.update(id, data);
+      const { data, error } = await supabase
+        .from('categories')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
       
       if (error) {
-        toast({
-          title: "Erro",
-          description: "Erro ao atualizar categoria.",
-          variant: "destructive",
-        });
+        console.error(`Erro ao atualizar categoria com ID ${id}:`, error);
         return false;
       }
       
-      toast({
-        title: "Sucesso",
-        description: "Categoria atualizada com sucesso!",
-      });
-      
       return true;
     } catch (error) {
-      console.error('Erro ao atualizar categoria:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar categoria.",
-        variant: "destructive",
-      });
+      console.error(`Erro ao atualizar categoria com ID ${id}:`, error);
       return false;
     }
   }
 
-  static async deleteCategory(id: string): Promise<boolean> {
+  static async deleteCategory(id: string) {
     try {
-      const { success, error } = await CategoryService.delete(id);
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id);
       
-      if (error || !success) {
-        toast({
-          title: "Erro",
-          description: "Erro ao excluir categoria.",
-          variant: "destructive",
-        });
+      if (error) {
+        console.error(`Erro ao excluir categoria com ID ${id}:`, error);
         return false;
       }
       
-      toast({
-        title: "Sucesso",
-        description: "Categoria excluída com sucesso!",
-      });
-      
       return true;
     } catch (error) {
-      console.error('Erro ao excluir categoria:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao excluir categoria.",
-        variant: "destructive",
-      });
+      console.error(`Erro ao excluir categoria com ID ${id}:`, error);
       return false;
     }
   }

@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
-import { CategoryController } from '@/controllers/CategoryController';
+import { DICategoryController } from '@/controllers/DICategoryController';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Category } from '@/lib/services/CategoryService';
+import { Category } from '@finmanage/core/services';
 import { Pencil, Trash, PlusCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
-const Categories: React.FC = () => {
+const CategoriesDI: React.FC = () => {
   const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
@@ -29,7 +29,7 @@ const Categories: React.FC = () => {
   const loadCategories = async () => {
     setIsLoading(true);
     try {
-      const data = await CategoryController.getCategories();
+      const data = await DICategoryController.getCategories();
       setCategories(data);
     } catch (error) {
       console.error('Erro ao carregar categorias:', error);
@@ -54,9 +54,9 @@ const Categories: React.FC = () => {
     };
     
     if (editingId) {
-      success = await CategoryController.updateCategory(editingId, categoryData);
+      success = await DICategoryController.updateCategory(editingId, categoryData);
     } else {
-      success = await CategoryController.createCategory(categoryData);
+      success = await DICategoryController.createCategory(categoryData);
     }
 
     if (success) {
@@ -75,7 +75,7 @@ const Categories: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    const success = await CategoryController.deleteCategory(id);
+    const success = await DICategoryController.deleteCategory(id);
     if (success) {
       await loadCategories();
     }
@@ -130,7 +130,9 @@ const Categories: React.FC = () => {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-emerald-800">Categorias</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-emerald-800">Categorias</h1>
+        </div>
 
         <Card className="p-6">
           <h2 className="text-lg font-medium text-emerald-800 mb-4">
@@ -224,4 +226,4 @@ const Categories: React.FC = () => {
   );
 };
 
-export default Categories; 
+export default CategoriesDI; 

@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { AuthController } from '@/controllers/AuthController';
+import { DIAuthController } from '@/controllers/DIAuthController';
 import { useAuth } from '@/lib/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-const Settings: React.FC = () => {
+const SettingsDI: React.FC = () => {
   const { user } = useAuth();
   const [profileData, setProfileData] = useState({
     name: '',
@@ -92,7 +92,7 @@ const Settings: React.FC = () => {
     e.preventDefault();
     setIsLoadingProfile(true);
     
-    const success = await AuthController.updateProfile(profileData.name);
+    const success = await DIAuthController.updateProfile(profileData.name);
     
     if (success) {
       toast({
@@ -118,7 +118,7 @@ const Settings: React.FC = () => {
       return;
     }
     
-    const success = await AuthController.updatePassword(
+    const success = await DIAuthController.updatePassword(
       passwordData.currentPassword, 
       passwordData.newPassword
     );
@@ -154,7 +154,9 @@ const Settings: React.FC = () => {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-emerald-800">Configurações</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-emerald-800">Configurações</h1>
+        </div>
         
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="mb-4">
@@ -253,4 +255,4 @@ const Settings: React.FC = () => {
   );
 };
 
-export default Settings; 
+export default SettingsDI; 
