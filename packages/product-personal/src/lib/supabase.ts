@@ -6,7 +6,13 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 // Criando o cliente Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Tipos para as tabelas do Supabase
+/**
+ * Tipos para as tabelas do Supabase
+ * 
+ * Para uma documentação completa da estrutura do banco de dados, consulte:
+ * - supabase/database-schema.sql: Script completo de criação das tabelas, relacionamentos e políticas RLS
+ * - supabase/database-schema.md: Documentação detalhada da estrutura do banco de dados
+ */
 export type Tables = {
   categories: {
     id: string;
