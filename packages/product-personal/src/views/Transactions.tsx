@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Transaction } from '@/models/Transaction';
-import { Category } from '@/models/Category';
+import { Transaction } from '@/lib/services/TransactionService';
+import { Category } from '@/lib/services/CategoryService';
 import { TrashIcon, CalendarDays, PlusCircle, LineChart } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -18,8 +18,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { toast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/lib/AuthContext';
 
 const Transactions: React.FC = () => {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
@@ -27,38 +29,69 @@ const Transactions: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     value: '',
     description: '',
-    categoryId: ''
+    category_id: ''
   });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showForm, setShowForm] = useState(false);
   const [availableBalance, setAvailableBalance] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    loadTransactions();
-    loadCategories();
-    updateAvailableBalance();
-  }, []);
+    if (user) {
+      loadTransactions();
+      loadCategories();
+      updateAvailableBalance();
+    }
+  }, [user]);
 
-  const loadTransactions = () => {
-    const data = TransactionController.getTransactions();
-    setTransactions(data);
-    updateAvailableBalance();
+  const loadTransactions = async () => {
+    setIsLoading(true);
+    try {
+      const data = await TransactionController.getTransactions();
+      setTransactions(data);
+      updateAvailableBalance();
+    } catch (error) {
+      console.error('Erro ao carregar transações:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as transações.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const loadCategories = () => {
-    const data = CategoryController.getCategories();
-    setCategories(data);
+  const loadCategories = async () => {
+    setIsLoading(true);
+    try {
+      const data = await CategoryController.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as categorias.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const updateAvailableBalance = () => {
-    const balance = TransactionController.getAvailableBalance();
-    setAvailableBalance(balance);
+  const updateAvailableBalance = async () => {
+    try {
+      const balance = await TransactionController.getAvailableBalance();
+      setAvailableBalance(balance);
+    } catch (error) {
+      console.error('Erro ao calcular saldo disponível:', error);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.categoryId || !formData.value) {
+    if (!formData.category_id || !formData.value) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos obrigatórios.",
@@ -79,30 +112,65 @@ const Transactions: React.FC = () => {
       }
     }
 
-    const success = TransactionController.createTransaction({
-      type: formData.type,
-      date: new Date(formData.date),
-      value: parseFloat(formData.value),
-      description: formData.description,
-      categoryId: formData.categoryId
-    });
+    setIsLoading(true);
+    try {
+      if (!user) {
+        toast({
+          title: "Erro",
+          description: "Você precisa estar logado para realizar esta operação.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    if (success) {
-      setFormData({
-        type: 'despesa',
-        date: new Date().toISOString().split('T')[0],
-        value: '',
-        description: '',
-        categoryId: ''
+      const success = await TransactionController.createTransaction({
+        type: formData.type,
+        date: formData.date,
+        value: parseFloat(formData.value),
+        description: formData.description,
+        category_id: formData.category_id,
+        user_id: user.id,
+        payment_method: 'cash' // Valor padrão, pode ser melhorado com um campo no formulário
       });
-      loadTransactions();
+
+      if (success) {
+        setFormData({
+          type: 'despesa',
+          date: new Date().toISOString().split('T')[0],
+          value: '',
+          description: '',
+          category_id: ''
+        });
+        loadTransactions();
+      }
+    } catch (error) {
+      console.error('Erro ao criar transação:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar a transação.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    const success = TransactionController.deleteTransaction(id);
-    if (success) {
-      loadTransactions();
+  const handleDelete = async (id: string) => {
+    setIsLoading(true);
+    try {
+      const success = await TransactionController.deleteTransaction(id);
+      if (success) {
+        loadTransactions();
+      }
+    } catch (error) {
+      console.error('Erro ao excluir transação:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a transação.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -150,7 +218,7 @@ const Transactions: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="type">Tipo</Label>
-                <Select value={formData.type} onValueChange={(value: 'receita' | 'despesa') => setFormData({...formData, type: value, categoryId: ''})}>
+                <Select value={formData.type} onValueChange={(value: 'receita' | 'despesa') => setFormData({...formData, type: value, category_id: ''})}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -222,7 +290,7 @@ const Transactions: React.FC = () => {
 
               <div>
                 <Label htmlFor="category">Categoria</Label>
-                <Select value={formData.categoryId} onValueChange={(value) => setFormData({...formData, categoryId: value})}>
+                <Select value={formData.category_id} onValueChange={(value) => setFormData({...formData, category_id: value})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
@@ -247,8 +315,12 @@ const Transactions: React.FC = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-700">
-              Cadastrar Transação
+            <Button 
+              type="submit" 
+              className="w-full bg-emerald-800 hover:bg-emerald-700"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Processando...' : 'Cadastrar Transação'}
             </Button>
           </form>
         </Card>
@@ -256,7 +328,9 @@ const Transactions: React.FC = () => {
         <Card className="p-6">
           <h2 className="text-lg font-medium text-emerald-800 mb-4">Transações Recentes</h2>
           <div className="space-y-3">
-            {transactions.length === 0 ? (
+            {isLoading ? (
+              <p className="text-gray-500">Carregando transações...</p>
+            ) : transactions.length === 0 ? (
               <p className="text-gray-500">Nenhuma transação cadastrada.</p>
             ) : (
               transactions.map((transaction) => (
@@ -275,18 +349,19 @@ const Transactions: React.FC = () => {
                       </span>
                     </div>
                     <p className="font-medium">{transaction.description}</p>
-                    <p className="text-sm text-gray-500">{getCategoryName(transaction.categoryId)}</p>
+                    <p className="text-sm text-gray-500">{getCategoryName(transaction.category_id || '')}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`font-bold ${
                       transaction.type === 'receita' ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      R$ {transaction.value.toFixed(2)}
+                      {formatCurrency(Number(transaction.value))}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDelete(transaction.id)}
+                      disabled={isLoading}
                     >
                       <TrashIcon className="h-4 w-4" />
                     </Button>
@@ -298,12 +373,12 @@ const Transactions: React.FC = () => {
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <Button onClick={() => setShowForm(true)} className="bg-emerald-800 hover:bg-emerald-700">
+          <Button onClick={() => setShowForm(true)} className="bg-emerald-800 hover:bg-emerald-700" disabled={isLoading}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Nova Transação
           </Button>
           <Link to="/investments" className="w-full">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+            <Button className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
               <LineChart className="mr-2 h-4 w-4" />
               Investimentos
             </Button>

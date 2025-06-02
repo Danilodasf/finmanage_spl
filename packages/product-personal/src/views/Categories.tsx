@@ -6,45 +6,63 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Category } from '@/models/Category';
-import { Pencil, Trash, PlusCircle } from 'lucide-react';
+import { Category } from '@/lib/services/CategoryService';
+import { Pencil, Trash, PlusCircle, Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 
 const Categories: React.FC = () => {
+  const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     type: 'despesa' as 'receita' | 'despesa' | 'ambos' | 'investimento'
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadCategories();
-  }, []);
+    if (user) {
+      loadCategories();
+    }
+  }, [user]);
 
-  const loadCategories = () => {
-    const data = CategoryController.getCategories();
-    setCategories(data);
+  const loadCategories = async () => {
+    setIsLoading(true);
+    try {
+      const data = await CategoryController.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) {
+    if (!formData.name.trim() || !user) {
       return;
     }
 
     let success = false;
     
+    const categoryData = {
+      name: formData.name,
+      type: formData.type,
+      user_id: user.id
+    };
+    
     if (editingId) {
-      success = CategoryController.updateCategory(editingId, formData);
+      success = await CategoryController.updateCategory(editingId, categoryData);
     } else {
-      success = CategoryController.createCategory(formData);
+      success = await CategoryController.createCategory(categoryData);
     }
 
     if (success) {
       setFormData({ name: '', type: 'despesa' });
       setEditingId(null);
-      loadCategories();
+      await loadCategories();
     }
   };
 
@@ -56,10 +74,10 @@ const Categories: React.FC = () => {
     setEditingId(category.id);
   };
 
-  const handleDelete = (id: string) => {
-    const success = CategoryController.deleteCategory(id);
+  const handleDelete = async (id: string) => {
+    const success = await CategoryController.deleteCategory(id);
     if (success) {
-      loadCategories();
+      await loadCategories();
     }
   };
 
@@ -97,6 +115,17 @@ const Categories: React.FC = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <span className="ml-2 text-lg">Carregando categorias...</span>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

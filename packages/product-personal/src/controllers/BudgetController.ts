@@ -1,24 +1,22 @@
-import { Budget, createBudget, updateBudget } from '@/models/Budget';
-import { Transaction } from '@/models/Transaction';
-import { TransactionController } from './TransactionController';
 import { toast } from '@/hooks/use-toast';
-
-const STORAGE_KEY = 'finmanage_budgets';
+import { BudgetService, Budget } from '@/lib/services/BudgetService';
+import { TransactionController } from './TransactionController';
 
 export class BudgetController {
-  static getBudgets(): Budget[] {
+  static async getBudgets(): Promise<Budget[]> {
     try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      if (!savedData) return [];
+      const { data, error } = await BudgetService.getAll();
       
-      const budgets: Budget[] = JSON.parse(savedData);
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os orçamentos.",
+          variant: "destructive"
+        });
+        return [];
+      }
       
-      // Convertendo strings de data para objetos Date
-      return budgets.map(budget => ({
-        ...budget,
-        createdAt: new Date(budget.createdAt),
-        updatedAt: new Date(budget.updatedAt)
-      }));
+      return data || [];
     } catch (error) {
       console.error('Erro ao buscar orçamentos:', error);
       toast({
@@ -30,21 +28,34 @@ export class BudgetController {
     }
   }
 
-  static getBudgetById(id: string): Budget | null {
-    const budgets = this.getBudgets();
-    return budgets.find(budget => budget.id === id) || null;
+  static async getBudgetById(id: string): Promise<Budget | null> {
+    try {
+      const { data, error } = await BudgetService.getById(id);
+      
+      if (error) {
+        console.error(`Erro ao buscar orçamento com ID ${id}:`, error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error(`Erro ao buscar orçamento com ID ${id}:`, error);
+      return null;
+    }
   }
 
-  static createBudget(data: Omit<Budget, 'id' | 'spentAmount' | 'createdAt' | 'updatedAt'>): boolean {
+  static async createBudget(data: Omit<Budget, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> {
     try {
-      const budgets = this.getBudgets();
-      const newBudget = createBudget(data);
+      const { error } = await BudgetService.create(data);
       
-      // Calcular valor já gasto com base nas transações existentes
-      const spentAmount = this.calculateSpentAmount(newBudget);
-      newBudget.spentAmount = spentAmount;
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...budgets, newBudget]));
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar o orçamento.",
+          variant: "destructive"
+        });
+        return false;
+      }
       
       toast({
         title: "Sucesso",
@@ -63,30 +74,23 @@ export class BudgetController {
     }
   }
 
-  static updateBudget(id: string, data: Partial<Omit<Budget, 'id' | 'spentAmount' | 'createdAt' | 'updatedAt'>>): boolean {
+  static async updateBudget(id: string, data: Partial<Omit<Budget, 'id' | 'created_at' | 'updated_at' | 'user_id'>>): Promise<boolean> {
     try {
-      const budgets = this.getBudgets();
-      const budgetIndex = budgets.findIndex(budget => budget.id === id);
+      const { error } = await BudgetService.update(id, data);
       
-      if (budgetIndex === -1) {
+      if (error) {
         toast({
           title: "Erro",
-          description: "Orçamento não encontrado.",
+          description: "Não foi possível atualizar o orçamento.",
           variant: "destructive"
         });
         return false;
       }
       
-      const updatedBudget = updateBudget(budgets[budgetIndex], data);
-      
-      // Recalcular o valor gasto apenas se a categoria foi alterada
-      if (data.categoryId) {
-        updatedBudget.spentAmount = this.calculateSpentAmount(updatedBudget);
+      // Se a categoria foi alterada, recalcular o valor gasto
+      if (data.category_id) {
+        await this.updateBudgetSpentAmount(id);
       }
-      
-      budgets[budgetIndex] = updatedBudget;
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(budgets));
       
       toast({
         title: "Sucesso",
@@ -105,21 +109,18 @@ export class BudgetController {
     }
   }
 
-  static deleteBudget(id: string): boolean {
+  static async deleteBudget(id: string): Promise<boolean> {
     try {
-      const budgets = this.getBudgets();
-      const filteredBudgets = budgets.filter(budget => budget.id !== id);
+      const { success, error } = await BudgetService.delete(id);
       
-      if (filteredBudgets.length === budgets.length) {
+      if (error || !success) {
         toast({
           title: "Erro",
-          description: "Orçamento não encontrado.",
+          description: "Não foi possível excluir o orçamento.",
           variant: "destructive"
         });
         return false;
       }
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredBudgets));
       
       toast({
         title: "Sucesso",
@@ -138,17 +139,15 @@ export class BudgetController {
     }
   }
 
-  static refreshBudgets(): boolean {
+  static async refreshBudgets(): Promise<boolean> {
     try {
-      const budgets = this.getBudgets();
+      const budgets = await this.getBudgets();
       
       // Atualizar o valor gasto em cada orçamento
-      const updatedBudgets = budgets.map(budget => ({
-        ...budget,
-        spentAmount: this.calculateSpentAmount(budget)
-      }));
+      for (const budget of budgets) {
+        await this.updateBudgetSpentAmount(budget.id);
+      }
       
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedBudgets));
       return true;
     } catch (error) {
       console.error('Erro ao atualizar valores dos orçamentos:', error);
@@ -156,26 +155,65 @@ export class BudgetController {
     }
   }
 
-  static calculateSpentAmount(budget: Budget): number {
+  static async updateBudgetSpentAmount(budgetId: string): Promise<boolean> {
     try {
-      const transactions = TransactionController.getTransactions();
+      const budget = await this.getBudgetById(budgetId);
+      if (!budget) return false;
+      
+      const spentAmount = await this.calculateBudgetSpentAmount(budgetId);
+      
+      const { success, error } = await BudgetService.updateSpentAmount(budgetId, spentAmount);
+      
+      if (error || !success) {
+        console.error(`Erro ao atualizar valor gasto do orçamento ${budgetId}:`, error);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Erro ao atualizar valor gasto do orçamento ${budgetId}:`, error);
+      return false;
+    }
+  }
+
+  static async calculateBudgetSpentAmount(budgetId: string, month?: number, year?: number): Promise<number> {
+    try {
+      const budget = await this.getBudgetById(budgetId);
+      if (!budget || !budget.category_id) return 0;
+
+      const transactions = await TransactionController.getTransactions();
       
       // Filtrar transações pela categoria do orçamento
-      const relevantTransactions = transactions.filter(transaction => 
-        budget.categoryId === transaction.categoryId && 
-        transaction.type === 'despesa' &&
-        this.isTransactionInBudgetPeriod(transaction, budget)
+      let relevantTransactions = transactions.filter(transaction => 
+        budget.category_id === transaction.category_id && 
+        transaction.type === 'despesa'
       );
       
+      // Se mês e ano foram especificados, filtrar por eles
+      if (month !== undefined && year !== undefined) {
+        relevantTransactions = relevantTransactions.filter(transaction => {
+          const transactionDate = new Date(transaction.date);
+          return (
+            transactionDate.getMonth() + 1 === month &&
+            transactionDate.getFullYear() === year
+          );
+        });
+      } else {
+        // Caso contrário, filtrar pelo período do orçamento
+        relevantTransactions = relevantTransactions.filter(transaction => 
+          this.isTransactionInBudgetPeriod(transaction, budget)
+        );
+      }
+
       // Somar os valores das transações relevantes
-      return relevantTransactions.reduce((total, transaction) => total + transaction.value, 0);
+      return relevantTransactions.reduce((total: number, transaction) => total + transaction.value, 0);
     } catch (error) {
-      console.error('Erro ao calcular valor gasto:', error);
+      console.error('Erro ao calcular valor gasto do orçamento:', error);
       return 0;
     }
   }
 
-  private static isTransactionInBudgetPeriod(transaction: Transaction, budget: Budget): boolean {
+  private static isTransactionInBudgetPeriod(transaction: any, budget: Budget): boolean {
     const transactionDate = new Date(transaction.date);
     const currentDate = new Date();
     

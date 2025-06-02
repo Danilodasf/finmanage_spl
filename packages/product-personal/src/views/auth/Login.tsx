@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AuthLayout } from '@/components/Layout/AuthLayout';
-import { AuthController } from '@/controllers/AuthController';
+import { toast } from '@/hooks/use-toast';
 import { LoginCredentials } from '@/models/User';
+import { useAuth } from '@/lib/AuthContext';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [formData, setFormData] = useState<LoginCredentials>({
     email: '',
     password: '',
@@ -27,13 +29,32 @@ const Login: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const success = await AuthController.login(formData);
-    
-    if (success) {
-      navigate('/dashboard');
+    try {
+      const { success, error } = await signIn(formData.email, formData.password);
+      
+      if (success) {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Bem-vindo ao FinManage Personal",
+        });
+        navigate('/dashboard');
+      } else if (error) {
+        toast({
+          title: "Erro no login",
+          description: error,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
+      toast({
+        title: "Erro no login",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (

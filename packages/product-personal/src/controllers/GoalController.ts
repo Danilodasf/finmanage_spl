@@ -1,24 +1,21 @@
-import { Goal, createGoal, updateGoal } from '@/models/Goal';
 import { toast } from '@/hooks/use-toast';
-
-const STORAGE_KEY = 'finmanage_goals';
+import { GoalService, Goal } from '@/lib/services/GoalService';
 
 export class GoalController {
-  static getGoals(): Goal[] {
+  static async getGoals(): Promise<Goal[]> {
     try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      if (!savedData) return [];
+      const { data, error } = await GoalService.getAll();
       
-      const goals: Goal[] = JSON.parse(savedData);
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os objetivos.",
+          variant: "destructive"
+        });
+        return [];
+      }
       
-      // Convertendo strings de data para objetos Date
-      return goals.map(goal => ({
-        ...goal,
-        startDate: new Date(goal.startDate),
-        targetDate: new Date(goal.targetDate),
-        createdAt: new Date(goal.createdAt),
-        updatedAt: new Date(goal.updatedAt)
-      }));
+      return data || [];
     } catch (error) {
       console.error('Erro ao buscar objetivos:', error);
       toast({
@@ -30,17 +27,34 @@ export class GoalController {
     }
   }
 
-  static getGoalById(id: string): Goal | null {
-    const goals = this.getGoals();
-    return goals.find(goal => goal.id === id) || null;
+  static async getGoalById(id: string): Promise<Goal | null> {
+    try {
+      const { data, error } = await GoalService.getById(id);
+      
+      if (error) {
+        console.error(`Erro ao buscar objetivo com ID ${id}:`, error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error(`Erro ao buscar objetivo com ID ${id}:`, error);
+      return null;
+    }
   }
 
-  static createGoal(data: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>): boolean {
+  static async createGoal(data: Omit<Goal, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> {
     try {
-      const goals = this.getGoals();
-      const newGoal = createGoal(data);
+      const { error } = await GoalService.create(data);
       
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...goals, newGoal]));
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar o objetivo.",
+          variant: "destructive"
+        });
+        return false;
+      }
       
       toast({
         title: "Sucesso",
@@ -59,24 +73,18 @@ export class GoalController {
     }
   }
 
-  static updateGoal(id: string, data: Partial<Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>>): boolean {
+  static async updateGoal(id: string, data: Partial<Omit<Goal, 'id' | 'created_at' | 'updated_at' | 'user_id'>>): Promise<boolean> {
     try {
-      const goals = this.getGoals();
-      const goalIndex = goals.findIndex(goal => goal.id === id);
+      const { error } = await GoalService.update(id, data);
       
-      if (goalIndex === -1) {
+      if (error) {
         toast({
           title: "Erro",
-          description: "Objetivo não encontrado.",
+          description: "Não foi possível atualizar o objetivo.",
           variant: "destructive"
         });
         return false;
       }
-      
-      const updatedGoal = updateGoal(goals[goalIndex], data);
-      goals[goalIndex] = updatedGoal;
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
       
       toast({
         title: "Sucesso",
@@ -95,21 +103,18 @@ export class GoalController {
     }
   }
 
-  static deleteGoal(id: string): boolean {
+  static async deleteGoal(id: string): Promise<boolean> {
     try {
-      const goals = this.getGoals();
-      const filteredGoals = goals.filter(goal => goal.id !== id);
+      const { success, error } = await GoalService.delete(id);
       
-      if (filteredGoals.length === goals.length) {
+      if (error || !success) {
         toast({
           title: "Erro",
-          description: "Objetivo não encontrado.",
+          description: "Não foi possível excluir o objetivo.",
           variant: "destructive"
         });
         return false;
       }
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredGoals));
       
       toast({
         title: "Sucesso",
@@ -128,29 +133,18 @@ export class GoalController {
     }
   }
 
-  static updateGoalProgress(id: string, amount: number): boolean {
+  static async updateGoalProgress(id: string, amount: number): Promise<boolean> {
     try {
-      const goals = this.getGoals();
-      const goalIndex = goals.findIndex(goal => goal.id === id);
+      const { success, error } = await GoalService.updateProgress(id, amount);
       
-      if (goalIndex === -1) {
+      if (error || !success) {
         toast({
           title: "Erro",
-          description: "Objetivo não encontrado.",
+          description: "Não foi possível atualizar o progresso.",
           variant: "destructive"
         });
         return false;
       }
-      
-      const updatedGoal = {
-        ...goals[goalIndex],
-        currentAmount: amount,
-        updatedAt: new Date()
-      };
-      
-      goals[goalIndex] = updatedGoal;
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
       
       toast({
         title: "Sucesso",

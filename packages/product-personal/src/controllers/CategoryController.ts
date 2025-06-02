@@ -1,39 +1,74 @@
-import { Category, CreateCategoryData } from '@/models/Category';
 import { toast } from '@/hooks/use-toast';
+import { CategoryService, Category } from '@/lib/services/CategoryService';
 
 export class CategoryController {
-  private static storageKey = 'finmanage_personal_categories';
-
-  static getCategories(): Category[] {
-    const stored = localStorage.getItem(this.storageKey);
-    const categories = stored ? JSON.parse(stored) : [];
-    
-    // Se não há categorias, criar algumas padrão
-    if (categories.length === 0) {
-      const defaultCategories: Category[] = [
-        { id: '1', name: 'Faculdade', type: 'despesa' },
-        { id: '2', name: 'Salário', type: 'receita' },
-        { id: '3', name: 'Alimentação', type: 'despesa' },
-        { id: '4', name: 'Transporte', type: 'despesa' },
-        { id: '5', name: 'Lazer', type: 'despesa' },
-      ];
-      localStorage.setItem(this.storageKey, JSON.stringify(defaultCategories));
-      return defaultCategories;
+  static async getCategories(): Promise<Category[]> {
+    try {
+      const { data, error } = await CategoryService.getAll();
+      
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao buscar categorias.",
+          variant: "destructive",
+        });
+        return [];
+      }
+      
+      // Se não há categorias, criar algumas padrão
+      if (!data || data.length === 0) {
+        await this.createDefaultCategories();
+        const { data: defaultCategories } = await CategoryService.getAll();
+        return defaultCategories || [];
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Erro ao buscar categorias:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao buscar categorias.",
+        variant: "destructive",
+      });
+      return [];
     }
-    
-    return categories;
   }
 
-  static createCategory(data: CreateCategoryData): boolean {
+  private static async createDefaultCategories(): Promise<void> {
     try {
-      const categories = this.getCategories();
-      const newCategory: Category = {
-        id: Date.now().toString(),
-        ...data
-      };
+      // Obter o ID do usuário através do serviço
+      const { data: currentUser } = await CategoryService.getCurrentUser();
+      
+      if (!currentUser || !currentUser.id) return;
+      
+      const defaultCategories: Omit<Category, 'id' | 'created_at' | 'updated_at'>[] = [
+        { name: 'Faculdade', type: 'despesa', user_id: currentUser.id },
+        { name: 'Salário', type: 'receita', user_id: currentUser.id },
+        { name: 'Alimentação', type: 'despesa', user_id: currentUser.id },
+        { name: 'Transporte', type: 'despesa', user_id: currentUser.id },
+        { name: 'Lazer', type: 'despesa', user_id: currentUser.id },
+      ];
+      
+      for (const category of defaultCategories) {
+        await CategoryService.create(category);
+      }
+    } catch (error) {
+      console.error('Erro ao criar categorias padrão:', error);
+    }
+  }
 
-      categories.push(newCategory);
-      localStorage.setItem(this.storageKey, JSON.stringify(categories));
+  static async createCategory(data: Omit<Category, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> {
+    try {
+      const { data: newCategory, error } = await CategoryService.create(data);
+      
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao criar categoria.",
+          variant: "destructive",
+        });
+        return false;
+      }
       
       toast({
         title: "Sucesso",
@@ -42,6 +77,7 @@ export class CategoryController {
       
       return true;
     } catch (error) {
+      console.error('Erro ao criar categoria:', error);
       toast({
         title: "Erro",
         description: "Erro ao criar categoria.",
@@ -51,24 +87,27 @@ export class CategoryController {
     }
   }
 
-  static updateCategory(id: string, data: CreateCategoryData): boolean {
+  static async updateCategory(id: string, data: Partial<Omit<Category, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
     try {
-      const categories = this.getCategories();
-      const index = categories.findIndex(c => c.id === id);
+      const { data: updatedCategory, error } = await CategoryService.update(id, data);
       
-      if (index !== -1) {
-        categories[index] = { ...categories[index], ...data };
-        localStorage.setItem(this.storageKey, JSON.stringify(categories));
-        
+      if (error) {
         toast({
-          title: "Sucesso",
-          description: "Categoria atualizada com sucesso!",
+          title: "Erro",
+          description: "Erro ao atualizar categoria.",
+          variant: "destructive",
         });
-        
-        return true;
+        return false;
       }
-      return false;
+      
+      toast({
+        title: "Sucesso",
+        description: "Categoria atualizada com sucesso!",
+      });
+      
+      return true;
     } catch (error) {
+      console.error('Erro ao atualizar categoria:', error);
       toast({
         title: "Erro",
         description: "Erro ao atualizar categoria.",
@@ -78,11 +117,18 @@ export class CategoryController {
     }
   }
 
-  static deleteCategory(id: string): boolean {
+  static async deleteCategory(id: string): Promise<boolean> {
     try {
-      const categories = this.getCategories();
-      const filtered = categories.filter(c => c.id !== id);
-      localStorage.setItem(this.storageKey, JSON.stringify(filtered));
+      const { success, error } = await CategoryService.delete(id);
+      
+      if (error || !success) {
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir categoria.",
+          variant: "destructive",
+        });
+        return false;
+      }
       
       toast({
         title: "Sucesso",
@@ -91,6 +137,7 @@ export class CategoryController {
       
       return true;
     } catch (error) {
+      console.error('Erro ao excluir categoria:', error);
       toast({
         title: "Erro",
         description: "Erro ao excluir categoria.",

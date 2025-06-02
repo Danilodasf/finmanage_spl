@@ -14,14 +14,15 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { Investment, InvestmentReturn } from '@/models/Investment';
+import { Investment, InvestmentReturn } from '@/lib/services/InvestmentService';
 import { 
   Pencil, 
   Trash, 
   PlusCircle, 
   TrendingUp, 
   DollarSign, 
-  Calendar 
+  Calendar,
+  Loader2
 } from 'lucide-react';
 import {
   Dialog,
@@ -30,18 +31,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/lib/AuthContext';
 
 const Investments: React.FC = () => {
+  const { user } = useAuth();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string, name: string, type: string }>>([]);
   const [formData, setFormData] = useState({
     name: '',
     amount: '',
-    categoryId: '',
+    category_id: '',
     description: ''
   });
   const [returnData, setReturnData] = useState({
@@ -53,26 +55,40 @@ const Investments: React.FC = () => {
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const [investmentReturns, setInvestmentReturns] = useState<InvestmentReturn[]>([]);
   const [isLoadingReturns, setIsLoadingReturns] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadInvestments();
-    loadCategories();
-  }, []);
+    if (user) {
+      loadInvestments();
+      loadCategories();
+    }
+  }, [user]);
 
-  const loadInvestments = () => {
-    const data = InvestmentController.getInvestments();
-    setInvestments(data);
+  const loadInvestments = async () => {
+    setIsLoading(true);
+    try {
+      const data = await InvestmentController.getInvestments();
+      setInvestments(data);
+    } catch (error) {
+      console.error('Erro ao carregar investimentos:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const loadCategories = () => {
-    const data = CategoryController.getCategories();
-    setCategories(data);
+  const loadCategories = async () => {
+    try {
+      const data = await CategoryController.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+    }
   };
 
-  const loadReturnsForInvestment = (investmentId: string) => {
+  const loadReturnsForInvestment = async (investmentId: string) => {
     setIsLoadingReturns(true);
     try {
-      const returns = InvestmentController.getInvestmentReturns(investmentId);
+      const returns = await InvestmentController.getInvestmentReturns(investmentId);
       setInvestmentReturns(returns);
     } catch (error) {
       console.error('Erro ao carregar rendimentos:', error);
@@ -81,31 +97,32 @@ const Investments: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.amount || !formData.categoryId) {
+    if (!formData.name.trim() || !formData.amount || !formData.category_id || !user) {
       return;
     }
 
     const investmentData = {
       name: formData.name,
       amount: parseFloat(formData.amount),
-      categoryId: formData.categoryId,
-      description: formData.description
+      category_id: formData.category_id,
+      description: formData.description,
+      user_id: user.id
     };
 
     let success = false;
     
     if (editingId) {
-      success = InvestmentController.updateInvestment(editingId, investmentData);
+      success = await InvestmentController.updateInvestment(editingId, investmentData);
     } else {
-      success = InvestmentController.createInvestment(investmentData);
+      success = await InvestmentController.createInvestment(investmentData);
     }
 
     if (success) {
       resetForm();
-      loadInvestments();
+      await loadInvestments();
     }
   };
 
@@ -113,7 +130,7 @@ const Investments: React.FC = () => {
     setFormData({
       name: '',
       amount: '',
-      categoryId: '',
+      category_id: '',
       description: ''
     });
     setEditingId(null);
@@ -123,21 +140,21 @@ const Investments: React.FC = () => {
     setFormData({
       name: investment.name,
       amount: investment.amount.toString(),
-      categoryId: investment.categoryId,
+      category_id: investment.category_id || '',
       description: investment.description || ''
     });
     setEditingId(investment.id);
   };
 
-  const handleDelete = (id: string) => {
-    const success = InvestmentController.deleteInvestment(id);
+  const handleDelete = async (id: string) => {
+    const success = await InvestmentController.deleteInvestment(id);
     if (success) {
-      loadInvestments();
+      await loadInvestments();
     }
   };
 
-  const handleAddReturn = () => {
-    if (!selectedInvestmentId || !returnData.amount || !returnData.date) {
+  const handleAddReturn = async () => {
+    if (!selectedInvestmentId || !returnData.amount || !returnData.date || !user) {
       return;
     }
 
@@ -146,10 +163,11 @@ const Investments: React.FC = () => {
       return;
     }
 
-    const success = InvestmentController.addInvestmentReturn({
-      investmentId: selectedInvestmentId,
+    const success = await InvestmentController.addInvestmentReturn({
+      investment_id: selectedInvestmentId,
       amount: returnAmount,
-      date: returnData.date
+      date: returnData.date,
+      user_id: user.id
     });
 
     if (success) {
@@ -158,16 +176,16 @@ const Investments: React.FC = () => {
         date: format(new Date(), 'yyyy-MM-dd')
       });
       setIsReturnDialogOpen(false);
-      loadInvestments();
+      await loadInvestments();
       if (selectedInvestmentId) {
-        loadReturnsForInvestment(selectedInvestmentId);
+        await loadReturnsForInvestment(selectedInvestmentId);
       }
     }
   };
 
-  const handleViewReturns = (investmentId: string) => {
+  const handleViewReturns = async (investmentId: string) => {
     setSelectedInvestmentId(investmentId);
-    loadReturnsForInvestment(investmentId);
+    await loadReturnsForInvestment(investmentId);
   };
 
   const handleOpenReturnDialog = (investmentId: string) => {
@@ -191,7 +209,8 @@ const Investments: React.FC = () => {
     return format(date, 'dd/MM/yyyy', { locale: ptBR });
   };
 
-  const getCategoryName = (categoryId: string) => {
+  const getCategoryName = (categoryId: string | null | undefined) => {
+    if (!categoryId) return 'Sem categoria';
     const category = categories.find(cat => cat.id === categoryId);
     return category ? category.name : 'Categoria não encontrada';
   };
@@ -200,6 +219,17 @@ const Investments: React.FC = () => {
     if (!selectedInvestmentId) return null;
     return investments.find(inv => inv.id === selectedInvestmentId);
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <span className="ml-2 text-lg">Carregando investimentos...</span>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -243,8 +273,8 @@ const Investments: React.FC = () => {
                   <p className="text-sm text-gray-500">Nenhuma categoria disponível.</p>
                 ) : (
                   <Select 
-                    value={formData.categoryId} 
-                    onValueChange={(value) => setFormData({...formData, categoryId: value})}
+                    value={formData.category_id} 
+                    onValueChange={(value) => setFormData({...formData, category_id: value})}
                   >
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Selecione uma categoria" />
@@ -302,17 +332,17 @@ const Investments: React.FC = () => {
                       <div>
                         <h3 className="font-semibold text-lg">{investment.name}</h3>
                         <p className="text-sm text-gray-500">
-                          Categoria: {getCategoryName(investment.categoryId)}
+                          Categoria: {getCategoryName(investment.category_id)}
                         </p>
                         <div className="flex flex-col sm:flex-row sm:gap-4 mt-1">
                           <p className="text-sm">
                             <span className="text-gray-500">Valor investido:</span> {formatCurrency(investment.amount)}
                           </p>
                           <p className="text-sm">
-                            <span className="text-gray-500">Rendimentos:</span> {formatCurrency(investment.totalReturns)}
+                            <span className="text-gray-500">Rendimentos:</span> {formatCurrency(investment.total_returns || 0)}
                           </p>
                           <p className="text-sm">
-                            <span className="text-gray-500">Total:</span> {formatCurrency(investment.amount + investment.totalReturns)}
+                            <span className="text-gray-500">Total:</span> {formatCurrency(investment.amount + (investment.total_returns || 0))}
                           </p>
                         </div>
                       </div>
@@ -334,7 +364,7 @@ const Investments: React.FC = () => {
                           disabled={isLoadingReturns && selectedInvestmentId === investment.id}
                         >
                           {isLoadingReturns && selectedInvestmentId === investment.id ? (
-                            <span className="animate-spin">⏳</span>
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <DollarSign className="h-4 w-4" />
                           )}
@@ -369,7 +399,7 @@ const Investments: React.FC = () => {
                           {investmentReturns.map((ret) => (
                             <div key={ret.id} className="flex justify-between items-center text-sm bg-white p-2 rounded border">
                               <div>
-                                <p className="font-medium">{formatCurrency(ret.amount)}</p>
+                                <p className="font-medium">{formatCurrency(Number(ret.amount))}</p>
                                 <p className="text-gray-500 text-xs">
                                   <Calendar className="h-3 w-3 inline mr-1" />
                                   {formatDate(ret.date)}
@@ -379,11 +409,11 @@ const Investments: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0 text-red-500"
-                                onClick={() => {
-                                  const success = InvestmentController.deleteInvestmentReturn(ret.id);
-                                  if (success) {
-                                    loadInvestments();
-                                    loadReturnsForInvestment(investment.id);
+                                onClick={async () => {
+                                  const success = await InvestmentController.deleteInvestmentReturn(ret.id);
+                                  if (success && investment.id) {
+                                    await loadInvestments();
+                                    await loadReturnsForInvestment(investment.id);
                                   }
                                 }}
                               >

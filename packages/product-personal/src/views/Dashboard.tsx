@@ -5,40 +5,45 @@ import { CategoryController } from '@/controllers/CategoryController';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PieChart, Pie, Cell, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { Filter } from 'lucide-react';
+import { Filter, Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import { Transaction } from '@/lib/services/TransactionService';
 
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [summary, setSummary] = useState({
     receitas: 0,
     despesas: 0,
     saldo: 0,
-    transactions: []
+    transactions: [] as Transaction[]
   });
-  const [monthlyData, setMonthlyData] = useState<any[]>([]);
+  const [monthlyData, setMonthlyData] = useState<{ name: string; receitas: number; despesas: number }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
-    // Na versão real, chamaria o controller com dados reais
-    // Aqui estamos usando dados fictícios para simulação
-    const mockData = {
-      receitas: 3500,
-      despesas: 2300,
-      saldo: 1200,
-      transactions: []
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        if (user) {
+          // Buscar dados reais usando o TransactionController
+          const financialSummary = await TransactionController.getFinancialSummary(period);
+          setSummary(financialSummary);
+          
+          // Buscar dados históricos para o gráfico de linha
+          const historicalData = await TransactionController.getMonthlyData(selectedYear);
+          setMonthlyData(historicalData);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do dashboard:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setSummary(mockData);
     
-    // Dados fictícios para o gráfico de linha
-    const mockMonthlyData = [
-      { name: 'Jan', receitas: 4000, despesas: 2400 },
-      { name: 'Fev', receitas: 3000, despesas: 1398 },
-      { name: 'Mar', receitas: 2000, despesas: 9800 },
-      { name: 'Abr', receitas: 2780, despesas: 3908 },
-      { name: 'Mai', receitas: 1890, despesas: 4800 },
-      { name: 'Jun', receitas: 2390, despesas: 3800 },
-    ];
-    setMonthlyData(mockMonthlyData);
-  }, [period]);
+    loadData();
+  }, [period, user, selectedYear]);
 
   const pieData = [
     { name: 'Receitas', value: summary.receitas > 0 ? summary.receitas : 0.1 },
@@ -46,6 +51,17 @@ const Dashboard: React.FC = () => {
   ];
 
   const COLORS = ['#3b82f6', '#ef4444'];
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <span className="ml-2 text-lg">Carregando dashboard...</span>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -114,7 +130,24 @@ const Dashboard: React.FC = () => {
         </Card>
 
         <Card className="p-6">
-          <h3 className="text-lg font-medium text-black mb-4">Evolução Financeira</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-black">Evolução Financeira</h3>
+            <Select 
+              value={selectedYear.toString()} 
+              onValueChange={(value) => setSelectedYear(Number(value))}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyData}>

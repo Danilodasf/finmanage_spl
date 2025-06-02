@@ -1,9 +1,12 @@
-import { Transaction } from '@/models/Transaction';
-import { Category } from '@/models/Category';
+import { toast } from '@/hooks/use-toast';
 import { TransactionController } from '@/controllers/TransactionController';
 import { CategoryController } from '@/controllers/CategoryController';
-import { toast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
+import { Tables } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+
+export type Transaction = Tables['transactions'];
+export type Category = Tables['categories'];
 
 export interface ReportData {
   transactions: Transaction[];
@@ -27,20 +30,32 @@ export interface ReportFilters {
 }
 
 export class ReportController {
-  static generateReport(filters: ReportFilters): ReportData {
+  static async generateReport(filters: ReportFilters): Promise<ReportData> {
     try {
-      const allTransactions = TransactionController.getTransactions();
-      const categories = CategoryController.getCategories();
+      // Verificar autenticação
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado.",
+          variant: "destructive",
+        });
+        throw new Error('Usuário não autenticado');
+      }
+      
+      const allTransactions = await TransactionController.getTransactions();
+      const categories = await CategoryController.getCategories();
 
       // Filtrar transações por período
-      const filteredTransactions = allTransactions.filter(transaction => {
+      const filteredTransactions = allTransactions.filter((transaction: Transaction) => {
         const transactionDate = new Date(transaction.date);
         const isInPeriod = transactionDate >= filters.startDate && transactionDate <= filters.endDate;
         
         if (!isInPeriod) return false;
 
         // Filtrar por categoria se especificada
-        if (filters.categoryId && transaction.categoryId !== filters.categoryId) {
+        if (filters.categoryId && transaction.category_id !== filters.categoryId) {
           return false;
         }
 
@@ -54,12 +69,12 @@ export class ReportController {
 
       // Calcular resumo
       const totalReceitas = filteredTransactions
-        .filter(t => t.type === 'receita')
-        .reduce((sum, t) => sum + t.value, 0);
+        .filter((t: Transaction) => t.type === 'receita')
+        .reduce((sum: number, t: Transaction) => sum + t.value, 0);
 
       const totalDespesas = filteredTransactions
-        .filter(t => t.type === 'despesa')
-        .reduce((sum, t) => sum + t.value, 0);
+        .filter((t: Transaction) => t.type === 'despesa')
+        .reduce((sum: number, t: Transaction) => sum + t.value, 0);
 
       return {
         transactions: filteredTransactions,
@@ -75,6 +90,7 @@ export class ReportController {
         }
       };
     } catch (error) {
+      console.error('Erro ao gerar relatório:', error);
       toast({
         title: "Erro",
         description: "Erro ao gerar relatório.",
@@ -84,7 +100,7 @@ export class ReportController {
     }
   }
 
-  static exportToPDF(reportData: ReportData): void {
+  static async exportToPDF(reportData: ReportData): Promise<void> {
     try {
       const doc = new jsPDF();
       let yPosition = 20;
@@ -166,7 +182,7 @@ export class ReportController {
         // Transações
         doc.setFont('helvetica', 'normal');
         
-        reportData.transactions.forEach((transaction) => {
+        reportData.transactions.forEach((transaction: Transaction) => {
           // Verificar se precisa de nova página
           if (yPosition > 270) {
             doc.addPage();
@@ -175,16 +191,16 @@ export class ReportController {
 
           const date = new Date(transaction.date).toLocaleDateString('pt-BR');
           const type = transaction.type === 'receita' ? 'Receita' : 'Despesa';
-          const category = this.getCategoryName(transaction.categoryId, reportData.categories);
+          const category = this.getCategoryName(transaction.category_id, reportData.categories);
           const value = `R$ ${transaction.value.toFixed(2)}`;
 
           doc.text(date, 20, yPosition);
           doc.text(type, 55, yPosition);
           
           // Truncar descrição se muito longa
-          const description = transaction.description.length > 25 
+          const description = transaction.description && transaction.description.length > 25 
             ? transaction.description.substring(0, 25) + '...' 
-            : transaction.description;
+            : transaction.description || '';
           doc.text(description, 85, yPosition);
           
           // Truncar categoria se muito longa
@@ -215,16 +231,47 @@ export class ReportController {
         description: "Relatório PDF baixado com sucesso!",
       });
     } catch (error) {
+      console.error('Erro ao exportar relatório para PDF:', error);
       toast({
         title: "Erro",
         description: "Erro ao exportar relatório.",
         variant: "destructive",
       });
+      throw error;
     }
   }
 
-  private static getCategoryName(categoryId: string, categories: Category[]): string {
+  private static getCategoryName(categoryId: string | null | undefined, categories: Category[]): string {
+    if (!categoryId) return 'Sem categoria';
     const category = categories.find(c => c.id === categoryId);
     return category?.name || 'Categoria não encontrada';
+  }
+
+  static async getTransactionsByPeriod(startDate: string, endDate: string): Promise<Transaction[]> {
+    try {
+      // Verificar autenticação
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      const allTransactions = await TransactionController.getTransactions();
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      // Ajustar para incluir todo o dia final
+      end.setHours(23, 59, 59, 999);
+      
+      const filteredTransactions = allTransactions.filter((transaction: Transaction) => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate >= start && transactionDate <= end;
+      });
+      
+      return filteredTransactions;
+    } catch (error) {
+      console.error('Erro ao buscar transações por período:', error);
+      return [];
+    }
   }
 } 

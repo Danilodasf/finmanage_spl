@@ -15,12 +15,14 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Budget } from '@/models/Budget';
-import { Pencil, Trash, PlusCircle } from 'lucide-react';
+import { Budget } from '@/lib/services/BudgetService';
+import { Pencil, Trash, PlusCircle, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useAuth } from '@/lib/AuthContext';
 
 const Budgets: React.FC = () => {
+  const { user } = useAuth();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string, name: string, type: string }>>([]);
   const [formData, setFormData] = useState({
@@ -31,50 +33,82 @@ const Budgets: React.FC = () => {
     description: ''
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    loadBudgets();
-    loadCategories();
-  }, []);
+    if (user) {
+      loadBudgets();
+      loadCategories();
+    }
+  }, [user]);
 
-  const loadBudgets = () => {
-    const data = BudgetController.getBudgets();
-    setBudgets(data);
+  const loadBudgets = async () => {
+    setIsLoadingBudgets(true);
+    try {
+      const data = await BudgetController.getBudgets();
+      setBudgets(data);
+    } catch (error) {
+      console.error('Erro ao carregar orçamentos:', error);
+    } finally {
+      setIsLoadingBudgets(false);
+    }
   };
 
-  const loadCategories = () => {
-    const data = CategoryController.getCategories();
-    // Filtrar apenas categorias de despesa
-    const expenseCategories = data.filter(cat => cat.type === 'despesa' || cat.type === 'ambos');
-    setCategories(expenseCategories);
+  const loadCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      const data = await CategoryController.getCategories();
+      // Filtrar apenas categorias de despesa
+      const expenseCategories = data.filter(cat => cat.type === 'despesa' || cat.type === 'ambos');
+      setCategories(expenseCategories);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+    } finally {
+      setIsLoadingCategories(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.amount || !formData.categoryIds[0]) {
+    if (!formData.name.trim() || !formData.amount || !formData.categoryIds[0] || !user) {
       return;
     }
 
-    const budgetData = {
-      name: formData.name,
-      amount: parseFloat(formData.amount),
-      categoryId: formData.categoryIds[0],
-      period: formData.period,
-      description: formData.description
-    };
-
-    let success = false;
+    setIsSubmitting(true);
     
-    if (editingId) {
-      success = BudgetController.updateBudget(editingId, budgetData);
-    } else {
-      success = BudgetController.createBudget(budgetData);
-    }
+    try {
+      const budgetData = {
+        name: formData.name,
+        amount: parseFloat(formData.amount),
+        category_id: formData.categoryIds[0],
+        period: formData.period,
+        description: formData.description,
+        user_id: user.id,
+        spent_amount: 0
+      };
 
-    if (success) {
-      resetForm();
-      loadBudgets();
+      let success = false;
+      
+      if (editingId) {
+        // Para atualização, não precisamos enviar o user_id e spent_amount
+        const { user_id, spent_amount, ...updateData } = budgetData;
+        success = await BudgetController.updateBudget(editingId, updateData);
+      } else {
+        success = await BudgetController.createBudget(budgetData);
+      }
+
+      if (success) {
+        resetForm();
+        await loadBudgets();
+      }
+    } catch (error) {
+      console.error('Erro ao salvar orçamento:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -93,17 +127,24 @@ const Budgets: React.FC = () => {
     setFormData({
       name: budget.name,
       amount: budget.amount.toString(),
-      categoryIds: [budget.categoryId],
+      categoryIds: budget.category_id ? [budget.category_id] : [],
       period: budget.period,
       description: budget.description || ''
     });
     setEditingId(budget.id);
   };
 
-  const handleDelete = (id: string) => {
-    const success = BudgetController.deleteBudget(id);
-    if (success) {
-      loadBudgets();
+  const handleDelete = async (id: string) => {
+    setIsDeleting(id);
+    try {
+      const success = await BudgetController.deleteBudget(id);
+      if (success) {
+        await loadBudgets();
+      }
+    } catch (error) {
+      console.error('Erro ao excluir orçamento:', error);
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -119,7 +160,8 @@ const Budgets: React.FC = () => {
   };
 
   const calculateProgress = (budget: Budget) => {
-    return Math.min(100, (budget.spentAmount / budget.amount) * 100);
+    const spentAmount = budget.spent_amount || 0;
+    return Math.min(100, (spentAmount / budget.amount) * 100);
   };
 
   const formatCurrency = (value: number) => {
@@ -129,10 +171,22 @@ const Budgets: React.FC = () => {
     }).format(value);
   };
 
-  const getCategoryName = (categoryId: string) => {
+  const getCategoryName = (categoryId: string | undefined) => {
+    if (!categoryId) return 'Categoria não especificada';
     const category = categories.find(cat => cat.id === categoryId);
     return category ? category.name : 'Categoria não encontrada';
   };
+
+  if (isLoadingBudgets || isLoadingCategories) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <span className="ml-2 text-lg">Carregando orçamentos...</span>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -153,6 +207,7 @@ const Budgets: React.FC = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -167,6 +222,7 @@ const Budgets: React.FC = () => {
                   value={formData.amount}
                   onChange={(e) => setFormData({...formData, amount: e.target.value})}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -176,6 +232,7 @@ const Budgets: React.FC = () => {
                   value={formData.period} 
                   onValueChange={(value: 'mensal' | 'anual') => setFormData({...formData, period: value})}
                   className="flex space-x-4 mt-2"
+                  disabled={isSubmitting}
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="mensal" id="mensal" />
@@ -196,6 +253,7 @@ const Budgets: React.FC = () => {
                   <Select 
                     value={formData.categoryIds[0] || ""} 
                     onValueChange={handleCategorySelect}
+                    disabled={isSubmitting}
                   >
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Selecione uma categoria" />
@@ -219,17 +277,36 @@ const Budgets: React.FC = () => {
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   className="h-24"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="flex gap-3">
-              <Button type="submit" className="flex-1 bg-emerald-800 hover:bg-emerald-700">
-                <PlusCircle className="h-4 w-4 mr-2" />
-                {editingId ? 'Atualizar' : 'Adicionar'} Orçamento
+              <Button 
+                type="submit" 
+                className="flex-1 bg-emerald-800 hover:bg-emerald-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {editingId ? 'Atualizando...' : 'Adicionando...'}
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    {editingId ? 'Atualizar' : 'Adicionar'} Orçamento
+                  </>
+                )}
               </Button>
               {editingId && (
-                <Button type="button" variant="outline" onClick={handleCancel}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleCancel}
+                  disabled={isSubmitting}
+                >
                   Cancelar
                 </Button>
               )}
@@ -266,7 +343,7 @@ const Budgets: React.FC = () => {
                             Orçamento {budget.period}: {formatCurrency(budget.amount)}
                           </p>
                           <p className="text-sm text-gray-500">
-                            Categoria: {getCategoryName(budget.categoryId)}
+                            Categoria: {getCategoryName(budget.category_id)}
                           </p>
                         </div>
                         <div className="flex gap-2">
@@ -274,6 +351,7 @@ const Budgets: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEdit(budget)}
+                            disabled={isDeleting === budget.id}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -281,8 +359,13 @@ const Budgets: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleDelete(budget.id)}
+                            disabled={isDeleting === budget.id}
                           >
-                            <Trash className="h-4 w-4" />
+                            {isDeleting === budget.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -295,7 +378,7 @@ const Budgets: React.FC = () => {
                         <div className="flex justify-between text-sm mb-1">
                           <span>Utilizado: {progress.toFixed(0)}%</span>
                           <span>
-                            {formatCurrency(budget.spentAmount)} de {formatCurrency(budget.amount)}
+                            {formatCurrency(budget.spent_amount || 0)} de {formatCurrency(budget.amount)}
                           </span>
                         </div>
                         <Progress value={progress} className={progressClass} />

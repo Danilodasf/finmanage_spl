@@ -1,5 +1,6 @@
 import { LoginCredentials, RegisterData, UserModel } from '@/models/User';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 export class AuthController {
   static async login(credentials: LoginCredentials): Promise<boolean> {
@@ -15,11 +16,19 @@ export class AuthController {
         return false;
       }
 
-      // Simulação de login - aqui seria integrado com a API real
-      console.log('Tentativa de login:', credentials);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password
+      });
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (error) {
+        toast({
+          title: "Erro no login",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
       
       toast({
         title: "Login realizado com sucesso!",
@@ -28,6 +37,7 @@ export class AuthController {
       
       return true;
     } catch (error) {
+      console.error('Erro no login:', error);
       toast({
         title: "Erro no login",
         description: "Ocorreu um erro inesperado. Tente novamente.",
@@ -50,11 +60,40 @@ export class AuthController {
         return false;
       }
 
-      // Simulação de cadastro - aqui seria integrado com a API real
-      console.log('Tentativa de cadastro:', userData);
+      // Registrar usuário no Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            name: userData.name
+          }
+        }
+      });
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (error) {
+        toast({
+          title: "Erro no cadastro",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // Criar perfil do usuário
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            name: userData.name,
+          });
+
+        if (profileError) {
+          console.error('Erro ao criar perfil:', profileError);
+          // Não falhar o registro se apenas o perfil falhar
+        }
+      }
       
       toast({
         title: "Cadastro realizado com sucesso!",
@@ -63,6 +102,7 @@ export class AuthController {
       
       return true;
     } catch (error) {
+      console.error('Erro no cadastro:', error);
       toast({
         title: "Erro no cadastro",
         description: "Ocorreu um erro inesperado. Tente novamente.",
@@ -74,14 +114,20 @@ export class AuthController {
   
   static async logout(): Promise<boolean> {
     try {
-      // Simulação de logout - aqui seria integrado com a API real
-      console.log('Realizando logout');
+      const { error } = await supabase.auth.signOut();
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (error) {
+        toast({
+          title: "Erro ao sair",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
       
       return true;
     } catch (error) {
+      console.error('Erro ao fazer logout:', error);
       toast({
         title: "Erro ao sair",
         description: "Ocorreu um erro inesperado. Tente novamente.",
@@ -102,14 +148,55 @@ export class AuthController {
         return false;
       }
       
-      // Simulação de atualização - aqui seria integrado com a API real
-      console.log('Atualizando perfil:', { name });
+      // Obter usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 800));
+      if (!user) {
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // Atualizar metadados do usuário
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { name }
+      });
+      
+      if (authError) {
+        toast({
+          title: "Erro na atualização",
+          description: authError.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // Atualizar perfil
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ name })
+        .eq('id', user.id);
+        
+      if (profileError) {
+        toast({
+          title: "Erro na atualização do perfil",
+          description: profileError.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      toast({
+        title: "Perfil atualizado",
+        description: "Seu perfil foi atualizado com sucesso",
+      });
       
       return true;
     } catch (error) {
+      console.error('Erro na atualização do perfil:', error);
       toast({
         title: "Erro na atualização",
         description: "Ocorreu um erro inesperado. Tente novamente.",
@@ -139,14 +226,26 @@ export class AuthController {
         return false;
       }
       
-      // Simulação de atualização - aqui seria integrado com a API real
-      console.log('Atualizando senha');
+      // Atualizar senha
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 800));
+      if (error) {
+        toast({
+          title: "Erro na atualização da senha",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      toast({
+        title: "Senha atualizada",
+        description: "Sua senha foi atualizada com sucesso",
+      });
       
       return true;
     } catch (error) {
+      console.error('Erro na atualização da senha:', error);
       toast({
         title: "Erro na atualização",
         description: "Ocorreu um erro inesperado. Tente novamente.",

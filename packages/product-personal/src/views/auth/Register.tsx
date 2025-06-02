@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AuthLayout } from '@/components/Layout/AuthLayout';
-import { AuthController } from '@/controllers/AuthController';
+import { toast } from '@/hooks/use-toast';
 import { RegisterData } from '@/models/User';
+import { useAuth } from '@/lib/AuthContext';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [formData, setFormData] = useState<RegisterData>({
     name: '',
     email: '',
@@ -25,23 +27,82 @@ const Register: React.FC = () => {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    const success = await AuthController.register(formData);
+  const validateForm = (): string[] => {
+    const errors: string[] = [];
     
-    if (success) {
-      navigate('/login');
+    if (!formData.name.trim()) {
+      errors.push('Nome é obrigatório');
     }
     
-    setIsLoading(false);
+    if (!formData.email.trim()) {
+      errors.push('Email é obrigatório');
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        errors.push('Email inválido');
+      }
+    }
+    
+    if (!formData.password) {
+      errors.push('Senha é obrigatória');
+    } else if (formData.password.length < 6) {
+      errors.push('Senha deve ter pelo menos 6 caracteres');
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      errors.push('Senhas não coincidem');
+    }
+    
+    return errors;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const errors = validateForm();
+    if (errors.length > 0) {
+      toast({
+        title: "Erro de validação",
+        description: errors.join(', '),
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const { success, error } = await signUp(formData.email, formData.password, formData.name);
+      
+      if (success) {
+        toast({
+          title: "Cadastro realizado com sucesso!",
+          description: "Sua conta foi criada. Faça login para continuar.",
+        });
+        navigate('/login');
+      } else if (error) {
+        toast({
+          title: "Erro no cadastro",
+          description: error,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao cadastrar:', error);
+      toast({
+        title: "Erro no cadastro",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <AuthLayout 
       title="Criar Conta"
-      subtitle="Cadastre-se no sistema"
+      subtitle="Registre-se para começar"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -53,10 +114,10 @@ const Register: React.FC = () => {
             value={formData.name}
             onChange={handleInputChange}
             required
-            placeholder="Ex: João Silva"
+            placeholder="Seu nome"
           />
         </div>
-
+        
         <div>
           <Label htmlFor="email">Email</Label>
           <Input
@@ -66,7 +127,7 @@ const Register: React.FC = () => {
             value={formData.email}
             onChange={handleInputChange}
             required
-            placeholder="Ex: joao.silva@email.com"
+            placeholder="exemplo@email.com"
           />
         </div>
 
@@ -79,12 +140,12 @@ const Register: React.FC = () => {
             value={formData.password}
             onChange={handleInputChange}
             required
-            placeholder="Ex: Senha@123"
+            placeholder="Mínimo 6 caracteres"
           />
         </div>
-
+        
         <div>
-          <Label htmlFor="confirmPassword">Confirmar senha</Label>
+          <Label htmlFor="confirmPassword">Confirmar Senha</Label>
           <Input
             id="confirmPassword"
             name="confirmPassword"
@@ -92,7 +153,7 @@ const Register: React.FC = () => {
             value={formData.confirmPassword}
             onChange={handleInputChange}
             required
-            placeholder="Ex: Senha@123"
+            placeholder="Repita sua senha"
           />
         </div>
 
@@ -101,12 +162,12 @@ const Register: React.FC = () => {
           disabled={isLoading}
           className="w-full bg-emerald-800 hover:bg-emerald-700"
         >
-          {isLoading ? 'Criando conta...' : 'Criar conta'}
+          {isLoading ? 'Registrando...' : 'Registrar'}
         </Button>
 
         <div className="text-center">
           <Link to="/login" className="text-sm text-black hover:underline">
-            Já tem conta? Entrar
+            Já tem uma conta? Faça login
           </Link>
         </div>
       </form>

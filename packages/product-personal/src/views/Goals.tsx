@@ -6,74 +6,100 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Goal } from '@/models/Goal';
-import { Pencil, Trash, PlusCircle, Target, Coins } from 'lucide-react';
+import { Goal } from '@/lib/services/GoalService';
+import { Pencil, Trash, PlusCircle, Target, Coins, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/lib/AuthContext';
 
 const Goals: React.FC = () => {
+  const { user } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [formData, setFormData] = useState({
     name: '',
-    targetAmount: '',
-    currentAmount: '',
-    startDate: format(new Date(), 'yyyy-MM-dd'),
-    targetDate: '',
+    target_amount: '',
+    current_amount: '',
+    start_date: format(new Date(), 'yyyy-MM-dd'),
+    target_date: '',
     description: ''
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [progressAmount, setProgressAmount] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    loadGoals();
-  }, []);
+    if (user) {
+      loadGoals();
+    }
+  }, [user]);
 
-  const loadGoals = () => {
-    const data = GoalController.getGoals();
-    setGoals(data);
+  const loadGoals = async () => {
+    setIsLoading(true);
+    try {
+      const data = await GoalController.getGoals();
+      setGoals(data);
+    } catch (error) {
+      console.error('Erro ao carregar objetivos:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.targetAmount || !formData.targetDate) {
+    if (!formData.name.trim() || !formData.target_amount || !formData.target_date || !user) {
       return;
     }
 
-    const goalData = {
-      name: formData.name,
-      targetAmount: parseFloat(formData.targetAmount),
-      currentAmount: formData.currentAmount ? parseFloat(formData.currentAmount) : 0,
-      startDate: new Date(formData.startDate),
-      targetDate: new Date(formData.targetDate),
-      description: formData.description
-    };
-
-    let success = false;
+    setIsSubmitting(true);
     
-    if (editingId) {
-      success = GoalController.updateGoal(editingId, goalData);
-    } else {
-      success = GoalController.createGoal(goalData);
-    }
+    try {
+      const goalData = {
+        name: formData.name,
+        target_amount: parseFloat(formData.target_amount),
+        current_amount: formData.current_amount ? parseFloat(formData.current_amount) : 0,
+        start_date: formData.start_date,
+        target_date: formData.target_date,
+        description: formData.description,
+        user_id: user.id
+      };
 
-    if (success) {
-      resetForm();
-      loadGoals();
+      let success = false;
+      
+      if (editingId) {
+        // Para atualização, não precisamos enviar o user_id
+        const { user_id, ...updateData } = goalData;
+        success = await GoalController.updateGoal(editingId, updateData);
+      } else {
+        success = await GoalController.createGoal(goalData);
+      }
+
+      if (success) {
+        resetForm();
+        await loadGoals();
+      }
+    } catch (error) {
+      console.error('Erro ao salvar objetivo:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
     setFormData({
       name: '',
-      targetAmount: '',
-      currentAmount: '',
-      startDate: format(new Date(), 'yyyy-MM-dd'),
-      targetDate: '',
+      target_amount: '',
+      current_amount: '',
+      start_date: format(new Date(), 'yyyy-MM-dd'),
+      target_date: '',
       description: ''
     });
     setEditingId(null);
@@ -82,19 +108,26 @@ const Goals: React.FC = () => {
   const handleEdit = (goal: Goal) => {
     setFormData({
       name: goal.name,
-      targetAmount: goal.targetAmount.toString(),
-      currentAmount: goal.currentAmount.toString(),
-      startDate: format(goal.startDate, 'yyyy-MM-dd'),
-      targetDate: format(goal.targetDate, 'yyyy-MM-dd'),
+      target_amount: goal.target_amount.toString(),
+      current_amount: goal.current_amount ? goal.current_amount.toString() : '0',
+      start_date: goal.start_date,
+      target_date: goal.target_date,
       description: goal.description || ''
     });
     setEditingId(goal.id);
   };
 
-  const handleDelete = (id: string) => {
-    const success = GoalController.deleteGoal(id);
-    if (success) {
-      loadGoals();
+  const handleDelete = async (id: string) => {
+    setIsDeleting(id);
+    try {
+      const success = await GoalController.deleteGoal(id);
+      if (success) {
+        await loadGoals();
+      }
+    } catch (error) {
+      console.error('Erro ao excluir objetivo:', error);
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -104,25 +137,33 @@ const Goals: React.FC = () => {
 
   const openProgressDialog = (goal: Goal) => {
     setSelectedGoal(goal);
-    setProgressAmount(goal.currentAmount.toString());
+    setProgressAmount(goal.current_amount ? goal.current_amount.toString() : '0');
     setProgressDialogOpen(true);
   };
 
-  const handleProgressUpdate = () => {
+  const handleProgressUpdate = async () => {
     if (selectedGoal && progressAmount) {
       const amount = parseFloat(progressAmount);
       if (!isNaN(amount) && amount >= 0) {
-        const success = GoalController.updateGoalProgress(selectedGoal.id, amount);
-        if (success) {
-          setProgressDialogOpen(false);
-          loadGoals();
+        setIsUpdatingProgress(true);
+        try {
+          const success = await GoalController.updateGoalProgress(selectedGoal.id, amount);
+          if (success) {
+            setProgressDialogOpen(false);
+            await loadGoals();
+          }
+        } catch (error) {
+          console.error('Erro ao atualizar progresso:', error);
+        } finally {
+          setIsUpdatingProgress(false);
         }
       }
     }
   };
 
   const calculateProgress = (goal: Goal) => {
-    return Math.min(100, (goal.currentAmount / goal.targetAmount) * 100);
+    const currentAmount = goal.current_amount || 0;
+    return Math.min(100, (currentAmount / goal.target_amount) * 100);
   };
 
   const formatCurrency = (value: number) => {
@@ -131,6 +172,25 @@ const Goals: React.FC = () => {
       currency: 'BRL'
     }).format(value);
   };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'dd/MM/yyyy');
+    } catch (error) {
+      return 'Data inválida';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <span className="ml-2 text-lg">Carregando objetivos...</span>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -151,44 +211,48 @@ const Goals: React.FC = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div>
-                <Label htmlFor="targetAmount">Valor Alvo (R$)</Label>
+                <Label htmlFor="target_amount">Valor Alvo (R$)</Label>
                 <Input
-                  id="targetAmount"
+                  id="target_amount"
                   type="number"
                   step="0.01"
                   min="0.01"
                   placeholder="Valor a ser atingido"
-                  value={formData.targetAmount}
-                  onChange={(e) => setFormData({...formData, targetAmount: e.target.value})}
+                  value={formData.target_amount}
+                  onChange={(e) => setFormData({...formData, target_amount: e.target.value})}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div>
-                <Label htmlFor="currentAmount">Valor Atual (R$)</Label>
+                <Label htmlFor="current_amount">Valor Atual (R$)</Label>
                 <Input
-                  id="currentAmount"
+                  id="current_amount"
                   type="number"
                   step="0.01"
                   min="0"
                   placeholder="Valor já economizado (opcional)"
-                  value={formData.currentAmount}
-                  onChange={(e) => setFormData({...formData, currentAmount: e.target.value})}
+                  value={formData.current_amount}
+                  onChange={(e) => setFormData({...formData, current_amount: e.target.value})}
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div>
-                <Label htmlFor="targetDate">Data Alvo</Label>
+                <Label htmlFor="target_date">Data Alvo</Label>
                 <Input
-                  id="targetDate"
+                  id="target_date"
                   type="date"
-                  value={formData.targetDate}
-                  onChange={(e) => setFormData({...formData, targetDate: e.target.value})}
+                  value={formData.target_date}
+                  onChange={(e) => setFormData({...formData, target_date: e.target.value})}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -200,17 +264,36 @@ const Goals: React.FC = () => {
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   className="h-24"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
             <div className="flex gap-3">
-              <Button type="submit" className="flex-1 bg-emerald-800 hover:bg-emerald-700">
-                <PlusCircle className="h-4 w-4 mr-2" />
-                {editingId ? 'Atualizar' : 'Adicionar'} Objetivo
+              <Button 
+                type="submit" 
+                className="flex-1 bg-emerald-800 hover:bg-emerald-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {editingId ? 'Atualizando...' : 'Adicionando...'}
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    {editingId ? 'Atualizar' : 'Adicionar'} Objetivo
+                  </>
+                )}
               </Button>
               {editingId && (
-                <Button type="button" variant="outline" onClick={handleCancel}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleCancel}
+                  disabled={isSubmitting}
+                >
                   Cancelar
                 </Button>
               )}
@@ -247,7 +330,7 @@ const Goals: React.FC = () => {
                         <div>
                           <h3 className="font-semibold text-lg">{goal.name}</h3>
                           <p className="text-sm text-gray-500">
-                            Meta: {formatCurrency(goal.targetAmount)} até {format(goal.targetDate, 'dd/MM/yyyy')}
+                            Meta: {formatCurrency(goal.target_amount)} até {formatDate(goal.target_date)}
                           </p>
                         </div>
                         <div className="flex gap-2">
@@ -255,6 +338,7 @@ const Goals: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => openProgressDialog(goal)}
+                            disabled={isDeleting === goal.id}
                           >
                             <Coins className="h-4 w-4" />
                           </Button>
@@ -262,6 +346,7 @@ const Goals: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEdit(goal)}
+                            disabled={isDeleting === goal.id}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -269,8 +354,13 @@ const Goals: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleDelete(goal.id)}
+                            disabled={isDeleting === goal.id}
                           >
-                            <Trash className="h-4 w-4" />
+                            {isDeleting === goal.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -283,7 +373,7 @@ const Goals: React.FC = () => {
                         <div className="flex justify-between text-sm mb-1">
                           <span>Progresso: {progress.toFixed(0)}%</span>
                           <span>
-                            {formatCurrency(goal.currentAmount)} de {formatCurrency(goal.targetAmount)}
+                            {formatCurrency(goal.current_amount || 0)} de {formatCurrency(goal.target_amount)}
                           </span>
                         </div>
                         <Progress value={progress} className={progressClass} />
@@ -295,48 +385,53 @@ const Goals: React.FC = () => {
             </div>
           )}
         </Card>
-      </div>
 
-      <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Atualizar Progresso</DialogTitle>
-            <DialogDescription>
-              Atualize o valor economizado para {selectedGoal?.name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <Label htmlFor="progressAmount">Valor Atual (R$)</Label>
-            <Input
-              id="progressAmount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={progressAmount}
-              onChange={(e) => setProgressAmount(e.target.value)}
-            />
-            
-            {selectedGoal && (
-              <div className="mt-4 text-sm">
-                <div className="flex justify-between">
-                  <span>Meta:</span>
-                  <span>{formatCurrency(selectedGoal.targetAmount)}</span>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span>Valor anterior:</span>
-                  <span>{formatCurrency(selectedGoal.currentAmount)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProgressDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleProgressUpdate} className="bg-emerald-800 hover:bg-emerald-700">Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Atualizar Progresso</DialogTitle>
+              <DialogDescription>
+                Atualize o valor atual economizado para o objetivo: {selectedGoal?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="progressAmount">Valor Atual (R$)</Label>
+              <Input
+                id="progressAmount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={progressAmount}
+                onChange={(e) => setProgressAmount(e.target.value)}
+                disabled={isUpdatingProgress}
+              />
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setProgressDialogOpen(false)}
+                disabled={isUpdatingProgress}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleProgressUpdate}
+                className="bg-emerald-800 hover:bg-emerald-700"
+                disabled={isUpdatingProgress}
+              >
+                {isUpdatingProgress ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Atualizando...
+                  </>
+                ) : (
+                  'Salvar'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </MainLayout>
   );
 };
