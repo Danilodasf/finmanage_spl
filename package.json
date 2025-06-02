@@ -8,12 +8,15 @@
   "scripts": {
     "dev:core": "cd packages/core && npm run dev",
     "build:core": "cd packages/core && npm run build",
+    "test:core": "cd packages/core && npm test",
     "dev:personal": "cd packages/product-personal && npm run dev",
     "build:personal": "cd packages/product-personal && npm run build",
+    "test:personal": "cd packages/product-personal && npm test",
     "dev:mei": "cd packages/product-mei && npm run dev",
     "build:mei": "cd packages/product-mei && npm run build",
     "dev:diarista": "cd packages/product-diarista && npm run dev",
     "build:diarista": "cd packages/product-diarista && npm run build",
-    "install:all": "npm install && cd packages/core && npm install && cd ../product-personal && npm install && cd ../product-mei && npm install && cd ../product-diarista && npm install"
+    "install:all": "npm install && cd packages/core && npm install && cd ../product-personal && npm install && cd ../product-mei && npm install && cd ../product-diarista && npm install",
+    "test:all": "npm run test:core && npm run test:personal"
   }
 }

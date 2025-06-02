@@ -21,15 +21,27 @@ O FinManage Personal utiliza um tema verde-esmeralda que transmite equilíbrio, 
 ## 💉 Injeção de Dependências (DI)
 O FinManage Personal implementa o padrão de Injeção de Dependências para as funcionalidades principais do sistema, permitindo maior modularidade e testabilidade. 
 
-As principais funcionalidades que utilizam DI são:
-- Autenticação (login/registro)
-- Dashboard
-- Transações
-- Categorias
-- Relatórios
-- Configurações
+### Serviços Implementados com DI
+O sistema foi migrado para utilizar injeção de dependências nas seguintes áreas:
+- **Transações**: Gerenciamento de receitas e despesas
+- **Categorias**: Organização de transações
+- **Autenticação**: Login e registro de usuários
+- **Dashboard**: Visualizações e resumos
+- **Relatórios**: Análises e gráficos
 
-Para mais detalhes sobre a estrutura de DI, consulte a [documentação específica](./docs/DI-STRUCTURE.md).
+### Estado da Migração para DI
+| Funcionalidade | Status | Observações |
+|----------------|--------|-------------|
+| Dashboard | ✅ Concluído | Implementação completa |
+| Transações | ✅ Concluído | Implementação completa |
+| Categorias | ✅ Concluído | Implementação completa |
+| Relatórios | ✅ Concluído | Implementação completa |
+| Configurações | ✅ Concluído | Implementação completa |
+| Objetivos | ⏳ Pendente | Ainda usando implementação original |
+| Orçamentos | ⏳ Pendente | Ainda usando implementação original |
+| Investimentos | ⏳ Pendente | Ainda usando implementação original |
+
+Para informações detalhadas sobre a implementação da injeção de dependências, consulte o arquivo [INJECAO_DEPENDENCIAS.md](./INJECAO_DEPENDENCIAS.md).
 
 ## 🗄️ Banco de Dados e Backend
 O FinManage Personal utiliza o **Supabase** como plataforma de backend, fornecendo:
@@ -91,15 +103,43 @@ npm run dev
 
 O servidor de desenvolvimento será iniciado em `http://localhost:3002`.
 
+## 🧪 Testes
+O FinManage Personal inclui testes unitários utilizando Vitest. Para executar os testes:
+
+```bash
+# Na raiz do monorepo
+npm run test:personal
+
+# Ou diretamente no diretório do produto
+cd packages/product-personal
+npm test
+```
+
+### Estrutura de Testes
+Os testes estão organizados na pasta `/test` com uma estrutura que espelha a estrutura de `/src`:
+- `/test/models`: Testes para modelos de dados como Transaction, Category e Investment
+- `/test/lib`: Testes para utilitários e funções auxiliares
+- `/test/setup.test.ts`: Testes básicos para verificar o ambiente de testes
+
+### Benefícios dos Testes com DI
+A implementação de injeção de dependências facilita significativamente os testes, permitindo:
+- Substituir implementações reais por mocks para isolar componentes
+- Testar componentes sem dependências externas como banco de dados
+- Simular diferentes cenários e casos de erro
+
 ## 🧪 Scripts Disponíveis
 - `dev`: Inicia o servidor de desenvolvimento
 - `build`: Gera a build de produção
 - `build:dev`: Gera a build para ambiente de desenvolvimento
 - `lint`: Executa o linter
 - `preview`: Visualiza a build localmente
+- `test`: Executa os testes unitários
 
 ## 🔄 Integração com o Core
 O FinManage Personal utiliza os componentes e utilitários do core, adaptando-os conforme necessário para suas necessidades específicas. Recomenda-se sempre verificar se uma funcionalidade já existe no core antes de implementá-la novamente no produto.
+
+### Uso do Sistema de DI do Core
+O FinManage Personal implementa as interfaces de serviço definidas no core e registra suas implementações específicas no container de DI fornecido pelo core. Isso permite uma integração consistente e desacoplada entre os dois pacotes.
 
 ## 📚 Documentação
 Para entender melhor as funcionalidades disponíveis no FinManage Personal, consulte:
@@ -110,4 +150,4 @@ Para entender melhor as funcionalidades disponíveis no FinManage Personal, cons
 - Os serviços em `/src/lib/services` para a comunicação com o Supabase
 - O arquivo `supabase/database-schema.sql` para a estrutura do banco de dados
 - A documentação detalhada em `supabase/database-schema.md`
-- A documentação de Injeção de Dependências em `docs/DI-STRUCTURE.md` 
+- A documentação de Injeção de Dependências em [INJECAO_DEPENDENCIAS.md](./INJECAO_DEPENDENCIAS.md) 
