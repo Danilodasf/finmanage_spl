@@ -1,118 +1,63 @@
-# FinManage
+# FinManage Core
 
-<p align="center">
-  <img src="https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-5.5.3-3178C6?logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-5.4.1-646CFF?logo=vite" alt="Vite" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-3.4.11-06B6D4?logo=tailwindcss" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/shadcn--ui-%23?logo=shadcn" alt="shadcn-ui" />
-</p>
+## Descrição Geral
 
-## ✨ Sobre o projeto
-O **FinManage** é um sistema de gestão financeira modular com um core compartilhado e diferentes produtos direcionados a públicos específicos:
+O pacote `core` é o coração da Linha de Produtos de Software (SPL) FinManage. Ele é projetado para fornecer todas as funcionalidades centrais e componentes de UI compartilhados que são utilizados pelos diversos produtos da linha (FinManage Pessoal, FinManage MEI, FinManage Diarista). O objetivo do `core` é simplificar a organização financeira, o desenvolvimento de novos produtos e garantir consistência, centralizando a lógica de negócios comum, o acesso a dados, a autenticação e os elementos visuais básicos. Cada produto da linha usará essas funções do core para realizar suas operações específicas, adaptando-as e estendendo-as conforme necessário.
 
-- **Personal**: Gestão financeira pessoal
-- **Diarista**: Gestão financeira para profissionais de limpeza e diaristas
-- **MEI**: Gestão financeira para Microempreendedores Individuais
+## Responsabilidades Principais
 
-Cada produto compartilha componentes e funcionalidades do core, mas possui interfaces e regras de negócio específicas para seu público-alvo.
+O `core` é responsável por:
 
----
+* **Gestão de Usuários:** Controlar o cadastro, login, atualização de perfil pessoal com dados básicos e alteração de senha dos usuários.
+* **Autenticação:** Proteger o acesso ao sistema, incluindo validação de credenciais, gerenciamento de sessões e autenticação via JWT.
+* **Gerenciamento de Transações Financeiras:** Permitir o cadastro de gastos e recebimentos (por tipo, data, valor, descrição), e o gerenciamento (edição, exclusão) de transações anteriores.
+* **Categorização:** Habilitar o cadastro de novas categorias e o gerenciamento de categorias já registradas para classificar as transações financeiras.
+* **Geração de Relatórios e Visualizações:** Fornecer ferramentas para criar um painel com resumo financeiro por período, exibir gráficos de receitas vs. despesas, gerar relatórios personalizáveis por período/tipo e exportar dados em formatos como PDF ou CSV.
+* **Manutenção de Histórico:** Guardar e apresentar o histórico de transações realizadas, com opções de editar e apagar transações.
+* **Validação de Dados:** Assegurar a integridade dos dados inseridos no sistema, como a validação de dados de transações.
+* **Acesso ao Banco de Dados:** Gerenciar a comunicação com o banco de dados para persistir e recuperar informações financeiras.
+* **Componentes de UI Reutilizáveis:** Oferecer um conjunto de componentes visuais (ex: layouts, painéis, gráficos, formulários) para manter a consistência visual e funcionalidade entre os produtos.
+* **Utilitários:** Disponibilizar funções auxiliares através da pasta `lib/`.
 
-## 🚀 Funcionalidades Principais
-- **Controle de Gastos:** Monitore despesas e receitas em tempo real.
-- **Relatórios Detalhados:** Visualize gráficos e relatórios sobre sua situação financeira.
-- **Segurança:** Dados protegidos com criptografia (simulada no momento).
-- **Interface Intuitiva:** Navegação simples para todos os perfis de usuário.
-- **Autenticação:** Cadastro e login de usuários com validação de dados.
+## Principais Módulos e Funcionalidades (Conceitual)
 
----
+O `core` organiza suas funcionalidades, com base nos Requisitos Funcionais e Diagramas de Classe, em módulos que podem ser conceitualmente descritos da seguinte forma. Os nomes das funções são representativos e derivados dos diagramas:
 
-## 🗂️ Estrutura do Projeto
-```
-finmanage/
-├── packages/
-│   ├── core/                # Componentes e lógicas compartilhadas
-│   ├── product-personal/    # Produto de gestão financeira pessoal
-│   ├── product-diarista/    # Produto para diaristas e profissionais de limpeza
-│   └── product-mei/         # Produto para Microempreendedores Individuais
-└── package.json             # Configuração do monorepo
-```
+* **`AuthModule`**:
+    * `cadastrarUsuario(userData)`: Cadastra um novo usuário.
+    * `fazerLogin(credentials)`: Autentica um usuário existente.
+    * `atualizarPerfil(userId, profileData)`: Atualiza os dados do perfil do usuário.
+    * `alterarSenha(userId, passwordData)`: Altera a senha do usuário.
+* **`TransactionModule`**:
+    * `criarTransacao(transactionData)`: Registra uma nova receita ou despesa.
+    * `visualizarHistorico(filters)`: Retorna o histórico de transações.
+    * `editarTransacao(transactionId, data)`: Edita uma transação existente do histórico.
+    * `apagarTransacao(transactionId)`: Remove uma transação do histórico.
+    * `gerenciarTransacao(transactionId, data)`: Gerencia transações anteriores.
+* **`CategoryModule`**:
+    * `criarCategoria(categoryData)`: Cadastra uma nova categoria.
+    * `gerenciarCategoria(categoryId, data)`: Gerencia (lista, edita, exclui) categorias já registradas.
+* **`ReportModule`**:
+    * `gerarResumo(period)`: Gera um resumo financeiro para um determinado período.
+    * `gerarGraficoReceitaVsDespesa(period)`: Prepara dados para gráficos de receitas vs. despesas.
+    * `gerarRelatorioPersonalizado(period, type)`: Gera relatórios personalizáveis por período e tipo.
+    * `exportarParaPdf(reportData)`: Exporta relatórios em formato PDF.
 
----
+## Estrutura de Diretórios do `core/src`
 
-## 🛠️ Tecnologias Utilizadas
-- [React](https://react.dev/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Vite](https://vitejs.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [shadcn/ui](https://ui.shadcn.com/)
-- [React Router DOM](https://reactrouter.com/)
-- [Zod](https://zod.dev/) (validação)
-- [React Hook Form](https://react-hook-form.com/)
-- [Radix UI](https://www.radix-ui.com/)
-- [Recharts](https://recharts.org/)
+A estrutura do código fonte (`src/`) do `core` é organizada para suportar o estilo arquitetural MVC (Model-View-Controller) e promover a modularidade e manutenibilidade:
 
----
+* `auth/`: Contém a lógica específica para autenticação e gerenciamento de sessão de usuários.
+* `components/`: Abriga componentes de Interface de Usuário (UI) reutilizáveis.
+    * `Layout/`: Define os componentes estruturais principais do layout da aplicação.
+    * `ui/`: Contém elementos de interface de usuário menores e mais genéricos.
+* `controllers/`: Atuam como intermediários que processam as requisições do usuário, atualizam o Model e retornam respostas à View, contendo lógica de controle.
+* `hooks/`: Armazena Hooks React customizados para lógica reutilizável em componentes.
+* `lib/`: Contém Utilitários e funções auxiliares.
+* `models/`: Responsáveis pela lógica de negócio e pela manipulação dos dados, interagindo com o banco de dados.
+* `pages/`: Representam componentes de página genéricos.
+* `views/`: Responsáveis pela interface do usuário (UI), apresentando os dados aos usuários através de painéis, gráficos e formulários.
 
-## ⚙️ Como rodar o projeto localmente
+## Integração com Produtos da Linha FinManage
 
-### Pré-requisitos
-- Node.js >= 18.x
-- npm >= 9.x
-
-### Instalação inicial
-```sh
-# Clone o repositório
-git clone [url-do-repositorio]
-cd finmanage
-
-# Instale todas as dependências (raiz e pacotes)
-npm run install:all
-```
-
-### Executando os produtos
-
-#### Core (componentes compartilhados)
-```sh
-npm run dev:core
-# Acesse: http://localhost:3000
-```
-
-#### FinManage Personal
-```sh
-npm run dev:personal
-# Acesse: http://localhost:3002
-```
-
-#### FinManage Diarista
-```sh
-npm run dev:diarista
-# Acesse: http://localhost:3003
-```
-
-#### FinManage MEI
-```sh
-npm run dev:mei
-# Acesse: http://localhost:3004
-```
-
-### Scripts disponíveis
-- `install:all`: Instala todas as dependências em todos os pacotes
-- `dev:core`: Inicia o servidor de desenvolvimento do core
-- `build:core`: Gera a build de produção do core
-- `dev:personal`: Inicia o servidor de desenvolvimento do produto Personal
-- `build:personal`: Gera a build de produção do produto Personal
-- `dev:diarista`: Inicia o servidor de desenvolvimento do produto Diarista
-- `build:diarista`: Gera a build de produção do produto Diarista
-- `dev:mei`: Inicia o servidor de desenvolvimento do produto MEI
-- `build:mei`: Gera a build de produção do produto MEI
-
----
-
-## 📦 Versões das principais dependências
-- React: 18.3.1
-- TypeScript: 5.5.3
-- Vite: 5.4.1
-- Tailwind CSS: 3.4.11
-- shadcn/ui: última
+Cada produto da linha FinManage (FinManage Pessoal, FinManage MEI, FinManage Diarista) utiliza as funcionalidades e componentes fornecidos pelo `core`. Isso permite que os produtos específicos se concentrem em implementar seus requisitos funcionais exclusivos, aproveitando uma base sólida e testada para as operações comuns de gerenciamento financeiro. Esta abordagem assegura a flexibilidade, segurança e facilidade de manutenção da linha de produtos.
