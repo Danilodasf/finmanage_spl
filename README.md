@@ -9,7 +9,13 @@
 </p>
 
 ## ✨ Sobre o projeto
-O **FinManage** é um sistema de gestão financeira pessoal, focado em simplicidade, segurança e facilidade de uso. Permite controlar receitas, despesas, visualizar relatórios e gerenciar suas finanças de forma intuitiva.
+O **FinManage** é um sistema de gestão financeira modular com um core compartilhado e diferentes produtos direcionados a públicos específicos:
+
+- **Personal**: Gestão financeira pessoal
+- **Diarista**: Gestão financeira para profissionais de limpeza e diaristas
+- **MEI**: Gestão financeira para Microempreendedores Individuais
+
+Cada produto compartilha componentes e funcionalidades do core, mas possui interfaces e regras de negócio específicas para seu público-alvo.
 
 ---
 
@@ -24,24 +30,13 @@ O **FinManage** é um sistema de gestão financeira pessoal, focado em simplicid
 
 ## 🗂️ Estrutura do Projeto
 ```
-src/
-├── components/
-│   ├── Layout/           # Layouts reutilizáveis
-│   └── ui/               # Componentes de interface (botão, input, etc)
-├── controllers/
-│   └── AuthController.ts # Lógica de autenticação
-├── hooks/                # Hooks customizados
-├── lib/                  # Bibliotecas/utilitários
-├── models/
-│   └── User.ts           # Modelos e validações de usuário
-├── pages/
-│   ├── Index.tsx         # Página inicial
-│   └── NotFound.tsx      # Página 404
-├── views/
-│   └── auth/
-│       ├── Login.tsx     # Tela de login
-│       └── Register.tsx  # Tela de cadastro
-└── App.tsx, main.tsx     # Entradas principais do app
+finmanage/
+├── packages/
+│   ├── core/                # Componentes e lógicas compartilhadas
+│   ├── product-personal/    # Produto de gestão financeira pessoal
+│   ├── product-diarista/    # Produto para diaristas e profissionais de limpeza
+│   └── product-mei/         # Produto para Microempreendedores Individuais
+└── package.json             # Configuração do monorepo
 ```
 
 ---
@@ -66,22 +61,52 @@ src/
 - Node.js >= 18.x
 - npm >= 9.x
 
-### Passos
+### Instalação inicial
 ```sh
-# Instale as dependências
-yarn install # ou npm install
+# Clone o repositório
+git clone [url-do-repositorio]
+cd finmanage
 
-# Rode o projeto em modo desenvolvimento
-yarn dev     # ou npm run dev
-
-# Acesse: http://localhost:8080
+# Instale todas as dependências (raiz e pacotes)
+npm run install:all
 ```
 
-### Scripts úteis
-- `dev`: inicia o servidor de desenvolvimento
-- `build`: gera a build de produção
-- `preview`: visualiza a build localmente
-- `lint`: executa o linter
+### Executando os produtos
+
+#### Core (componentes compartilhados)
+```sh
+npm run dev:core
+# Acesse: http://localhost:3000
+```
+
+#### FinManage Personal
+```sh
+npm run dev:personal
+# Acesse: http://localhost:3002
+```
+
+#### FinManage Diarista
+```sh
+npm run dev:diarista
+# Acesse: http://localhost:3003
+```
+
+#### FinManage MEI
+```sh
+npm run dev:mei
+# Acesse: http://localhost:3004
+```
+
+### Scripts disponíveis
+- `install:all`: Instala todas as dependências em todos os pacotes
+- `dev:core`: Inicia o servidor de desenvolvimento do core
+- `build:core`: Gera a build de produção do core
+- `dev:personal`: Inicia o servidor de desenvolvimento do produto Personal
+- `build:personal`: Gera a build de produção do produto Personal
+- `dev:diarista`: Inicia o servidor de desenvolvimento do produto Diarista
+- `build:diarista`: Gera a build de produção do produto Diarista
+- `dev:mei`: Inicia o servidor de desenvolvimento do produto MEI
+- `build:mei`: Gera a build de produção do produto MEI
 
 ---
 
@@ -103,5 +128,5 @@ yarn dev     # ou npm run dev
 ---
 
 <p align="center">
-  <b>FinManage</b> &copy; 2024 — Sistema de gestão financeira pessoal
+  <b>FinManage</b> &copy; 2024 — Sistema modular de gestão financeira
 </p>
