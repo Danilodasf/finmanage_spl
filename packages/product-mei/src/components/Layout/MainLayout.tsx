@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
-import { Settings, LogOut, LayoutDashboard, Receipt, FolderOpen, BarChart, Bell } from 'lucide-react';
+import { Settings, LogOut, LayoutDashboard, Receipt, FolderOpen, BarChart, Bell, FileText } from 'lucide-react';
 import { toast } from '../../hooks/use-toast';
 import { AuthController } from '../../controllers/AuthController';
 
@@ -121,6 +121,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 >
                   <Receipt className="w-4 h-4 mr-2" />
                   Transações
+                </Button>
+              </Link>
+            </li>
+            <li>
+              <Link to="/imposto-das">
+                <Button 
+                  className={`w-full justify-start ${isActive('/imposto-das') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
+                  variant={isActive('/imposto-das') ? 'default' : 'ghost'}
+                  size="sm"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Imposto DAS
                 </Button>
               </Link>
             </li>
