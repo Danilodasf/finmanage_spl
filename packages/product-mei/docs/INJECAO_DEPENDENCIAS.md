@@ -24,7 +24,7 @@ Os tokens são identificadores únicos para os serviços registrados no containe
 
 ```typescript
 // Importação
-import { CATEGORY_SERVICE } from '@finmanage/core/di';
+import { CATEGORY_SERVICE, AUTH_SERVICE } from '@finmanage/core/di';
 ```
 
 ### 3. Serviços
@@ -32,17 +32,20 @@ import { CATEGORY_SERVICE } from '@finmanage/core/di';
 Os serviços são implementações concretas das interfaces definidas no core. Cada serviço é responsável por uma área específica da aplicação:
 
 - **MeiCategoryService**: Gerenciamento de categorias
+- **MeiAuthService**: Autenticação e gerenciamento de usuários
 
 Os serviços são registrados no container de DI durante o bootstrap:
 
 ```typescript
 // bootstrap.ts
-import { DIContainer, CATEGORY_SERVICE } from '@finmanage/core/di';
+import { DIContainer, CATEGORY_SERVICE, AUTH_SERVICE } from '@finmanage/core/di';
 import { MeiCategoryService } from '../services/MeiCategoryService';
+import { MeiAuthService } from '../services/MeiAuthService';
 
 export function bootstrapMeiDI(): void {
   // Registrar serviços como singletons
   DIContainer.registerSingleton(CATEGORY_SERVICE, new MeiCategoryService());
+  DIContainer.registerSingleton(AUTH_SERVICE, new MeiAuthService());
 }
 ```
 
@@ -53,6 +56,7 @@ Os controladores com DI atuam como intermediários entre os componentes de UI e 
 Os principais controladores implementados são:
 
 - **DICategoryController**: Gerenciamento de categorias
+- **DIAuthController**: Autenticação e gerenciamento de usuários
 
 ```typescript
 // DICategoryController.ts
@@ -70,6 +74,22 @@ export class DICategoryController {
     // ...
   }
 }
+
+// DIAuthController.ts
+import { DIContainer, AUTH_SERVICE } from '@finmanage/core/di';
+import { AuthService } from '@finmanage/core/services';
+
+export class DIAuthController {
+  private static getAuthService(): AuthService {
+    return DIContainer.get<AuthService>(AUTH_SERVICE);
+  }
+
+  static async updateProfile(name: string): Promise<boolean> {
+    const authService = this.getAuthService();
+    const { success, error } = await authService.updateProfile(name);
+    // ...
+  }
+}
 ```
 
 ### 5. Componentes de UI com DI
@@ -77,6 +97,7 @@ export class DICategoryController {
 Os componentes de UI consomem os controladores DI correspondentes:
 
 - **Categories**: Gestão de categorias
+- **Settings**: Configurações de usuário
 
 ```typescript
 // Categories.tsx
@@ -92,6 +113,21 @@ const Categories: React.FC = () => {
   const loadCategories = async () => {
     const data = await DICategoryController.getCategories();
     setCategories(data);
+  };
+  
+  // ...
+};
+
+// Settings.tsx
+import { DIAuthController } from '@/controllers/DIAuthController';
+
+const Settings: React.FC = () => {
+  // ...
+  
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = await DIAuthController.updateProfile(name);
+    // ...
   };
   
   // ...
@@ -125,12 +161,15 @@ packages/product-mei/
 │   │   ├── di/
 │   │   │   └── bootstrap.ts       # Inicialização do container de DI
 │   │   ├── services/
-│   │   │   └── MeiCategoryService.ts  # Implementação do serviço de categorias
+│   │   │   ├── MeiCategoryService.ts  # Implementação do serviço de categorias
+│   │   │   └── MeiAuthService.ts      # Implementação do serviço de autenticação
 │   │   └── core-exports.ts        # Exportações centralizadas do core
 │   ├── controllers/
-│   │   └── DICategoryController.ts  # Controlador de categorias com DI
+│   │   ├── DICategoryController.ts  # Controlador de categorias com DI
+│   │   └── DIAuthController.ts      # Controlador de autenticação com DI
 │   └── views/
-│       └── Categories.tsx         # Componente UI que usa o controlador
+│       ├── Categories.tsx         # Componente UI que usa o controlador de categorias
+│       └── Settings.tsx           # Componente UI que usa o controlador de autenticação
 └── main.tsx                       # Ponto de entrada que inicializa o DI
 ```
 
