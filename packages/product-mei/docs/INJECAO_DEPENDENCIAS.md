@@ -104,6 +104,8 @@ Os componentes de UI consomem os controladores DI correspondentes:
 - **Categories**: Gestão de categorias
 - **Settings**: Configurações de usuário
 - **DashboardDI**: Dashboard utilizando injeção de dependência
+- **LoginDI**: Tela de login utilizando injeção de dependência
+- **RegisterDI**: Tela de cadastro utilizando injeção de dependência
 
 ```typescript
 // Categories.tsx
@@ -138,6 +140,28 @@ const DashboardDI: React.FC = () => {
     
     fetchData();
   }, [period]);
+  
+  // ...
+};
+
+// LoginDI.tsx
+import { DIAuthController } from '@/controllers/DIAuthController';
+
+const LoginDI: React.FC = () => {
+  // ...
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const success = await DIAuthController.login(formData);
+    
+    if (success) {
+      navigate('/dashboard-di');
+    }
+    
+    setIsLoading(false);
+  };
   
   // ...
 };
@@ -181,7 +205,10 @@ packages/product-mei/
 │   └── views/
 │       ├── Categories.tsx         # Componente UI que usa o controlador de categorias
 │       ├── Settings.tsx           # Componente UI que usa o controlador de autenticação
-│       └── DashboardDI.tsx        # Componente UI que usa o controlador de transações
+│       ├── DashboardDI.tsx        # Componente UI que usa o controlador de transações
+│       └── auth/
+│           ├── LoginDI.tsx        # Tela de login com DI
+│           └── RegisterDI.tsx     # Tela de cadastro com DI
 └── main.tsx                       # Ponto de entrada que inicializa o DI
 ```
 

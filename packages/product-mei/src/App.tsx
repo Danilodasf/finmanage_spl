@@ -5,7 +5,9 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./views/auth/Login";
+import LoginDI from "./views/auth/LoginDI";
 import Register from "./views/auth/Register";
+import RegisterDI from "./views/auth/RegisterDI";
 import Dashboard from "./views/Dashboard";
 import DashboardDI from "./views/DashboardDI";
 import Transactions from "./views/Transactions";
@@ -27,7 +29,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/login-di" element={<LoginDI />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/register-di" element={<RegisterDI />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard-di" element={<DashboardDI />} />
           <Route path="/transactions" element={<TransactionsDI />} />
