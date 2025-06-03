@@ -29,6 +29,15 @@ export interface Transaction {
   updated_at?: string;
 }
 
+// Definir dados para criação de transação
+export interface CreateTransactionData {
+  type: 'receita' | 'despesa';
+  date: Date;
+  value: number;
+  description: string;
+  categoryId: string;
+}
+
 // Definir interface ReportData
 export interface ReportData {
   transactions: Transaction[];
@@ -46,10 +55,24 @@ export interface ReportData {
 
 // Definir tokens para serviços
 export const REPORT_SERVICE = 'report-service';
+export const TRANSACTION_SERVICE = 'transaction-service';
 
 // Definir a interface CategoryService localmente
 export interface CategoryService extends BaseEntityService<Category> {
   getByType(type: 'receita' | 'despesa' | 'ambos' | 'investimento'): Promise<{ data: Category[] | null; error: Error | null }>;
+}
+
+// Definir a interface TransactionService
+export interface TransactionService extends BaseEntityService<Transaction> {
+  getByDateRange(startDate: string, endDate: string): Promise<{ data: Transaction[] | null; error: Error | null }>;
+  getByType(type: 'receita' | 'despesa'): Promise<{ data: Transaction[] | null; error: Error | null }>;
+  getByCategory(categoryId: string): Promise<{ data: Transaction[] | null; error: Error | null }>;
+  getFinancialSummary(period: 'month' | 'year'): Promise<{
+    receitas: number;
+    despesas: number;
+    saldo: number;
+    transactions: Transaction[];
+  }>;
 }
 
 // Definir a interface ReportService
