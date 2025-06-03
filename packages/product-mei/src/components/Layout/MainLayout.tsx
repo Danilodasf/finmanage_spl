@@ -14,6 +14,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [notificationsCount, setNotificationsCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Dados de exemplo para notificações
+  const notifications = [
+    { id: 1, message: "Bem-vindo ao FinManage MEI!", date: "Hoje" },
+    { id: 2, message: "Sua assinatura está ativa.", date: "Ontem" },
+  ];
 
   const isActive = (path: string) => location.pathname === path;
   
@@ -34,6 +41,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     setIsLoggingOut(false);
   };
 
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+  };
+
   return (
     <div className="flex min-h-screen bg-emerald-50">
       {/* Sidebar */}
@@ -45,6 +56,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               variant="ghost" 
               size="sm" 
               className="bg-white rounded-full p-2 h-8 w-8 flex items-center justify-center shadow-sm border border-emerald-800"
+              onClick={toggleNotifications}
             >
               <Bell className="h-4 w-4 text-emerald-800" />
               {notificationsCount > 0 && (
@@ -53,6 +65,36 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 </span>
               )}
             </Button>
+            
+            {/* Popup de notificações */}
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-72 bg-white rounded-md shadow-lg z-50 border border-gray-200">
+                <div className="p-3 border-b border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-700">Notificações</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    <div>
+                      {notifications.map((notification) => (
+                        <div key={notification.id} className="p-3 border-b border-gray-100 hover:bg-gray-50">
+                          <p className="text-sm text-gray-800">{notification.message}</p>
+                          <p className="text-xs text-gray-500 mt-1">{notification.date}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      Nenhuma notificação
+                    </div>
+                  )}
+                </div>
+                <div className="p-2 border-t border-gray-200">
+                  <Button variant="ghost" size="sm" className="w-full text-xs text-emerald-800 hover:text-emerald-700">
+                    Ver todas
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
