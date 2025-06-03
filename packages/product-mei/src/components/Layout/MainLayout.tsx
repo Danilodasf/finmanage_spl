@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { Button } from '../../components/ui/button';
 import { Settings, LogOut } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { AuthController } from '@/controllers/AuthController';
+import { toast } from '../../hooks/use-toast';
+import { AuthController } from '../../controllers/AuthController';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -48,6 +48,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   size="sm"
                 >
                   Dashboard
+                </Button>
+              </Link>
+              <Link to="/dashboard-di">
+                <Button 
+                  className={isActive('/dashboard-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
+                  variant={isActive('/dashboard-di') ? 'default' : 'ghost'}
+                  size="sm"
+                >
+                  Dashboard DI
                 </Button>
               </Link>
               <Link to="/transactions">
