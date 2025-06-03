@@ -44,7 +44,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <Button 
               variant="ghost" 
               size="sm" 
-              className="bg-white rounded-full p-2 h-8 w-8 flex items-center justify-center shadow-sm border border-black"
+              className="bg-white rounded-full p-2 h-8 w-8 flex items-center justify-center shadow-sm border border-emerald-800"
             >
               <Bell className="h-4 w-4 text-emerald-800" />
               {notificationsCount > 0 && (
