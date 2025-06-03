@@ -1,43 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/Layout/MainLayout';
-import { CategoryController } from '@/controllers/CategoryController';
-import { Category, CreateCategoryData } from '@/models/Category';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { MainLayout } from '../components/Layout/MainLayout';
+import { DICategoryController } from '../controllers/DICategoryController';
+import { Category } from '../lib/core-exports';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
+import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "../components/ui/select";
 
 const Categories: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false);
   const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
-  const [categoryFormData, setCategoryFormData] = useState<CreateCategoryData>({
+  const [categoryFormData, setCategoryFormData] = useState<Omit<Category, 'id' | 'created_at' | 'updated_at'>>({
     name: '',
     type: 'receita'
   });
 
   useEffect(() => {
-    // Em uma aplicação real, buscaríamos as categorias da API
-    const defaultCategories = CategoryController.getDefaultCategories();
-    setCategories(defaultCategories);
+    loadCategories();
   }, []);
+
+  const loadCategories = async () => {
+    setIsPageLoading(true);
+    try {
+      const data = await DICategoryController.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+    } finally {
+      setIsPageLoading(false);
+    }
+  };
 
   const handleEdit = async (id: string) => {
     const category = categories.find(c => c.id === id);
@@ -59,7 +70,7 @@ const Categories: React.FC = () => {
       setIsLoading(prev => ({ ...prev, [currentCategory.id]: true }));
       
       // Chamar o controller para atualizar a categoria
-      const success = await CategoryController.updateCategory(currentCategory.id, categoryFormData);
+      const success = await DICategoryController.updateCategory(currentCategory.id, categoryFormData);
       
       if (success) {
         // Atualizar o estado com a categoria editada
@@ -84,7 +95,7 @@ const Categories: React.FC = () => {
       setIsLoading(prev => ({ ...prev, [id]: true }));
       
       // Chamar o controller para excluir a categoria
-      const success = await CategoryController.deleteCategory(id);
+      const success = await DICategoryController.deleteCategory(id);
       
       if (success) {
         // Atualizar o estado removendo a categoria excluída
@@ -103,16 +114,11 @@ const Categories: React.FC = () => {
       setIsLoading(prev => ({ ...prev, new: true }));
       
       // Chamar o controller para criar a categoria
-      const success = await CategoryController.createCategory(categoryFormData);
+      const success = await DICategoryController.createCategory(categoryFormData);
       
       if (success) {
-        // Adicionar a nova categoria ao estado
-        const newCategory: Category = {
-          ...categoryFormData,
-          id: Math.random().toString(36).substring(2, 9) // ID temporário simulado
-        };
-        
-        setCategories(prev => [...prev, newCategory]);
+        // Recarregar categorias para obter a nova categoria com ID correto
+        await loadCategories();
         setNewCategoryDialogOpen(false);
         
         // Resetar o formulário
@@ -151,48 +157,54 @@ const Categories: React.FC = () => {
           </Button>
         </div>
 
-        <div className="space-y-4">
-          {categories.map(category => (
-            <Card key={category.id} className="p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-medium">{category.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    Tipo: {category.type === 'receita' ? 'Receita' : 
-                          category.type === 'despesa' ? 'Despesa' : 'Ambos'}
-                  </p>
+        {isPageLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-800" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {categories.map(category => (
+              <Card key={category.id} className="p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium">{category.name}</h3>
+                    <p className="text-sm text-gray-500">
+                      Tipo: {category.type === 'receita' ? 'Receita' : 
+                            category.type === 'despesa' ? 'Despesa' : 'Ambos'}
+                    </p>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleEdit(category.id)}
+                      disabled={isLoading[category.id]}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => handleDelete(category.id)}
+                      disabled={isLoading[category.id]}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {isLoading[category.id] && <span className="ml-2">...</span>}
+                    </Button>
+                  </div>
                 </div>
-                
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleEdit(category.id)}
-                    disabled={isLoading[category.id]}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-red-600 hover:text-red-700"
-                    onClick={() => handleDelete(category.id)}
-                    disabled={isLoading[category.id]}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {isLoading[category.id] && <span className="ml-2">...</span>}
-                  </Button>
-                </div>
+              </Card>
+            ))}
+            
+            {categories.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Nenhuma categoria encontrada.</p>
               </div>
-            </Card>
-          ))}
-          
-          {categories.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Nenhuma categoria encontrada.</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
       
       {/* Modal de edição */}
@@ -216,7 +228,7 @@ const Categories: React.FC = () => {
               <Label htmlFor="edit-type">Tipo</Label>
               <Select 
                 value={categoryFormData.type}
-                onValueChange={(value: 'receita' | 'despesa' | 'ambos') => 
+                onValueChange={(value: 'receita' | 'despesa' | 'ambos' | 'investimento') => 
                   setCategoryFormData({ ...categoryFormData, type: value })
                 }
               >
@@ -268,7 +280,7 @@ const Categories: React.FC = () => {
               <Label htmlFor="new-type">Tipo</Label>
               <Select 
                 value={categoryFormData.type}
-                onValueChange={(value: 'receita' | 'despesa' | 'ambos') => 
+                onValueChange={(value: 'receita' | 'despesa' | 'ambos' | 'investimento') => 
                   setCategoryFormData({ ...categoryFormData, type: value })
                 }
               >

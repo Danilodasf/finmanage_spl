@@ -8,7 +8,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@finmanage/core': path.resolve(__dirname, '../core'),
     },
+  },
+  optimizeDeps: {
+    include: ['@finmanage/core'],
   },
   server: {
     port: 3002
