@@ -3,12 +3,11 @@ import { Toaster } from "./components/ui/toaster";
 import { Toaster as Sonner } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./views/auth/Login";
 import LoginDI from "./views/auth/LoginDI";
 import Register from "./views/auth/Register";
 import RegisterDI from "./views/auth/RegisterDI";
-import Dashboard from "./views/Dashboard";
 import DashboardDI from "./views/DashboardDI";
 import Transactions from "./views/Transactions";
 import TransactionsDI from "./views/TransactionsDI";
@@ -32,7 +31,7 @@ const App = () => (
           <Route path="/login-di" element={<LoginDI />} />
           <Route path="/register" element={<Register />} />
           <Route path="/register-di" element={<RegisterDI />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Navigate to="/dashboard-di" replace />} />
           <Route path="/dashboard-di" element={<DashboardDI />} />
           <Route path="/transactions" element={<TransactionsDI />} />
           <Route path="/categories" element={<Categories />} />

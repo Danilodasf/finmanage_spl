@@ -84,28 +84,29 @@ const DashboardDI: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="p-6">
-                <h3 className="text-sm font-medium text-black">Receitas</h3>
-                <p className="text-2xl font-bold text-blue-600">
-                  R$ {summary.receitas.toFixed(2)}
-                </p>
-              </Card>
-              
-              <Card className="p-6">
-                <h3 className="text-sm font-medium text-black">Despesas</h3>
-                <p className="text-2xl font-bold text-red-600">
-                  R$ {summary.despesas.toFixed(2)}
-                </p>
-              </Card>
-              
-              <Card className="p-6">
-                <h3 className="text-sm font-medium text-black">Saldo</h3>
-                <p className={`text-2xl font-bold ${summary.saldo >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                  R$ {summary.saldo.toFixed(2)}
-                </p>
-              </Card>
-            </div>
+            <Card className="p-6">
+              <h3 className="text-lg font-medium text-black mb-4">Resumo Financeiro</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="text-sm text-gray-600">Total de Receitas</h4>
+                  <p className="text-2xl font-bold text-blue-600">
+                    R$ {summary.receitas.toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <h4 className="text-sm text-gray-600">Total de Despesas</h4>
+                  <p className="text-2xl font-bold text-red-600">
+                    R$ {summary.despesas.toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h4 className="text-sm text-gray-600">Saldo</h4>
+                  <p className="text-2xl font-bold text-green-600">
+                    R$ {summary.saldo.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </Card>
 
             <Card className="p-6">
               <h3 className="text-lg font-medium text-black mb-4">Distribuição Financeira</h3>

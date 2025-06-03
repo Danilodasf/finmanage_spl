@@ -34,7 +34,7 @@ const MEIDashboard: React.FC = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Dashboard MEI</h1>
+      <h1 className="text-2xl font-bold mb-6 text-emerald-800">Dashboard MEI</h1>
 
       {business ? (
         <div className="mb-6">
