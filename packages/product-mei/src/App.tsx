@@ -10,6 +10,7 @@ import Dashboard from "./views/Dashboard";
 import Transactions from "./views/Transactions";
 import Categories from "./views/Categories";
 import Reports from "./views/Reports";
+import ReportsDI from "./views/ReportsDI";
 import Settings from "./views/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -28,7 +29,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/categories" element={<Categories />} />
-          <Route path="/reports" element={<Reports />} />
+          <Route path="/reports" element={<ReportsDI />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

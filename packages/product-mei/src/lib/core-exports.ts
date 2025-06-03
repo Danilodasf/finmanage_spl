@@ -17,9 +17,58 @@ export interface Category {
   updated_at?: string;
 }
 
+// Definir a interface Transaction
+export interface Transaction {
+  id: string;
+  type: 'receita' | 'despesa';
+  date: string;
+  value: number;
+  description: string;
+  categoryId: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Definir interface ReportData
+export interface ReportData {
+  transactions: Transaction[];
+  categories: Category[];
+  summary: {
+    totalReceitas: number;
+    totalDespesas: number;
+    saldo: number;
+  };
+  period: {
+    startDate: Date;
+    endDate: Date;
+  };
+}
+
+// Definir tokens para serviços
+export const REPORT_SERVICE = 'report-service';
+
 // Definir a interface CategoryService localmente
 export interface CategoryService extends BaseEntityService<Category> {
   getByType(type: 'receita' | 'despesa' | 'ambos' | 'investimento'): Promise<{ data: Category[] | null; error: Error | null }>;
+}
+
+// Definir a interface ReportService
+export interface ReportService {
+  generateReport(filters: {
+    startDate: Date;
+    endDate: Date;
+    categoryId?: string;
+    type?: 'receita' | 'despesa' | 'ambos';
+  }): Promise<{ data: ReportData | null; error: Error | null }>;
+  
+  exportToPDF(reportData: ReportData): Promise<{ success: boolean; error: Error | null }>;
+  
+  getFinancialSummary(period: 'month' | 'quarter' | 'year'): Promise<{
+    receitas: number;
+    despesas: number;
+    saldo: number;
+    transactions: Transaction[];
+  }>;
 }
 
 // Definir interfaces para autenticação
