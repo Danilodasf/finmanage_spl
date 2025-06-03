@@ -256,7 +256,7 @@ const TransactionsDI: React.FC = () => {
               </SelectContent>
             </Select>
             
-            <Button onClick={openNewTransactionDialog}>
+            <Button onClick={openNewTransactionDialog} className="bg-emerald-800 hover:bg-emerald-700">
               <Plus className="mr-2 h-4 w-4" />
               Nova Transação
             </Button>
@@ -531,6 +531,7 @@ const TransactionsDI: React.FC = () => {
             <Button 
               onClick={handleNewTransactionSubmit}
               disabled={isLoading['new'] || !transactionFormData.description || !transactionFormData.value || !transactionFormData.categoryId}
+              className="bg-emerald-800 hover:bg-emerald-700"
             >
               {isLoading['new'] && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
