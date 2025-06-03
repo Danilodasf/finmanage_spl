@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./views/auth/Login";
 import Register from "./views/auth/Register";
 import Dashboard from "./views/Dashboard";
+import DashboardDI from "./views/DashboardDI";
 import Transactions from "./views/Transactions";
 import TransactionsDI from "./views/TransactionsDI";
 import Categories from "./views/Categories";
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard-di" element={<DashboardDI />} />
           <Route path="/transactions" element={<TransactionsDI />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/reports" element={<ReportsDI />} />
