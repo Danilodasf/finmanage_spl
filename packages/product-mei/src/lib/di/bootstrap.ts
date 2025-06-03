@@ -1,7 +1,8 @@
-import { DIContainer, CATEGORY_SERVICE, AUTH_SERVICE, REPORT_SERVICE } from '../core-exports';
+import { DIContainer, CATEGORY_SERVICE, AUTH_SERVICE, REPORT_SERVICE, TRANSACTION_SERVICE } from '../core-exports';
 import { MeiCategoryService } from '../services/MeiCategoryService';
 import { MeiAuthService } from '../services/MeiAuthService';
 import { MeiReportService } from '../services/MeiReportService';
+import { MeiTransactionService } from '../services/MeiTransactionService';
 
 /**
  * Inicializa o container de DI para o produto MEI
@@ -20,6 +21,9 @@ export function bootstrapMeiDI(): void {
     
     DIContainer.registerSingleton(REPORT_SERVICE, new MeiReportService());
     console.log(`Serviço ${REPORT_SERVICE} registrado com sucesso`);
+    
+    DIContainer.registerSingleton(TRANSACTION_SERVICE, new MeiTransactionService());
+    console.log(`Serviço ${TRANSACTION_SERVICE} registrado com sucesso`);
     
     // Verificar se o container foi inicializado corretamente
     if (DIContainer.isInitialized()) {
