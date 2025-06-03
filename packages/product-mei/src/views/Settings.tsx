@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { MainLayout } from '@/components/Layout/MainLayout';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { AuthController } from '@/controllers/AuthController';
-import { toast } from '@/hooks/use-toast';
+import { MainLayout } from '../components/Layout/MainLayout';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { DIAuthController } from '../controllers/DIAuthController';
+import { toast } from '../hooks/use-toast';
 
 const Settings: React.FC = () => {
   const [name, setName] = useState('João da Silva');
@@ -22,7 +22,7 @@ const Settings: React.FC = () => {
     e.preventDefault();
     setIsUpdatingProfile(true);
     
-    const success = await AuthController.updateProfile(name);
+    const success = await DIAuthController.updateProfile(name);
     
     if (success) {
       toast({
@@ -56,7 +56,7 @@ const Settings: React.FC = () => {
     
     setIsUpdatingPassword(true);
     
-    const success = await AuthController.updatePassword(
+    const success = await DIAuthController.updatePassword(
       passwordData.currentPassword,
       passwordData.newPassword
     );
