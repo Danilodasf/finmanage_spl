@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
-import { Settings, LogOut, LayoutDashboard, Receipt, FolderOpen, BarChart } from 'lucide-react';
+import { Settings, LogOut, LayoutDashboard, Receipt, FolderOpen, BarChart, Bell } from 'lucide-react';
 import { toast } from '../../hooks/use-toast';
 import { AuthController } from '../../controllers/AuthController';
 
@@ -13,6 +13,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [notificationsCount, setNotificationsCount] = useState(0);
 
   const isActive = (path: string) => location.pathname === path;
   
@@ -122,6 +123,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       
       {/* Main content */}
       <main className="ml-64 flex-1 p-8">
+        {/* Notifications header */}
+        <div className="flex justify-end mb-6">
+          <div className="relative">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="bg-white rounded-full p-2 h-10 w-10 flex items-center justify-center shadow-sm"
+            >
+              <Bell className="h-5 w-5 text-emerald-800" />
+              {notificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {notificationsCount}
+                </span>
+              )}
+            </Button>
+          </div>
+        </div>
+        
         {children}
       </main>
     </div>
