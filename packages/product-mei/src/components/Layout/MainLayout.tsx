@@ -38,8 +38,22 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <div className="flex min-h-screen bg-emerald-50">
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md border-r flex flex-col h-screen fixed">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex justify-between items-center">
           <h1 className="text-xl font-bold text-emerald-800">FinManage MEI</h1>
+          <div className="relative">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="bg-white rounded-full p-2 h-8 w-8 flex items-center justify-center shadow-sm"
+            >
+              <Bell className="h-4 w-4 text-emerald-800" />
+              {notificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {notificationsCount}
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
         
         <nav className="flex-1 p-4">
@@ -123,24 +137,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       
       {/* Main content */}
       <main className="ml-64 flex-1 p-8">
-        {/* Notifications header */}
-        <div className="flex justify-end mb-6">
-          <div className="relative">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="bg-white rounded-full p-2 h-10 w-10 flex items-center justify-center shadow-sm"
-            >
-              <Bell className="h-5 w-5 text-emerald-800" />
-              {notificationsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {notificationsCount}
-                </span>
-              )}
-            </Button>
-          </div>
-        </div>
-        
         {children}
       </main>
     </div>
