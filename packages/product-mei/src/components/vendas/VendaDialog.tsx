@@ -188,7 +188,11 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="bg-emerald-800 hover:bg-emerald-700 text-white"
+            >
               {isLoading ? 'Salvando...' : venda ? 'Salvar Alterações' : 'Registrar Venda'}
             </Button>
           </DialogFooter>
