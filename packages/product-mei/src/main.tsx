@@ -1,7 +1,8 @@
+import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { StagewiseToolbar } from '@stagewise/toolbar-react'
+// import { StagewiseToolbar } from '@stagewise/toolbar-react'
 import { bootstrapMeiDI } from './lib/di/bootstrap'
 
 // Inicializa o container de DI
@@ -10,6 +11,8 @@ bootstrapMeiDI();
 // Renderiza a aplicação principal
 createRoot(document.getElementById("root")!).render(<App />);
 
+// Stagewise Toolbar desativado
+/*
 // Configuração e renderização do Stagewise Toolbar apenas em desenvolvimento
 if (import.meta.env.DEV) {
   const stagewiseConfig = {
@@ -25,4 +28,5 @@ if (import.meta.env.DEV) {
   createRoot(toolbarContainer).render(
     <StagewiseToolbar config={stagewiseConfig} />
   );
-} 
+}
+*/ 
