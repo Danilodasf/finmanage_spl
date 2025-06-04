@@ -9,7 +9,11 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Loader2
+  Loader2,
+  Wallet,
+  AlertCircle,
+  Calendar,
+  X
 } from 'lucide-react';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -28,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -38,6 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { Alert, AlertDescription } from "../components/ui/alert";
 
 interface TransactionFormData {
   description: string;
@@ -45,6 +51,13 @@ interface TransactionFormData {
   date: string;
   categoryId: string;
   type: 'receita' | 'despesa';
+}
+
+interface FinancialSummary {
+  receitas: number;
+  despesas: number;
+  saldo: number;
+  transactions: Transaction[];
 }
 
 const TransactionsDI: React.FC = () => {
@@ -55,6 +68,14 @@ const TransactionsDI: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [newTransactionDialogOpen, setNewTransactionDialogOpen] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState<Transaction | null>(null);
+  const [financialSummary, setFinancialSummary] = useState<FinancialSummary>({
+    receitas: 0,
+    despesas: 0,
+    saldo: 0,
+    transactions: []
+  });
+  const [upcomingPayments, setUpcomingPayments] = useState<Transaction[]>([]);
+  const [showPaymentsAlert, setShowPaymentsAlert] = useState(true);
   const [transactionFormData, setTransactionFormData] = useState<TransactionFormData>({
     description: '',
     value: '',
@@ -80,6 +101,14 @@ const TransactionsDI: React.FC = () => {
       // Carregar categorias
       const categoriesData = await DICategoryController.getCategories();
       setCategories(categoriesData);
+      
+      // Carregar resumo financeiro
+      const summary = await DITransactionController.getFinancialSummary('month');
+      setFinancialSummary(summary);
+      
+      // Buscar pagamentos próximos do vencimento
+      const upcoming = await DITransactionController.getUpcomingPayments();
+      setUpcomingPayments(upcoming);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({
@@ -136,6 +165,29 @@ const TransactionsDI: React.FC = () => {
         type: transactionFormData.type
       };
       
+      // Verificar saldo se for uma despesa e o valor for maior que o original
+      if (updatedData.type === 'despesa' && 
+          (currentTransaction.type === 'receita' || 
+           updatedData.value > currentTransaction.value)) {
+        
+        // Calcular diferença de valor
+        let valorDiferenca = updatedData.value;
+        if (currentTransaction.type === 'despesa') {
+          valorDiferenca = updatedData.value - currentTransaction.value;
+        }
+        
+        // Verificar se há saldo suficiente
+        if (financialSummary.saldo < valorDiferenca) {
+          toast({
+            title: "Saldo insuficiente",
+            description: `Você não possui saldo suficiente (R$ ${financialSummary.saldo.toFixed(2)}) para registrar esta despesa.`,
+            variant: "destructive",
+          });
+          setIsLoading(prev => ({ ...prev, [currentTransaction.id]: false }));
+          return;
+        }
+      }
+      
       // Chamar o controller para atualizar a transação
       const success = await DITransactionController.updateTransaction(currentTransaction.id, updatedData);
       
@@ -163,6 +215,17 @@ const TransactionsDI: React.FC = () => {
         categoryId: transactionFormData.categoryId,
         type: transactionFormData.type
       };
+      
+      // Verificar saldo se for uma despesa
+      if (newTransactionData.type === 'despesa' && financialSummary.saldo < newTransactionData.value) {
+        toast({
+          title: "Saldo insuficiente",
+          description: `Você não possui saldo suficiente (R$ ${financialSummary.saldo.toFixed(2)}) para registrar esta despesa.`,
+          variant: "destructive",
+        });
+        setIsLoading(prev => ({ ...prev, new: false }));
+        return;
+      }
       
       // Chamar o controller para criar a transação
       const success = await DITransactionController.createTransaction(newTransactionData);
@@ -262,6 +325,87 @@ const TransactionsDI: React.FC = () => {
             </Button>
           </div>
         </div>
+        
+        {/* Alerta de Pagamentos Próximos */}
+        {showPaymentsAlert && upcomingPayments.length > 0 && (
+          <Alert className="bg-amber-50 border-amber-200">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center">
+                <Calendar className="h-5 w-5 text-amber-600 mr-2" />
+                <div>
+                  <h3 className="font-medium text-amber-800">
+                    {upcomingPayments.length === 1 
+                      ? '1 pagamento próximo do vencimento' 
+                      : `${upcomingPayments.length} pagamentos próximos do vencimento`}
+                  </h3>
+                  <AlertDescription className="text-amber-700">
+                    Você tem pagamentos que vencem nos próximos 7 dias
+                  </AlertDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                  onClick={() => {
+                    // Aqui poderia abrir um modal com detalhes dos pagamentos
+                    toast({
+                      title: "Pagamentos próximos",
+                      description: `Você tem ${upcomingPayments.length} pagamentos nos próximos 7 dias.`,
+                    });
+                  }}
+                >
+                  Ver detalhes
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-amber-700 hover:bg-amber-100 h-8 w-8 p-0"
+                  onClick={() => setShowPaymentsAlert(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </Alert>
+        )}
+        
+        {/* Resumo Financeiro */}
+        <Card className="p-6 bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200 shadow-md">
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="bg-emerald-100 p-2 rounded-full">
+                  <Wallet className="h-6 w-6 text-emerald-700" />
+                </div>
+                <h2 className="text-lg font-medium text-emerald-800 ml-2">Saldo Disponível</h2>
+              </div>
+              <div className="text-2xl font-bold text-emerald-700">
+                R$ {financialSummary.saldo.toFixed(2)}
+              </div>
+            </div>
+            
+            <div className="h-0.5 bg-gradient-to-r from-emerald-200 to-transparent rounded-full my-2"></div>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white/60 rounded-lg p-3 shadow-sm">
+                <div className="flex items-center mb-1">
+                  <ArrowUpRight className="h-4 w-4 text-blue-600 mr-1" />
+                  <span className="text-sm font-medium text-emerald-700">Receitas</span>
+                </div>
+                <span className="text-xl font-semibold text-blue-600">+ R$ {financialSummary.receitas.toFixed(2)}</span>
+              </div>
+              <div className="bg-white/60 rounded-lg p-3 shadow-sm">
+                <div className="flex items-center mb-1">
+                  <ArrowDownLeft className="h-4 w-4 text-red-600 mr-1" />
+                  <span className="text-sm font-medium text-emerald-700">Despesas</span>
+                </div>
+                <span className="text-xl font-semibold text-red-600">- R$ {financialSummary.despesas.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
         
         {isPageLoading ? (
           <div className="flex justify-center items-center h-64">
@@ -413,14 +557,26 @@ const TransactionsDI: React.FC = () => {
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  {categories
+                    .filter(category => category.type === transactionFormData.type)
+                    .map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))
+                  }
                 </SelectContent>
               </Select>
             </div>
+            
+            {transactionFormData.type === 'despesa' && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <Wallet className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  Saldo disponível: <span className="font-medium">R$ {financialSummary.saldo.toFixed(2)}</span>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           
           <DialogFooter>
@@ -448,6 +604,12 @@ const TransactionsDI: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nova Transação</DialogTitle>
+            {transactionFormData.type === 'despesa' && (
+              <DialogDescription className="flex items-center text-blue-600">
+                <Wallet className="h-4 w-4 mr-1" />
+                Saldo disponível: R$ {financialSummary.saldo.toFixed(2)}
+              </DialogDescription>
+            )}
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
@@ -456,7 +618,7 @@ const TransactionsDI: React.FC = () => {
               <Select 
                 value={transactionFormData.type}
                 onValueChange={(value: 'receita' | 'despesa') => 
-                  setTransactionFormData({ ...transactionFormData, type: value })
+                  setTransactionFormData({ ...transactionFormData, type: value, categoryId: '' })
                 }
               >
                 <SelectTrigger id="new-type">
@@ -487,6 +649,14 @@ const TransactionsDI: React.FC = () => {
                 value={transactionFormData.value}
                 onChange={(e) => setTransactionFormData({ ...transactionFormData, value: e.target.value })}
               />
+              
+              {transactionFormData.type === 'despesa' && 
+               parseFloat(transactionFormData.value || '0') > financialSummary.saldo && (
+                <div className="flex items-center text-red-600 text-xs mt-1">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  O valor excede o saldo disponível
+                </div>
+              )}
             </div>
             
             <div className="grid gap-2">
@@ -511,14 +681,26 @@ const TransactionsDI: React.FC = () => {
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
+                  {categories
+                    .filter(category => category.type === transactionFormData.type)
+                    .map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))
+                  }
                 </SelectContent>
               </Select>
             </div>
+            
+            {transactionFormData.type === 'despesa' && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <Wallet className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  Saldo disponível: <span className="font-medium">R$ {financialSummary.saldo.toFixed(2)}</span>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
           
           <DialogFooter>
@@ -530,7 +712,14 @@ const TransactionsDI: React.FC = () => {
             </Button>
             <Button 
               onClick={handleNewTransactionSubmit}
-              disabled={isLoading['new'] || !transactionFormData.description || !transactionFormData.value || !transactionFormData.categoryId}
+              disabled={
+                isLoading['new'] || 
+                !transactionFormData.description || 
+                !transactionFormData.value || 
+                !transactionFormData.categoryId ||
+                (transactionFormData.type === 'despesa' && 
+                 parseFloat(transactionFormData.value) > financialSummary.saldo)
+              }
               className="bg-emerald-800 hover:bg-emerald-700"
             >
               {isLoading['new'] && (

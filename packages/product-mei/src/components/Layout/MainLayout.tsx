@@ -1,9 +1,24 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
-import { Settings, LogOut, LayoutDashboard, Receipt, FolderOpen, BarChart, Bell, FileText } from 'lucide-react';
+import { Settings, LogOut, LayoutDashboard, Receipt, FolderOpen, BarChart, Bell, FileText, ShoppingBag, Menu, X } from 'lucide-react';
 import { toast } from '../../hooks/use-toast';
 import { AuthController } from '../../controllers/AuthController';
+
+// Exportar interface e funções de notificação para reutilização
+export interface Notification {
+  id: number;
+  message: string;
+  date: string;
+  read?: boolean;
+}
+
+export interface NotificationProps {
+  notifications: Notification[];
+  notificationsCount: number;
+  showNotifications: boolean;
+  toggleNotifications: () => void;
+}
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -13,15 +28,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [notificationsCount, setNotificationsCount] = useState(0);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
-  // Dados de exemplo para notificações
-  const notifications = [
-    { id: 1, message: "Bem-vindo ao FinManage MEI!", date: "Hoje" },
-    { id: 2, message: "Sua assinatura está ativa.", date: "Ontem" },
-  ];
-
   const isActive = (path: string) => location.pathname === path;
   
   const handleLogout = async () => {
@@ -41,67 +49,42 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     setIsLoggingOut(false);
   };
 
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   return (
     <div className="flex min-h-screen bg-emerald-50">
+      {/* Botão de toggle para mobile */}
+      <div className={`fixed z-50 top-4 ${sidebarOpen ? 'left-64' : 'left-4'} md:hidden`}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-white rounded-full p-2 h-8 w-8 flex items-center justify-center shadow-md border border-emerald-800"
+          onClick={toggleSidebar}
+        >
+          {sidebarOpen ? <X className="h-4 w-4 text-emerald-800" /> : <Menu className="h-4 w-4 text-emerald-800" />}
+        </Button>
+      </div>
+      
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-md border-r flex flex-col h-screen fixed">
+      <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-64 bg-white shadow-md border-r flex flex-col h-screen fixed transition-transform duration-300 ease-in-out z-40`}>
         <div className="p-4 border-b flex justify-between items-center">
           <h1 className="text-xl font-bold text-emerald-800">FinManage MEI</h1>
-          <div className="relative">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="bg-white rounded-full p-2 h-8 w-8 flex items-center justify-center shadow-sm border border-emerald-800"
-              onClick={toggleNotifications}
-            >
-              <Bell className="h-4 w-4 text-emerald-800" />
-              {notificationsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {notificationsCount}
-                </span>
-              )}
-            </Button>
-            
-            {/* Popup de notificações */}
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-72 bg-white rounded-md shadow-lg z-50 border border-gray-200">
-                <div className="p-3 border-b border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-700">Notificações</h3>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {notifications.length > 0 ? (
-                    <div>
-                      {notifications.map((notification) => (
-                        <div key={notification.id} className="p-3 border-b border-gray-100 hover:bg-gray-50">
-                          <p className="text-sm text-gray-800">{notification.message}</p>
-                          <p className="text-xs text-gray-500 mt-1">{notification.date}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-sm text-gray-500">
-                      Nenhuma notificação
-                    </div>
-                  )}
-                </div>
-                <div className="p-2 border-t border-gray-200">
-                  <Button variant="ghost" size="sm" className="w-full text-xs text-emerald-800 hover:text-emerald-700">
-                    Ver todas
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-white rounded-full p-2 h-8 w-8 flex items-center justify-center shadow-sm border border-emerald-800 md:hidden"
+            onClick={toggleSidebar}
+          >
+            <X className="h-4 w-4 text-emerald-800" />
+          </Button>
         </div>
         
-        <nav className="flex-1 p-4">
+        <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-2">
             <li>
-              <Link to="/dashboard-di">
+              <Link to="/dashboard-di" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
                 <Button 
                   className={`w-full justify-start ${isActive('/dashboard-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
                   variant={isActive('/dashboard-di') ? 'default' : 'ghost'}
@@ -113,7 +96,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               </Link>
             </li>
             <li>
-              <Link to="/transactions">
+              <Link to="/transactions" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
                 <Button 
                   className={`w-full justify-start ${isActive('/transactions') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
                   variant={isActive('/transactions') ? 'default' : 'ghost'}
@@ -125,7 +108,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               </Link>
             </li>
             <li>
-              <Link to="/imposto-das">
+              <Link to="/vendas" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
+                <Button 
+                  className={`w-full justify-start ${isActive('/vendas') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
+                  variant={isActive('/vendas') ? 'default' : 'ghost'}
+                  size="sm"
+                >
+                  <ShoppingBag className="w-4 h-4 mr-2" />
+                  Vendas
+                </Button>
+              </Link>
+            </li>
+            <li>
+              <Link to="/imposto-das" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
                 <Button 
                   className={`w-full justify-start ${isActive('/imposto-das') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
                   variant={isActive('/imposto-das') ? 'default' : 'ghost'}
@@ -137,7 +132,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               </Link>
             </li>
             <li>
-              <Link to="/categories">
+              <Link to="/categories" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
                 <Button 
                   className={`w-full justify-start ${isActive('/categories') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
                   variant={isActive('/categories') ? 'default' : 'ghost'}
@@ -149,7 +144,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               </Link>
             </li>
             <li>
-              <Link to="/reports">
+              <Link to="/reports" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
                 <Button 
                   className={`w-full justify-start ${isActive('/reports') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
                   variant={isActive('/reports') ? 'default' : 'ghost'}
@@ -161,7 +156,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               </Link>
             </li>
             <li>
-              <Link to="/settings">
+              <Link to="/settings" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
                 <Button 
                   className={`w-full justify-start ${isActive('/settings') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
                   variant={isActive('/settings') ? 'default' : 'ghost'}
@@ -190,7 +185,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       </aside>
       
       {/* Main content */}
-      <main className="ml-64 flex-1 p-8">
+      <main className={`${sidebarOpen ? 'md:ml-64' : 'ml-0'} flex-1 p-8 transition-all duration-300 ease-in-out w-full`}>
         {children}
       </main>
     </div>
