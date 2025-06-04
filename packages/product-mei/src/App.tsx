@@ -18,6 +18,7 @@ import ReportsDI from "./views/ReportsDI";
 import Settings from "./views/Settings";
 import NotFound from "./pages/NotFound";
 import Vendas from "./views/Vendas";
+import NotificationsPage from "./pages/NotificationsPage";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/categories" element={<Categories />} />
           <Route path="/reports" element={<ReportsDI />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { PieChart, Pie, Cell, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Filter } from 'lucide-react';
 import { Transaction } from '../lib/core-exports';
+import { NotificationCenter } from '../components/ui/notification';
 
 /**
  * Componente de Dashboard que utiliza injeção de dependência
@@ -66,16 +67,19 @@ const DashboardDI: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-emerald-800">Dashboard MEI</h1>
-          <Select value={period} onValueChange={(value: 'month' | 'year') => setPeriod(value)}>
-            <SelectTrigger className="w-32">
-              <Filter className="mr-2 h-4 w-4" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">Mês</SelectItem>
-              <SelectItem value="year">Ano</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center space-x-2">
+            <Select value={period} onValueChange={(value: 'month' | 'year') => setPeriod(value)}>
+              <SelectTrigger className="w-32">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">Mês</SelectItem>
+                <SelectItem value="year">Ano</SelectItem>
+              </SelectContent>
+            </Select>
+            <NotificationCenter />
+          </div>
         </div>
 
         {loading ? (
