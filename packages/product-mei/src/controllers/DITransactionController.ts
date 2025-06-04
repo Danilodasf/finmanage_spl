@@ -289,4 +289,206 @@ export class DITransactionController {
       };
     }
   }
+
+  /**
+   * Cria uma transação de venda
+   * @param value Valor da venda
+   * @param date Data da venda
+   * @param description Descrição da venda
+   * @param categoryId ID da categoria (opcional, usa 'Vendas' como padrão)
+   * @returns true se a transação foi criada com sucesso
+   */
+  static async createSaleTransaction(
+    value: number, 
+    date: Date, 
+    description: string,
+    categoryId?: string
+  ): Promise<boolean> {
+    try {
+      // Se não foi fornecido um categoryId, buscar a categoria "Vendas"
+      let saleCategoryId = categoryId;
+      if (!saleCategoryId) {
+        const { DICategoryController } = await import('./DICategoryController');
+        // Garantir que as categorias padrão existam
+        await DICategoryController.ensureDefaultCategories();
+        
+        // Buscar a categoria de vendas
+        const categories = await DICategoryController.getCategories();
+        const vendasCategory = categories.find(c => 
+          c.name.toLowerCase() === 'vendas' && 
+          c.type === 'receita'
+        );
+        
+        if (vendasCategory) {
+          saleCategoryId = vendasCategory.id;
+        } else {
+          // Se não existir, criar
+          const newCategory = await DICategoryController.createCategory('Vendas', 'receita', '#4CAF50');
+          if (newCategory) {
+            saleCategoryId = newCategory.id;
+          }
+        }
+      }
+      
+      // Criar transação de venda (receita)
+      return await this.createTransaction({
+        type: 'receita',
+        value,
+        date,
+        description,
+        categoryId: saleCategoryId || '',
+      });
+    } catch (error) {
+      console.error('Erro ao criar transação de venda:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Cria uma transação de pagamento de imposto DAS
+   * @param value Valor do imposto
+   * @param date Data do pagamento
+   * @param description Descrição do pagamento (mês/ano de referência)
+   * @param categoryId ID da categoria (opcional, usa 'Impostos' como padrão)
+   * @returns true se a transação foi criada com sucesso
+   */
+  static async createTaxPaymentTransaction(
+    value: number, 
+    date: Date, 
+    description: string,
+    categoryId?: string
+  ): Promise<boolean> {
+    try {
+      // Se não foi fornecido um categoryId, buscar a categoria "Impostos"
+      let taxCategoryId = categoryId;
+      if (!taxCategoryId) {
+        const { DICategoryController } = await import('./DICategoryController');
+        // Garantir que as categorias padrão existam
+        await DICategoryController.ensureDefaultCategories();
+        
+        // Buscar a categoria de impostos
+        const categories = await DICategoryController.getCategories();
+        const impostosCategory = categories.find(c => 
+          c.name.toLowerCase() === 'impostos' && 
+          c.type === 'despesa'
+        );
+        
+        if (impostosCategory) {
+          taxCategoryId = impostosCategory.id;
+        } else {
+          // Se não existir, criar
+          const newCategory = await DICategoryController.createCategory('Impostos', 'despesa', '#F44336');
+          if (newCategory) {
+            taxCategoryId = newCategory.id;
+          }
+        }
+      }
+      
+      // Criar transação de pagamento de imposto (despesa)
+      return await this.createTransaction({
+        type: 'despesa',
+        value,
+        date,
+        description,
+        categoryId: taxCategoryId || '',
+      });
+    } catch (error) {
+      console.error('Erro ao criar transação de pagamento de imposto:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Cria uma transação de serviço
+   * @param value Valor do serviço
+   * @param date Data do serviço
+   * @param description Descrição do serviço
+   * @param categoryId ID da categoria (opcional, usa 'Serviços' como padrão)
+   * @returns true se a transação foi criada com sucesso
+   */
+  static async createServiceTransaction(
+    value: number, 
+    date: Date, 
+    description: string,
+    categoryId?: string
+  ): Promise<boolean> {
+    try {
+      // Se não foi fornecido um categoryId, buscar a categoria "Serviços"
+      let serviceCategoryId = categoryId;
+      if (!serviceCategoryId) {
+        const { DICategoryController } = await import('./DICategoryController');
+        // Garantir que as categorias padrão existam
+        await DICategoryController.ensureDefaultCategories();
+        
+        // Buscar a categoria de serviços
+        const categories = await DICategoryController.getCategories();
+        const servicosCategory = categories.find(c => 
+          c.name.toLowerCase() === 'serviços' && 
+          c.type === 'receita'
+        );
+        
+        if (servicosCategory) {
+          serviceCategoryId = servicosCategory.id;
+        } else {
+          // Se não existir, criar
+          const newCategory = await DICategoryController.createCategory('Serviços', 'receita', '#2196F3');
+          if (newCategory) {
+            serviceCategoryId = newCategory.id;
+          }
+        }
+      }
+      
+      // Criar transação de serviço (receita)
+      return await this.createTransaction({
+        type: 'receita',
+        value,
+        date,
+        description,
+        categoryId: serviceCategoryId || '',
+      });
+    } catch (error) {
+      console.error('Erro ao criar transação de serviço:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Busca transações de pagamentos próximos do vencimento (7 dias ou menos)
+   * @returns Lista de transações próximas do vencimento
+   */
+  static async getUpcomingPayments(): Promise<Transaction[]> {
+    try {
+      const transactionService = this.getTransactionService();
+      const { data, error } = await transactionService.getAll();
+      
+      if (error || !data) {
+        return [];
+      }
+      
+      // Filtrar transações do tipo despesa com data futura e no máximo 7 dias à frente
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      sevenDaysFromNow.setHours(23, 59, 59, 999);
+      
+      const upcomingPayments = data.filter(transaction => {
+        // Verificar se é uma despesa
+        if (transaction.type !== 'despesa') return false;
+        
+        // Converter a data da transação para objeto Date
+        const transactionDate = new Date(transaction.date);
+        transactionDate.setHours(0, 0, 0, 0);
+        
+        // Verificar se a data está entre hoje e 7 dias à frente
+        return transactionDate >= today && transactionDate <= sevenDaysFromNow;
+      });
+      
+      return upcomingPayments;
+    } catch (error) {
+      console.error('Erro ao buscar pagamentos próximos:', error);
+      return [];
+    }
+  }
 } 

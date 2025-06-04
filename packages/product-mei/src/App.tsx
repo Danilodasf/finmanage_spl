@@ -11,6 +11,7 @@ import RegisterDI from "./views/auth/RegisterDI";
 import DashboardDI from "./views/DashboardDI";
 import Transactions from "./views/Transactions";
 import TransactionsDI from "./views/TransactionsDI";
+import ImpostoDAS from "./views/ImpostoDAS";
 import Categories from "./views/Categories";
 import Reports from "./views/Reports";
 import ReportsDI from "./views/ReportsDI";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/dashboard" element={<Navigate to="/dashboard-di" replace />} />
           <Route path="/dashboard-di" element={<DashboardDI />} />
           <Route path="/transactions" element={<TransactionsDI />} />
+          <Route path="/imposto-das" element={<ImpostoDAS />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/reports" element={<ReportsDI />} />
           <Route path="/settings" element={<Settings />} />
