@@ -17,6 +17,7 @@ import Reports from "./views/Reports";
 import ReportsDI from "./views/ReportsDI";
 import Settings from "./views/Settings";
 import NotFound from "./pages/NotFound";
+import Vendas from "./views/Vendas";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/dashboard" element={<Navigate to="/dashboard-di" replace />} />
           <Route path="/dashboard-di" element={<DashboardDI />} />
           <Route path="/transactions" element={<TransactionsDI />} />
+          <Route path="/vendas" element={<Vendas />} />
           <Route path="/imposto-das" element={<ImpostoDAS />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/reports" element={<ReportsDI />} />
