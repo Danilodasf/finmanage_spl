@@ -63,9 +63,47 @@ FOREIGN KEY (user_id)
 REFERENCES profiles(id) ON DELETE CASCADE;
 `;
 
+// SQL para criar a tabela das_payments
+const createDASPaymentsSQL = `
+-- Criação da tabela de pagamentos DAS
+CREATE TABLE IF NOT EXISTS imposto_das (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  competencia TEXT NOT NULL,
+  vencimento DATE NOT NULL,
+  valor DECIMAL(10,2) NOT NULL,
+  numero_das TEXT,
+  data_pagamento DATE,
+  status TEXT NOT NULL CHECK (status IN ('Pago', 'Pendente')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Criar políticas RLS (Row Level Security)
+ALTER TABLE imposto_das ENABLE ROW LEVEL SECURITY;
+
+-- Criar as políticas
+CREATE POLICY "Usuários podem ver apenas seus próprios pagamentos DAS" 
+  ON imposto_das FOR SELECT 
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Usuários podem inserir seus próprios pagamentos DAS" 
+  ON imposto_das FOR INSERT 
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Usuários podem atualizar seus próprios pagamentos DAS" 
+  ON imposto_das FOR UPDATE 
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Usuários podem excluir seus próprios pagamentos DAS" 
+  ON imposto_das FOR DELETE 
+  USING (auth.uid() = user_id);
+`;
+
 const AdminSetup: React.FC = () => {
   const [isCreatingProfiles, setIsCreatingProfiles] = useState(false);
   const [isUpdatingCategories, setIsUpdatingCategories] = useState(false);
+  const [isCreatingDASPayments, setIsCreatingDASPayments] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
 
   const addMessage = (message: string) => {
@@ -112,12 +150,59 @@ const AdminSetup: React.FC = () => {
     }
   };
 
+  const createDASPaymentsTable = async () => {
+    setIsCreatingDASPayments(true);
+    try {
+      addMessage('Verificando se a tabela imposto_das já existe...');
+      
+      // Verificar se a tabela já existe
+      const { error: checkError } = await supabase
+        .from('imposto_das')
+        .select('count')
+        .limit(1);
+        
+      if (!checkError) {
+        addMessage('A tabela imposto_das já existe!');
+        setIsCreatingDASPayments(false);
+        return;
+      }
+      
+      addMessage('Criando tabela imposto_das...');
+      const { error } = await supabase.rpc('exec_sql', { sql: createDASPaymentsSQL });
+      
+      if (error) {
+        addMessage(`Erro ao criar tabela imposto_das: ${error.message}`);
+        console.error('Erro ao criar tabela imposto_das:', error);
+      } else {
+        addMessage('Tabela imposto_das criada com sucesso!');
+        
+        // Verificar se a tabela foi realmente criada
+        const { error: verifyError } = await supabase
+          .from('imposto_das')
+          .select('count')
+          .limit(1);
+          
+        if (verifyError) {
+          addMessage(`Erro ao verificar a tabela criada: ${verifyError.message}`);
+          console.error('Erro ao verificar a tabela criada:', verifyError);
+        } else {
+          addMessage('Verificação concluída: tabela imposto_das está pronta para uso!');
+        }
+      }
+    } catch (error) {
+      addMessage(`Erro ao criar tabela imposto_das: ${(error as Error).message}`);
+      console.error('Erro ao criar tabela imposto_das:', error);
+    } finally {
+      setIsCreatingDASPayments(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-emerald-800">Configuração do Banco de Dados</h1>
         
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Tabela Profiles</h2>
             <p className="mb-4">
@@ -156,6 +241,27 @@ const AdminSetup: React.FC = () => {
                 </>
               ) : (
                 'Atualizar Tabela Categories'
+              )}
+            </Button>
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Tabela Imposto DAS</h2>
+            <p className="mb-4">
+              Cria uma tabela para armazenar os pagamentos do DAS.
+            </p>
+            <Button 
+              onClick={createDASPaymentsTable}
+              className="bg-emerald-800 hover:bg-emerald-700"
+              disabled={isCreatingDASPayments}
+            >
+              {isCreatingDASPayments ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                'Criar Tabela Imposto DAS'
               )}
             </Button>
           </Card>

@@ -1,12 +1,14 @@
+/**
+ * Modelo de Venda para a aplicação
+ */
 export interface Venda {
   id: number;
-  clienteId: number;
+  clienteId?: number;
   clienteNome: string;
   data: string;
   descricao: string;
   valor: string;
   formaPagamento: string;
-  comprovante?: string;
   uuid?: string;
   clienteUuid?: string;
 }
