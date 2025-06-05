@@ -15,14 +15,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { Checkbox } from '../components/ui/checkbox';
 import { isValidMoneyValue, formatMoneyValue } from '../utils/validation';
+import { DIDASController } from '../controllers/DIDASController';
+import { DASPayment } from '../lib/services/SupabaseMeiDASService';
 
-interface Pagamento {
-  id: number;
-  competencia: string;
-  vencimento: string;
-  valor: string;
-  status: 'Pago' | 'Pendente';
-  dataPagamento?: string;
+// Interface para o estado de exibição dos pagamentos na tabela
+interface PagamentoDisplay extends Omit<DASPayment, 'valor'> {
+  valor: string; // valor formatado como R$ XX,XX para exibição
 }
 
 /**
@@ -30,22 +28,18 @@ interface Pagamento {
  */
 const ImpostoDAS: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [dataPagamento, setDataPagamento] = useState<Date | undefined>(undefined);
   const [competencia, setCompetencia] = useState<string | undefined>('');
-  const [valor, setValor] = useState<string>('');
+  const [valor, setValor] = useState<string>(''); // Valor do input (string XX,XX)
   const [numeroDas, setNumeroDas] = useState<string>('');
-  const [comprovante, setComprovante] = useState<File | null>(null);
-  const [historicoPagamentos, setHistoricoPagamentos] = useState<Pagamento[]>([
-    { id: 1, competencia: 'Janeiro/2023', vencimento: '20/02/2023', valor: 'R$ 65,00', status: 'Pago', dataPagamento: '18/02/2023' },
-    { id: 2, competencia: 'Fevereiro/2023', vencimento: '20/03/2023', valor: 'R$ 65,00', status: 'Pago', dataPagamento: '15/03/2023' },
-    { id: 3, competencia: 'Março/2023', vencimento: '20/04/2023', valor: 'R$ 65,00', status: 'Pendente' },
-  ]);
-  const [editandoPagamento, setEditandoPagamento] = useState<Pagamento | null>(null);
+  const [historicoPagamentos, setHistoricoPagamentos] = useState<PagamentoDisplay[]>([]);
+  const [editandoPagamento, setEditandoPagamento] = useState<PagamentoDisplay | null>(null);
   
   // Estados para o diálogo de marcar como pago
   const [isMarcarComoPagoDialogOpen, setIsMarcarComoPagoDialogOpen] = useState(false);
-  const [pagamentoParaMarcar, setPagamentoParaMarcar] = useState<number | null>(null);
+  const [pagamentoParaMarcar, setPagamentoParaMarcar] = useState<string | null>(null); // Armazena o ID (string)
   const [dataConfirmacaoPagamento, setDataConfirmacaoPagamento] = useState<Date | undefined>(new Date());
 
   // Novos estados para o cálculo do DAS
@@ -62,41 +56,53 @@ const ImpostoDAS: React.FC = () => {
   } | null>(null);
   const [mostrarAlertaLimite, setMostrarAlertaLimite] = useState(false);
 
-  // Novo estado para controlar se o faturamento anual foi editado manualmente
-  const [faturamentoAnualEditadoManualmente, setFaturamentoAnualEditadoManualmente] = useState(false);
-
   // Estados para validação
   const [valorError, setValorError] = useState('');
   const [numeroDasError, setNumeroDasError] = useState('');
   const [faturamentoMensalError, setFaturamentoMensalError] = useState('');
   const [faturamentoAnualError, setFaturamentoAnualError] = useState('');
+  const [competenciaError, setCompetenciaError] = useState('');
 
-  // Efeito para calcular o faturamento anual com base no mensal
+  // Função para carregar os pagamentos
+  const loadPayments = async () => {
+    setIsPageLoading(true);
+    const paymentsFromDB = await DIDASController.getAllPayments(); // paymentsFromDB é DASPayment[]
+    setHistoricoPagamentos(paymentsFromDB.map(p => ({
+      ...p,
+      // Convertendo valor (number) para string formatada para exibição
+      valor: `R$ ${p.valor.toFixed(2).replace('.', ',')}`,
+    })));
+    setIsPageLoading(false);
+  };
+
+  // Carregar pagamentos ao montar o componente
   useEffect(() => {
-    if (faturamentoMensal && !faturamentoAnualEditadoManualmente) {
-      const valorMensal = parseFloat(faturamentoMensal.replace(/\./g, '').replace(',', '.'));
-      if (!isNaN(valorMensal)) {
-        const valorAnual = valorMensal * 12;
-        setFaturamentoAnual(valorAnual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-      }
+    loadPayments();
+  }, []);
+
+  // Função para lidar com a alteração do faturamento mensal
+  const handleFaturamentoMensalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Permitir apenas números, vírgula e ponto
+    const cleanValue = value.replace(/[^\d,.]/g, '');
+    setFaturamentoMensal(cleanValue);
+    if (cleanValue && !isValidMoneyValue(cleanValue)) {
+      setFaturamentoMensalError('Valor inválido. Use o formato 0,00');
+    } else {
+      setFaturamentoMensalError('');
     }
-  }, [faturamentoMensal]);
+  };
 
   // Função para lidar com a alteração do faturamento anual
   const handleFaturamentoAnualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    
     // Permitir apenas números, vírgula e ponto
     const cleanValue = value.replace(/[^\d,.]/g, '');
-    
     setFaturamentoAnual(cleanValue);
-    setFaturamentoAnualEditadoManualmente(true);
-    
     if (cleanValue && !isValidMoneyValue(cleanValue)) {
       setFaturamentoAnualError('Valor inválido. Use o formato 0,00');
     } else {
       setFaturamentoAnualError('');
-      
       // Verificar se ultrapassa o limite de faturamento do MEI
       if (isValidMoneyValue(cleanValue)) {
         const anualNumerico = Number(cleanValue.replace(',', '.'));
@@ -138,137 +144,136 @@ const ImpostoDAS: React.FC = () => {
     setResultadoCalculo({ inss, iss, icms, total });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setComprovante(e.target.files[0]);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validatePagamentoForm()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Corrija os erros no formulário antes de continuar.',
+        variant: 'destructive'
+      });
+      return;
+    }
     setIsLoading(true);
 
-    // Determinar o status com base na presença da data de pagamento
-    const status = dataPagamento ? 'Pago' : 'Pendente';
-    const competenciaTexto = competencia ? 
-      competencia === '01/2023' ? 'Janeiro/2023' : 
-      competencia === '02/2023' ? 'Fevereiro/2023' : 
-      competencia === '03/2023' ? 'Março/2023' : 'Abril/2023' : '';
+    const statusForm: 'Pago' | 'Pendente' = dataPagamento ? 'Pago' : 'Pendente';
+    const valorNumerico = parseFloat(valor.replace('.', '').replace(',', '.')); // Input é XX,XX ou X.XXX,XX
 
-    // Se estiver editando, atualiza o pagamento existente
-    if (editandoPagamento) {
-      setHistoricoPagamentos(historicoPagamentos.map(p => 
-        p.id === editandoPagamento.id 
-          ? {
-              ...p,
-              competencia: competenciaTexto,
-              vencimento: date ? format(date, 'dd/MM/yyyy') : p.vencimento,
-              valor: `R$ ${valor}`,
-              status,
-              dataPagamento: dataPagamento ? format(dataPagamento, 'dd/MM/yyyy') : undefined
-            }
-          : p
-      ));
+    const paymentData = {
+      competencia: competencia || '',
+      vencimento: date ? format(date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+      valor: valorNumerico,
+      numero_das: numeroDas || undefined,
+      data_pagamento: dataPagamento ? format(dataPagamento, 'yyyy-MM-dd') : undefined,
+      status: statusForm, // Corrigido para usar o tipo correto
+    };
 
-      toast({
-        title: 'Pagamento atualizado',
-        description: 'O pagamento do DAS foi atualizado com sucesso.',
-      });
+    console.log('ImpostoDAS - handleSubmit - Dados para salvar:', paymentData);
+
+    let success = false;
+    if (editandoPagamento && editandoPagamento.id) {
+      console.log('ImpostoDAS - handleSubmit - Atualizando pagamento existente:', editandoPagamento.id);
+      const updatedPayment = await DIDASController.updatePayment(editandoPagamento.id, paymentData);
+      if (updatedPayment) {
+        success = true;
+        toast({
+          title: 'Pagamento atualizado',
+          description: 'O pagamento do DAS foi atualizado com sucesso.',
+        });
+      }
     } else {
-      // Adiciona novo pagamento
-      const novoPagamento: Pagamento = {
-        id: Math.max(0, ...historicoPagamentos.map(p => p.id)) + 1,
-        competencia: competenciaTexto,
-        vencimento: date ? format(date, 'dd/MM/yyyy') : new Date().toLocaleDateString(),
-        valor: `R$ ${valor}`,
-        status,
-        dataPagamento: dataPagamento ? format(dataPagamento, 'dd/MM/yyyy') : undefined
-      };
-      
-      setHistoricoPagamentos([...historicoPagamentos, novoPagamento]);
-      
-      toast({
-        title: 'Pagamento registrado',
-        description: 'O pagamento do DAS foi registrado com sucesso.',
-      });
+      console.log('ImpostoDAS - handleSubmit - Criando novo pagamento');
+      const newPayment = await DIDASController.createPayment(paymentData);
+      console.log('ImpostoDAS - handleSubmit - Resultado da criação:', newPayment);
+      if (newPayment) {
+        success = true;
+        toast({
+          title: 'Pagamento registrado',
+          description: 'O pagamento do DAS foi registrado com sucesso.',
+        });
+      }
     }
 
-    // Resetar formulário
+    if (success) {
+      console.log('ImpostoDAS - handleSubmit - Operação bem-sucedida, recarregando pagamentos');
+      await loadPayments(); // Recarregar lista
+      // Resetar formulário
+      setValor('');
+      setNumeroDas('');
+      setDataPagamento(undefined);
+      setDate(new Date());
+      setCompetencia('');
+      setEditandoPagamento(null);
+    } else {
+      console.error('ImpostoDAS - handleSubmit - Falha na operação');
+    }
     setIsLoading(false);
-    setValor('');
-    setNumeroDas('');
-    setComprovante(null);
-    setDataPagamento(undefined);
-    setEditandoPagamento(null);
   };
 
-  const handleEditarPagamento = (pagamento: Pagamento) => {
+  const handleEditarPagamento = (pagamento: PagamentoDisplay) => {
     setEditandoPagamento(pagamento);
-    setCompetencia(
-      pagamento.competencia === 'Janeiro/2023' ? '01/2023' :
-      pagamento.competencia === 'Fevereiro/2023' ? '02/2023' :
-      pagamento.competencia === 'Março/2023' ? '03/2023' : '04/2023'
-    );
-    
-    // Converter string de data para objeto Date
-    const partesVencimento = pagamento.vencimento.split('/');
-    if (partesVencimento.length === 3) {
-      setDate(new Date(
-        parseInt(partesVencimento[2]),
-        parseInt(partesVencimento[1]) - 1,
-        parseInt(partesVencimento[0])
-      ));
+    setCompetencia(pagamento.competencia);
+
+    if (pagamento.vencimento) {
+        const [year, month, day] = pagamento.vencimento.split('-').map(Number);
+        setDate(new Date(year, month - 1, day));
+    } else {
+        setDate(new Date());
     }
-    
-    if (pagamento.dataPagamento) {
-      const partesPagamento = pagamento.dataPagamento.split('/');
-      if (partesPagamento.length === 3) {
-        setDataPagamento(new Date(
-          parseInt(partesPagamento[2]),
-          parseInt(partesPagamento[1]) - 1,
-          parseInt(partesPagamento[0])
-        ));
-      }
+
+    if (pagamento.data_pagamento) {
+        const [year, month, day] = pagamento.data_pagamento.split('-').map(Number);
+        setDataPagamento(new Date(year, month - 1, day));
     } else {
       setDataPagamento(undefined);
     }
-    
-    setValor(pagamento.valor.replace('R$ ', ''));
+    // pagamento.valor é string "R$ XX,XX" vindo de PagamentoDisplay
+    setValor(pagamento.valor.replace('R$ ', '')); // Input do formulário espera "XX,XX"
+    setNumeroDas(pagamento.numero_das || '');
   };
 
-  const handleDeletarPagamento = (id: number) => {
+  const handleDeletarPagamento = async (id: string) => { // ID agora é string
     if (confirm('Tem certeza que deseja excluir este pagamento?')) {
-      setHistoricoPagamentos(historicoPagamentos.filter(p => p.id !== id));
-      toast({
-        title: 'Pagamento excluído',
-        description: 'O pagamento foi excluído com sucesso.',
-      });
+      setIsLoading(true);
+      const success = await DIDASController.deletePayment(id);
+      if (success) {
+        await loadPayments();
+        toast({
+          title: 'Pagamento excluído',
+          description: 'O pagamento foi excluído com sucesso.',
+        });
+      }
+      setIsLoading(false);
     }
   };
 
-  const handleMarcarComoPago = (id: number) => {
-    setPagamentoParaMarcar(id);
+  const handleMarcarComoPago = (id: string) => { // ID agora é string
+    setPagamentoParaMarcar(id); // pagamentoParaMarcar agora guarda string (id)
     setDataConfirmacaoPagamento(new Date());
     setIsMarcarComoPagoDialogOpen(true);
   };
 
-  const confirmarPagamento = () => {
+  const confirmarPagamento = async () => {
     if (pagamentoParaMarcar !== null && dataConfirmacaoPagamento) {
-      setHistoricoPagamentos(historicoPagamentos.map(p => 
-        p.id === pagamentoParaMarcar 
-          ? { ...p, status: 'Pago', dataPagamento: format(dataConfirmacaoPagamento, 'dd/MM/yyyy') }
-          : p
-      ));
+      setIsLoading(true);
+      const updatedPayment = await DIDASController.markAsPaid(
+        pagamentoParaMarcar.toString(), // Enviar ID como string
+        format(dataConfirmacaoPagamento, 'yyyy-MM-dd')
+      );
       
-      toast({
-        title: 'Pagamento confirmado',
-        description: 'O pagamento foi marcado como pago com sucesso.',
-      });
+      if (updatedPayment) {
+        await loadPayments();
+        toast({
+          title: 'Pagamento confirmado',
+          description: 'O pagamento foi marcado como pago com sucesso.',
+        });
+      }
 
       // Resetar estados
       setIsMarcarComoPagoDialogOpen(false);
       setPagamentoParaMarcar(null);
       setDataConfirmacaoPagamento(new Date());
+      setIsLoading(false);
     }
   };
 
@@ -279,7 +284,6 @@ const ImpostoDAS: React.FC = () => {
     setDataPagamento(undefined);
     setValor('');
     setNumeroDas('');
-    setComprovante(null);
   };
 
   // Manipuladores com validação
@@ -353,29 +357,6 @@ const ImpostoDAS: React.FC = () => {
     }
   };
   
-  const handleFaturamentoMensalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    
-    // Permitir apenas números, vírgula e ponto
-    const cleanValue = value.replace(/[^\d,.]/g, '');
-    
-    setFaturamentoMensal(cleanValue);
-    
-    if (cleanValue && !isValidMoneyValue(cleanValue)) {
-      setFaturamentoMensalError('Valor inválido. Use o formato 0,00');
-    } else {
-      setFaturamentoMensalError('');
-      
-      // Atualizar faturamento anual se for um valor válido
-      if (isValidMoneyValue(cleanValue)) {
-        const mensalNumerico = Number(cleanValue.replace(',', '.'));
-        const anualCalculado = (mensalNumerico * 12).toFixed(2).replace('.', ',');
-        setFaturamentoAnual(anualCalculado);
-        setFaturamentoAnualError('');
-      }
-    }
-  };
-  
   // Impedir entrada de caracteres não permitidos no campo de faturamento mensal
   const handleFaturamentoMensalKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Permite apenas números, vírgula e ponto
@@ -434,6 +415,54 @@ const ImpostoDAS: React.FC = () => {
     }
   };
   
+  // Manipulador para o campo de competência
+  const handleCompetenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    
+    // Permitir apenas números e /
+    value = value.replace(/[^\d/]/g, '');
+    
+    // Limitar a 7 caracteres (MM/YYYY)
+    if (value.length > 7) {
+      value = value.slice(0, 7);
+    }
+    
+    // Formatar automaticamente para MM/YYYY
+    if (value.length >= 2 && !value.includes('/')) {
+      value = value.slice(0, 2) + '/' + value.slice(2);
+    }
+    
+    // Validar o formato
+    setCompetencia(value);
+    
+    const regex = /^(0[1-9]|1[0-2])\/\d{0,4}$/;
+    if (value && !regex.test(value) && value.length >= 3) {
+      setCompetenciaError('Formato inválido. Use MM/YYYY');
+    } else {
+      setCompetenciaError('');
+    }
+  };
+  
+  // Impedir entrada de caracteres não permitidos no campo de competência
+  const handleCompetenciaKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permitir apenas números e /
+    const regex = /^[0-9/]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    // Verificar se já tem uma / e o usuário está tentando adicionar outra
+    if (char === '/' && e.currentTarget.value.includes('/')) {
+      e.preventDefault();
+      return;
+    }
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
   // Validar formulário de pagamento
   const validatePagamentoForm = (): boolean => {
     let isValid = true;
@@ -447,8 +476,23 @@ const ImpostoDAS: React.FC = () => {
       isValid = false;
     }
     
-    // Validar número do DAS (opcional, mas se preenchido deve ser apenas números)
-    if (numeroDas && !/^\d+$/.test(numeroDas)) {
+    // Validar competência (obrigatório e formato MM/YYYY)
+    if (!competencia) {
+      setCompetenciaError('Competência é obrigatória');
+      isValid = false;
+    } else {
+      const regex = /^(0[1-9]|1[0-2])\/\d{4}$/;
+      if (!regex.test(competencia)) {
+        setCompetenciaError('Formato inválido. Use MM/YYYY');
+        isValid = false;
+      }
+    }
+    
+    // Validar número do DAS (obrigatório)
+    if (!numeroDas) {
+      setNumeroDasError('Número do DAS é obrigatório');
+      isValid = false;
+    } else if (!/^\d+$/.test(numeroDas)) {
       setNumeroDasError('Número do DAS deve conter apenas dígitos');
       isValid = false;
     }
@@ -504,22 +548,32 @@ const ImpostoDAS: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="competencia">Competência</Label>
-                    <Select value={competencia} onValueChange={setCompetencia}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o mês/ano" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="01/2023">Janeiro/2023</SelectItem>
-                        <SelectItem value="02/2023">Fevereiro/2023</SelectItem>
-                        <SelectItem value="03/2023">Março/2023</SelectItem>
-                        <SelectItem value="04/2023">Abril/2023</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="competencia">
+                      Competência (MM/YYYY) <span className="text-red-500">*</span>
+                    </Label>
+                    <Input 
+                      id="competencia"
+                      type="text"
+                      placeholder="Ex: 03/2023"
+                      value={competencia}
+                      onChange={handleCompetenciaChange}
+                      onKeyPress={handleCompetenciaKeyPress}
+                      className={competenciaError ? "border-red-500" : ""}
+                      maxLength={7}
+                      required
+                    />
+                    {competenciaError && (
+                      <div className="flex items-center text-red-600 text-xs mt-1">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        {competenciaError}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="vencimento">Data de Vencimento</Label>
+                    <Label htmlFor="vencimento">
+                      Data de Vencimento <span className="text-red-500">*</span>
+                    </Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -544,7 +598,9 @@ const ImpostoDAS: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="valor">Valor do DAS (R$)</Label>
+                    <Label htmlFor="valor">
+                      Valor do DAS (R$) <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="valor"
                       type="text"
@@ -553,6 +609,7 @@ const ImpostoDAS: React.FC = () => {
                       onChange={handleValorChange}
                       onKeyPress={handleValorKeyPress}
                       className={valorError ? "border-red-500" : ""}
+                      required
                     />
                     {valorError && (
                       <div className="flex items-center text-red-600 text-xs mt-1">
@@ -563,7 +620,9 @@ const ImpostoDAS: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="numero">Número do DAS</Label>
+                    <Label htmlFor="numero">
+                      Número do DAS <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="numero"
                       type="text"
@@ -572,6 +631,7 @@ const ImpostoDAS: React.FC = () => {
                       onChange={handleNumeroDasChange}
                       onKeyPress={handleNumeroDasKeyPress}
                       className={numeroDasError ? "border-red-500" : ""}
+                      required
                     />
                     {numeroDasError && (
                       <div className="flex items-center text-red-600 text-xs mt-1">
@@ -606,22 +666,6 @@ const ImpostoDAS: React.FC = () => {
                     </Popover>
                     <div className="text-xs text-gray-500 mt-1">
                       Se não informada, o status será "Pendente"
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="comprovante">Comprovante de Pagamento</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="comprovante"
-                        type="file"
-                        onChange={handleFileChange}
-                      />
-                      {comprovante && (
-                        <div className="text-sm text-gray-500">
-                          {comprovante.name}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -689,66 +733,72 @@ const ImpostoDAS: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {historicoPagamentos.map((pagamento) => (
-                  <tr key={pagamento.id} className="border-b">
-                    <td className="px-4 py-3">{pagamento.competencia}</td>
-                    <td className="px-4 py-3">{pagamento.vencimento}</td>
-                    <td className="px-4 py-3">{pagamento.valor}</td>
-                    <td className="px-4 py-3">{pagamento.dataPagamento || '-'}</td>
-                    <td className="px-4 py-3">
-                      <span 
-                        className={`inline-block px-2 py-1 rounded-full text-xs ${
-                          pagamento.status === 'Pago' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-orange-100 text-orange-800'
-                        }`}
-                      >
-                        {pagamento.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEditarPagamento(pagamento)}
-                          title="Editar pagamento"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDeletarPagamento(pagamento.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title="Excluir pagamento"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        {pagamento.status === 'Pendente' && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleMarcarComoPago(pagamento.id)}
-                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            title="Marcar como pago"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" title="Ver detalhes">
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {isPageLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-3 text-center text-gray-500">
+                      Carregando pagamentos...
                     </td>
                   </tr>
-                ))}
-                {historicoPagamentos.length === 0 && (
+                ) : historicoPagamentos.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-3 text-center text-gray-500">
                       Nenhum pagamento registrado
                     </td>
                   </tr>
+                ) : (
+                  historicoPagamentos.map((pagamento) => {
+                    return (
+                      <tr key={pagamento.id} className="border-b">
+                        <td className="px-4 py-3">{pagamento.competencia}</td>
+                        <td className="px-4 py-3">{pagamento.vencimento ? format(new Date(pagamento.vencimento + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</td>
+                        <td className="px-4 py-3">{pagamento.valor}</td>
+                        <td className="px-4 py-3">{pagamento.data_pagamento ? format(new Date(pagamento.data_pagamento + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-block px-2 py-1 rounded-full text-xs ${
+                              pagamento.status === 'Pago'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-orange-100 text-orange-800'
+                            }`}
+                          >
+                            {pagamento.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditarPagamento(pagamento)}
+                              title="Editar pagamento"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeletarPagamento(pagamento.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Excluir pagamento"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            {pagamento.status === 'Pendente' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMarcarComoPago(pagamento.id)}
+                                className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                title="Marcar como pago"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
