@@ -4,13 +4,16 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Cliente } from '../../models/Cliente';
+import { ClienteFormData } from '../../adapters/ClienteFormAdapter';
+import { isValidName, isValidEmail, isValidPhone, formatPhone, formatDocument, isValidDocument } from '../../utils/validation';
+import { AlertCircle } from 'lucide-react';
+import { toast } from '../../hooks/use-toast';
 
 interface ClienteDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (cliente: Cliente) => void;
-  cliente?: Cliente;
+  onSave: (cliente: ClienteFormData) => void;
+  cliente?: ClienteFormData;
 }
 
 export const ClienteDialog: React.FC<ClienteDialogProps> = ({
@@ -26,6 +29,12 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
   const [endereco, setEndereco] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Estados para validação
+  const [nomeError, setNomeError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [telefoneError, setTelefoneError] = useState('');
+  const [cpfCnpjError, setCpfCnpjError] = useState('');
 
   useEffect(() => {
     if (cliente) {
@@ -35,9 +44,15 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
       setCpfCnpj(cliente.cpfCnpj || '');
       setEndereco(cliente.endereco || '');
       setObservacoes(cliente.observacoes || '');
+      
+      // Registrar o ID do cliente que está sendo editado
+      console.log('Editando cliente com ID:', cliente.id, 'Tipo:', typeof cliente.id);
     } else {
       resetForm();
     }
+    
+    // Limpar erros ao abrir o diálogo
+    resetErrors();
   }, [cliente, isOpen]);
 
   const resetForm = () => {
@@ -48,12 +63,174 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
     setEndereco('');
     setObservacoes('');
   };
+  
+  const resetErrors = () => {
+    setNomeError('');
+    setEmailError('');
+    setTelefoneError('');
+    setCpfCnpjError('');
+  };
+
+  // Manipuladores de mudança com validação
+  const handleNomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNome(value);
+    
+    if (value && !isValidName(value)) {
+      setNomeError('Nome deve conter apenas letras e espaços');
+    } else {
+      setNomeError('');
+    }
+  };
+
+  // Impedir entrada de caracteres não permitidos
+  const handleNomeKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas letras, espaços, hífen, apóstrofe e caracteres especiais para nomes
+    const regex = /^[a-zA-ZÀ-ÖØ-öø-ÿ\s\-']+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEmail(value);
+    
+    if (value && !isValidEmail(value)) {
+      setEmailError('Email inválido');
+    } else {
+      setEmailError('');
+    }
+  };
+  
+  const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const formattedValue = formatPhone(value);
+    setTelefone(formattedValue);
+    
+    if (value && !isValidPhone(value)) {
+      setTelefoneError('Telefone inválido. Deve ter entre 10 e 11 dígitos');
+    } else {
+      setTelefoneError('');
+    }
+  };
+
+  // Impedir entrada de caracteres não permitidos
+  const handleTelefoneKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas números, parênteses, hífen e espaço
+    const regex = /^[0-9()\-\s]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
+  const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Extrair apenas os dígitos numéricos
+    const numericValue = value.replace(/\D/g, '');
+    
+    // Aplicar formatação apenas se tiver a quantidade correta de dígitos
+    let formattedValue = value;
+    if (numericValue.length === 11 || numericValue.length === 14) {
+      formattedValue = formatDocument(numericValue);
+      setCpfCnpjError(''); // Limpar erro se quantidade de dígitos for correta
+    } else if (numericValue.length > 0) {
+      // Se tiver dígitos mas não for a quantidade correta
+      setCpfCnpjError('Digite 11 dígitos para CPF ou 14 dígitos para CNPJ');
+      // Aplicar formatação parcial
+      formattedValue = formatDocument(numericValue);
+    } else {
+      // Campo vazio
+      setCpfCnpjError('');
+    }
+    
+    setCpfCnpj(formattedValue);
+  };
+
+  // Impedir entrada de caracteres não permitidos
+  const handleCpfCnpjKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas números, pontos, hífen e barra
+    const regex = /^[0-9.\-/]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+
+  const validateForm = (): boolean => {
+    let isValid = true;
+    resetErrors();
+    
+    // Validar nome (obrigatório)
+    if (!nome.trim()) {
+      setNomeError('Nome é obrigatório');
+      isValid = false;
+    } else if (!isValidName(nome)) {
+      setNomeError('Nome deve conter apenas letras e espaços');
+      isValid = false;
+    }
+    
+    // Validar email (opcional)
+    if (email && !isValidEmail(email)) {
+      setEmailError('Email inválido');
+      isValid = false;
+    }
+    
+    // Validar telefone (obrigatório)
+    if (!telefone) {
+      setTelefoneError('Telefone é obrigatório');
+      isValid = false;
+    } else if (!isValidPhone(telefone)) {
+      setTelefoneError('Telefone inválido. Deve ter entre 10 e 11 dígitos');
+      isValid = false;
+    }
+    
+    // Validar CPF/CNPJ (opcional)
+    if (cpfCnpj) {
+      const numericValue = cpfCnpj.replace(/\D/g, '');
+      if (numericValue.length > 0 && numericValue.length !== 11 && numericValue.length !== 14) {
+        setCpfCnpjError('Digite 11 dígitos para CPF ou 14 dígitos para CNPJ');
+        isValid = false;
+      }
+    }
+    
+    return isValid;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Evitar processamento duplicado
+    if (isLoading) return;
+    
+    // Validar formulário
+    if (!validateForm()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Corrija os erros no formulário antes de continuar.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     setIsLoading(true);
 
-    const novoCliente: Cliente = {
+    const novoCliente: ClienteFormData = {
       id: cliente?.id || 0,
       nome,
       email,
@@ -64,11 +241,8 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
       dataCadastro: cliente?.dataCadastro || new Date().toLocaleDateString()
     };
 
-    setTimeout(() => {
-      onSave(novoCliente);
-      setIsLoading(false);
-      onClose();
-    }, 500);
+    onSave(novoCliente);
+    // O componente pai gerenciará o estado de loading e fechamento do diálogo
   };
 
   return (
@@ -84,10 +258,18 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
               <Input
                 id="nome"
                 value={nome}
-                onChange={(e) => setNome(e.target.value)}
+                onChange={handleNomeChange}
+                onKeyPress={handleNomeKeyPress}
                 placeholder="Nome completo"
                 required
+                className={nomeError ? "border-red-500" : ""}
               />
+              {nomeError && (
+                <div className="flex items-center text-red-600 text-xs mt-1">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {nomeError}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -95,11 +277,18 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   placeholder="email@exemplo.com"
+                  className={emailError ? "border-red-500" : ""}
                 />
+                {emailError && (
+                  <div className="flex items-center text-red-600 text-xs mt-1">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    {emailError}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -107,10 +296,18 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
                 <Input
                   id="telefone"
                   value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
+                  onChange={handleTelefoneChange}
+                  onKeyPress={handleTelefoneKeyPress}
                   placeholder="(00) 00000-0000"
                   required
+                  className={telefoneError ? "border-red-500" : ""}
                 />
+                {telefoneError && (
+                  <div className="flex items-center text-red-600 text-xs mt-1">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    {telefoneError}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -119,9 +316,17 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
               <Input
                 id="cpfCnpj"
                 value={cpfCnpj}
-                onChange={(e) => setCpfCnpj(e.target.value)}
-                placeholder="000.000.000-00"
+                onChange={handleCpfCnpjChange}
+                onKeyPress={handleCpfCnpjKeyPress}
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                className={cpfCnpjError ? "border-red-500" : ""}
               />
+              {cpfCnpjError && (
+                <div className="flex items-center text-red-600 text-xs mt-1">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {cpfCnpjError}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

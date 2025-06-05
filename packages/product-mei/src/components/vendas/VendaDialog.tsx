@@ -4,20 +4,22 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, AlertCircle } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Venda } from '../../models/Venda';
-import { Cliente } from '../../models/Cliente';
+import { ClienteFormData } from '../../adapters/ClienteFormAdapter';
+import { isValidMoneyValue, formatMoneyValue } from '../../utils/validation';
+import { toast } from '../../hooks/use-toast';
 
 interface VendaDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (venda: Venda) => void;
   venda?: Venda;
-  clientes: Cliente[];
+  clientes: ClienteFormData[];
 }
 
 export const VendaDialog: React.FC<VendaDialogProps> = ({
@@ -33,6 +35,12 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
   const [valor, setValor] = useState('');
   const [formaPagamento, setFormaPagamento] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Estados para validação
+  const [clienteIdError, setClienteIdError] = useState('');
+  const [descricaoError, setDescricaoError] = useState('');
+  const [valorError, setValorError] = useState('');
+  const [formaPagamentoError, setFormaPagamentoError] = useState('');
 
   useEffect(() => {
     if (venda) {
@@ -55,9 +63,15 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
       setDescricao(venda.descricao);
       setValor(venda.valor.replace('R$ ', ''));
       setFormaPagamento(venda.formaPagamento.toLowerCase());
+      
+      // Registrar o ID da venda que está sendo editada
+      console.log('Editando venda com ID:', venda.id, 'Tipo:', typeof venda.id);
     } else {
       resetForm();
     }
+    
+    // Limpar erros ao abrir o diálogo
+    resetErrors();
   }, [venda, isOpen]);
 
   const resetForm = () => {
@@ -67,15 +81,146 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
     setValor('');
     setFormaPagamento('');
   };
+  
+  const resetErrors = () => {
+    setClienteIdError('');
+    setDescricaoError('');
+    setValorError('');
+    setFormaPagamentoError('');
+  };
+  
+  // Manipuladores de mudança com validação
+  const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Permitir apenas números, vírgula e ponto
+    const cleanValue = value.replace(/[^\d,.]/g, '');
+    
+    setValor(cleanValue);
+    
+    if (value && !isValidMoneyValue(value)) {
+      setValorError('Valor inválido. Use o formato 0,00');
+    } else {
+      setValorError('');
+    }
+  };
+  
+  // Impedir entrada de caracteres não permitidos no campo de valor
+  const handleValorKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas números, vírgula e ponto
+    const regex = /^[0-9.,]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    // Verificar se já tem uma vírgula ou ponto e o usuário está tentando adicionar outro
+    if ((char === ',' || char === '.') && (e.currentTarget.value.includes(',') || e.currentTarget.value.includes('.'))) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Verificar se já tem duas casas decimais após a vírgula/ponto
+    if (char !== ',' && char !== '.') {
+      const parts = e.currentTarget.value.split(/[,.]/);
+      if (parts.length > 1 && parts[1].length >= 2) {
+        e.preventDefault();
+        return;
+      }
+    }
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
+  const handleDescricaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDescricao(value);
+    
+    if (!value.trim()) {
+      setDescricaoError('Descrição é obrigatória');
+    } else {
+      setDescricaoError('');
+    }
+  };
+  
+  const handleClienteChange = (value: string) => {
+    setClienteId(Number(value));
+    
+    if (!value) {
+      setClienteIdError('Cliente é obrigatório');
+    } else {
+      setClienteIdError('');
+    }
+  };
+  
+  const handleFormaPagamentoChange = (value: string) => {
+    setFormaPagamento(value);
+    
+    if (!value) {
+      setFormaPagamentoError('Forma de pagamento é obrigatória');
+    } else {
+      setFormaPagamentoError('');
+    }
+  };
+
+  const validateForm = (): boolean => {
+    let isValid = true;
+    resetErrors();
+    
+    // Validar cliente (obrigatório)
+    if (!clienteId) {
+      setClienteIdError('Cliente é obrigatório');
+      isValid = false;
+    }
+    
+    // Validar descrição (obrigatório)
+    if (!descricao.trim()) {
+      setDescricaoError('Descrição é obrigatória');
+      isValid = false;
+    }
+    
+    // Validar valor (obrigatório)
+    if (!valor) {
+      setValorError('Valor é obrigatório');
+      isValid = false;
+    } else if (!isValidMoneyValue(valor)) {
+      setValorError('Valor inválido. Use o formato 0,00');
+      isValid = false;
+    }
+    
+    // Validar forma de pagamento (obrigatório)
+    if (!formaPagamento) {
+      setFormaPagamentoError('Forma de pagamento é obrigatória');
+      isValid = false;
+    }
+    
+    return isValid;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Evitar processamento duplicado
+    if (isLoading) return;
+    
+    // Validar formulário
+    if (!validateForm()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Corrija os erros no formulário antes de continuar.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     setIsLoading(true);
 
     const clienteSelecionado = clientes.find(c => c.id === Number(clienteId));
 
     const novaVenda: Venda = {
-      id: venda?.id || 0,
+      id: venda ? venda.id : 0,
       clienteId: Number(clienteId),
       clienteNome: clienteSelecionado?.nome || '',
       data: data ? format(data, 'dd/MM/yyyy') : new Date().toLocaleDateString(),
@@ -84,11 +229,10 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
       formaPagamento: formaPagamento.charAt(0).toUpperCase() + formaPagamento.slice(1)
     };
 
-    setTimeout(() => {
-      onSave(novaVenda);
-      setIsLoading(false);
-      onClose();
-    }, 500);
+    console.log('Enviando venda para salvar:', novaVenda);
+    
+    onSave(novaVenda);
+    // Não resetamos isLoading aqui, pois isso será feito pelo componente pai
   };
 
   return (
@@ -103,20 +247,26 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
               <Label htmlFor="cliente">Cliente *</Label>
               <Select 
                 value={clienteId.toString()} 
-                onValueChange={(value) => setClienteId(Number(value))}
+                onValueChange={handleClienteChange}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger className={clienteIdError ? "border-red-500" : ""}>
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
                   {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id.toString()}>
+                    <SelectItem key={cliente.id || 0} value={(cliente.id || 0).toString()}>
                       {cliente.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {clienteIdError && (
+                <div className="flex items-center text-red-600 text-xs mt-1">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {clienteIdError}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -148,10 +298,17 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
               <Input
                 id="descricao"
                 value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
+                onChange={handleDescricaoChange}
                 placeholder="Descrição da venda"
                 required
+                className={descricaoError ? "border-red-500" : ""}
               />
+              {descricaoError && (
+                <div className="flex items-center text-red-600 text-xs mt-1">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {descricaoError}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -160,16 +317,28 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
                 <Input
                   id="valor"
                   value={valor}
-                  onChange={(e) => setValor(e.target.value)}
+                  onChange={handleValorChange}
+                  onKeyPress={handleValorKeyPress}
                   placeholder="Ex: 350,00"
                   required
+                  className={valorError ? "border-red-500" : ""}
                 />
+                {valorError && (
+                  <div className="flex items-center text-red-600 text-xs mt-1">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    {valorError}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="formaPagamento">Forma de Pagamento *</Label>
-                <Select value={formaPagamento} onValueChange={setFormaPagamento} required>
-                  <SelectTrigger>
+                <Select 
+                  value={formaPagamento} 
+                  onValueChange={handleFormaPagamentoChange} 
+                  required
+                >
+                  <SelectTrigger className={formaPagamentoError ? "border-red-500" : ""}>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -180,6 +349,12 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
                     <SelectItem value="boleto">Boleto</SelectItem>
                   </SelectContent>
                 </Select>
+                {formaPagamentoError && (
+                  <div className="flex items-center text-red-600 text-xs mt-1">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    {formaPagamentoError}
+                  </div>
+                )}
               </div>
             </div>
           </div>

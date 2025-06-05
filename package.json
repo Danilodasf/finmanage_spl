@@ -18,5 +18,8 @@
     "build:diarista": "cd packages/product-diarista && npm run build",
     "install:all": "npm install && cd packages/core && npm install && cd ../product-personal && npm install && cd ../product-mei && npm install && cd ../product-diarista && npm install",
     "test:all": "npm run test:core && npm run test:personal"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.10"
   }
 }

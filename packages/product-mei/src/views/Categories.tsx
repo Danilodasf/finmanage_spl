@@ -35,7 +35,13 @@ const Categories: React.FC = () => {
   });
 
   useEffect(() => {
-    loadCategories();
+    async function initialize() {
+      // Garantir que existam categorias padrão
+      await DICategoryController.ensureDefaultCategories();
+      // Carregar categorias
+      await loadCategories();
+    }
+    initialize();
   }, []);
 
   const loadCategories = async () => {
@@ -63,8 +69,16 @@ const Categories: React.FC = () => {
   };
 
   const handleEditSubmit = async () => {
-    if (!currentCategory) return;
+    console.log('==== BOTÃO EDITAR CLICADO ====');
+    console.log('handleEditSubmit - INÍCIO DA FUNÇÃO');
     
+    if (!currentCategory) {
+      console.log('handleEditSubmit - currentCategory é null, retornando');
+      return;
+    }
+    
+    console.log('[Categories.tsx] handleEditSubmit - currentCategory:', currentCategory);
+    console.log('[Categories.tsx] handleEditSubmit - categoryFormData:', categoryFormData);
     try {
       // Marcar categoria específica como carregando
       setIsLoading(prev => ({ ...prev, [currentCategory.id]: true }));
@@ -110,6 +124,9 @@ const Categories: React.FC = () => {
   };
 
   const handleNewCategorySubmit = async () => {
+    console.log('==== BOTÃO NOVA CATEGORIA CLICADO ====');
+    console.log('handleNewCategorySubmit - INÍCIO DA FUNÇÃO');
+    console.log('[Categories.tsx] handleNewCategorySubmit - categoryFormData:', categoryFormData);
     try {
       setIsLoading(prev => ({ ...prev, new: true }));
       
@@ -249,7 +266,14 @@ const Categories: React.FC = () => {
               Cancelar
             </Button>
             <Button 
-              onClick={handleEditSubmit}
+              onClick={() => {
+                try {
+                  console.log('Botão Salvar Alterações clicado');
+                  handleEditSubmit();
+                } catch (error) {
+                  console.error('ERRO NO BOTÃO SALVAR ALTERAÇÕES:', error);
+                }
+              }}
               className="bg-emerald-800 hover:bg-emerald-700"
               disabled={isLoading[currentCategory?.id || '']}
             >
@@ -301,7 +325,14 @@ const Categories: React.FC = () => {
               Cancelar
             </Button>
             <Button 
-              onClick={handleNewCategorySubmit}
+              onClick={() => {
+                try {
+                  console.log('Botão Salvar clicado');
+                  handleNewCategorySubmit();
+                } catch (error) {
+                  console.error('ERRO NO BOTÃO SALVAR:', error);
+                }
+              }}
               className="bg-emerald-800 hover:bg-emerald-700"
               disabled={isLoading.new}
             >
