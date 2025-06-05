@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { CalendarIcon, FileText, Save, Edit, Trash2, CheckCircle, Calculator, AlertTriangle, Truck } from 'lucide-react';
+import { CalendarIcon, FileText, Save, Edit, Trash2, CheckCircle, Calculator, AlertTriangle, Truck, AlertCircle } from 'lucide-react';
 import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { format } from 'date-fns';
@@ -14,6 +14,7 @@ import { toast } from '../hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { Checkbox } from '../components/ui/checkbox';
+import { isValidMoneyValue, formatMoneyValue } from '../utils/validation';
 
 interface Pagamento {
   id: number;
@@ -64,6 +65,12 @@ const ImpostoDAS: React.FC = () => {
   // Novo estado para controlar se o faturamento anual foi editado manualmente
   const [faturamentoAnualEditadoManualmente, setFaturamentoAnualEditadoManualmente] = useState(false);
 
+  // Estados para validação
+  const [valorError, setValorError] = useState('');
+  const [numeroDasError, setNumeroDasError] = useState('');
+  const [faturamentoMensalError, setFaturamentoMensalError] = useState('');
+  const [faturamentoAnualError, setFaturamentoAnualError] = useState('');
+
   // Efeito para calcular o faturamento anual com base no mensal
   useEffect(() => {
     if (faturamentoMensal && !faturamentoAnualEditadoManualmente) {
@@ -77,21 +84,40 @@ const ImpostoDAS: React.FC = () => {
 
   // Função para lidar com a alteração do faturamento anual
   const handleFaturamentoAnualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFaturamentoAnual(e.target.value);
+    const value = e.target.value;
+    
+    // Permitir apenas números, vírgula e ponto
+    const cleanValue = value.replace(/[^\d,.]/g, '');
+    
+    setFaturamentoAnual(cleanValue);
     setFaturamentoAnualEditadoManualmente(true);
+    
+    if (cleanValue && !isValidMoneyValue(cleanValue)) {
+      setFaturamentoAnualError('Valor inválido. Use o formato 0,00');
+    } else {
+      setFaturamentoAnualError('');
+      
+      // Verificar se ultrapassa o limite de faturamento do MEI
+      if (isValidMoneyValue(cleanValue)) {
+        const anualNumerico = Number(cleanValue.replace(',', '.'));
+        setMostrarAlertaLimite(anualNumerico > 81000);
+      }
+    }
   };
 
   // Função para calcular o DAS
   const calcularDAS = () => {
-    const valorAnual = parseFloat(faturamentoAnual.replace(/\./g, '').replace(',', '.'));
-    
-    // Verificar se o faturamento anual ultrapassa o limite de MEI
-    if (valorAnual > 81000) {
-      setMostrarAlertaLimite(true);
-    } else {
-      setMostrarAlertaLimite(false);
+    if (!validateCalculoForm()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Corrija os erros no formulário antes de continuar.',
+        variant: 'destructive'
+      });
+      return;
     }
 
+    const valorAnual = parseFloat(faturamentoAnual.replace(/\./g, '').replace(',', '.'));
+    
     // Valores atualizados do DAS para MEI em 2025
     let inss = isMEICaminhoneiro ? 182.16 : 75.90; // 12% ou 5% do salário mínimo de R$ 1.518,00
     let iss = 0;
@@ -256,6 +282,205 @@ const ImpostoDAS: React.FC = () => {
     setComprovante(null);
   };
 
+  // Manipuladores com validação
+  const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Permitir apenas números, vírgula e ponto
+    const cleanValue = value.replace(/[^\d,.]/g, '');
+    
+    setValor(cleanValue);
+    
+    if (cleanValue && !isValidMoneyValue(cleanValue)) {
+      setValorError('Valor inválido. Use o formato 0,00');
+    } else {
+      setValorError('');
+    }
+  };
+  
+  // Impedir entrada de caracteres não permitidos no campo de valor
+  const handleValorKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas números, vírgula e ponto
+    const regex = /^[0-9.,]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    // Verificar se já tem uma vírgula ou ponto e o usuário está tentando adicionar outro
+    if ((char === ',' || char === '.') && (e.currentTarget.value.includes(',') || e.currentTarget.value.includes('.'))) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Verificar se já tem duas casas decimais após a vírgula/ponto
+    if (char !== ',' && char !== '.') {
+      const parts = e.currentTarget.value.split(/[,.]/);
+      if (parts.length > 1 && parts[1].length >= 2) {
+        e.preventDefault();
+        return;
+      }
+    }
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
+  const handleNumeroDasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNumeroDas(value);
+    
+    // Validar que seja apenas números
+    if (value && !/^\d+$/.test(value)) {
+      setNumeroDasError('Número do DAS deve conter apenas dígitos');
+    } else {
+      setNumeroDasError('');
+    }
+  };
+  
+  // Impedir entrada de caracteres não permitidos no campo de número do DAS
+  const handleNumeroDasKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas números
+    const regex = /^[0-9]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
+  const handleFaturamentoMensalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Permitir apenas números, vírgula e ponto
+    const cleanValue = value.replace(/[^\d,.]/g, '');
+    
+    setFaturamentoMensal(cleanValue);
+    
+    if (cleanValue && !isValidMoneyValue(cleanValue)) {
+      setFaturamentoMensalError('Valor inválido. Use o formato 0,00');
+    } else {
+      setFaturamentoMensalError('');
+      
+      // Atualizar faturamento anual se for um valor válido
+      if (isValidMoneyValue(cleanValue)) {
+        const mensalNumerico = Number(cleanValue.replace(',', '.'));
+        const anualCalculado = (mensalNumerico * 12).toFixed(2).replace('.', ',');
+        setFaturamentoAnual(anualCalculado);
+        setFaturamentoAnualError('');
+      }
+    }
+  };
+  
+  // Impedir entrada de caracteres não permitidos no campo de faturamento mensal
+  const handleFaturamentoMensalKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas números, vírgula e ponto
+    const regex = /^[0-9.,]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    // Verificar se já tem uma vírgula ou ponto e o usuário está tentando adicionar outro
+    if ((char === ',' || char === '.') && (e.currentTarget.value.includes(',') || e.currentTarget.value.includes('.'))) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Verificar se já tem duas casas decimais após a vírgula/ponto
+    if (char !== ',' && char !== '.') {
+      const parts = e.currentTarget.value.split(/[,.]/);
+      if (parts.length > 1 && parts[1].length >= 2) {
+        e.preventDefault();
+        return;
+      }
+    }
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
+  // Impedir entrada de caracteres não permitidos no campo de faturamento anual
+  const handleFaturamentoAnualKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas números, vírgula e ponto
+    const regex = /^[0-9.,]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    // Verificar se já tem uma vírgula ou ponto e o usuário está tentando adicionar outro
+    if ((char === ',' || char === '.') && (e.currentTarget.value.includes(',') || e.currentTarget.value.includes('.'))) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Verificar se já tem duas casas decimais após a vírgula/ponto
+    if (char !== ',' && char !== '.') {
+      const parts = e.currentTarget.value.split(/[,.]/);
+      if (parts.length > 1 && parts[1].length >= 2) {
+        e.preventDefault();
+        return;
+      }
+    }
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
+  // Validar formulário de pagamento
+  const validatePagamentoForm = (): boolean => {
+    let isValid = true;
+    
+    // Validar valor (obrigatório)
+    if (!valor) {
+      setValorError('Valor é obrigatório');
+      isValid = false;
+    } else if (!isValidMoneyValue(valor)) {
+      setValorError('Valor inválido. Use o formato 0,00');
+      isValid = false;
+    }
+    
+    // Validar número do DAS (opcional, mas se preenchido deve ser apenas números)
+    if (numeroDas && !/^\d+$/.test(numeroDas)) {
+      setNumeroDasError('Número do DAS deve conter apenas dígitos');
+      isValid = false;
+    }
+    
+    return isValid;
+  };
+  
+  // Validar formulário de cálculo
+  const validateCalculoForm = (): boolean => {
+    let isValid = true;
+    
+    // Validar faturamento mensal (obrigatório)
+    if (!faturamentoMensal) {
+      setFaturamentoMensalError('Faturamento mensal é obrigatório');
+      isValid = false;
+    } else if (!isValidMoneyValue(faturamentoMensal)) {
+      setFaturamentoMensalError('Valor inválido. Use o formato 0,00');
+      isValid = false;
+    }
+    
+    // Validar faturamento anual (obrigatório)
+    if (!faturamentoAnual) {
+      setFaturamentoAnualError('Faturamento anual é obrigatório');
+      isValid = false;
+    } else if (!isValidMoneyValue(faturamentoAnual)) {
+      setFaturamentoAnualError('Valor inválido. Use o formato 0,00');
+      isValid = false;
+    }
+    
+    return isValid;
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -325,8 +550,16 @@ const ImpostoDAS: React.FC = () => {
                       type="text"
                       placeholder="Ex: 65,00"
                       value={valor}
-                      onChange={(e) => setValor(e.target.value)}
+                      onChange={handleValorChange}
+                      onKeyPress={handleValorKeyPress}
+                      className={valorError ? "border-red-500" : ""}
                     />
+                    {valorError && (
+                      <div className="flex items-center text-red-600 text-xs mt-1">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        {valorError}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -336,8 +569,16 @@ const ImpostoDAS: React.FC = () => {
                       type="text"
                       placeholder="Número do documento"
                       value={numeroDas}
-                      onChange={(e) => setNumeroDas(e.target.value)}
+                      onChange={handleNumeroDasChange}
+                      onKeyPress={handleNumeroDasKeyPress}
+                      className={numeroDasError ? "border-red-500" : ""}
                     />
+                    {numeroDasError && (
+                      <div className="flex items-center text-red-600 text-xs mt-1">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        {numeroDasError}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -605,8 +846,16 @@ const ImpostoDAS: React.FC = () => {
                     type="text"
                     placeholder="Ex: 5.000,00"
                     value={faturamentoMensal}
-                    onChange={(e) => setFaturamentoMensal(e.target.value)}
+                    onChange={handleFaturamentoMensalChange}
+                    onKeyPress={handleFaturamentoMensalKeyPress}
+                    className={faturamentoMensalError ? "border-red-500" : ""}
                   />
+                  {faturamentoMensalError && (
+                    <div className="flex items-center text-red-600 text-xs mt-1">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      {faturamentoMensalError}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -617,7 +866,15 @@ const ImpostoDAS: React.FC = () => {
                     placeholder="Ex: 60.000,00"
                     value={faturamentoAnual}
                     onChange={handleFaturamentoAnualChange}
+                    onKeyPress={handleFaturamentoAnualKeyPress}
+                    className={faturamentoAnualError ? "border-red-500" : ""}
                   />
+                  {faturamentoAnualError && (
+                    <div className="flex items-center text-red-600 text-xs mt-1">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      {faturamentoAnualError}
+                    </div>
+                  )}
                 </div>
               </div>
 

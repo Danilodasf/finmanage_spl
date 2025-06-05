@@ -1,8 +1,14 @@
 import { DIContainer, CATEGORY_SERVICE, AUTH_SERVICE, REPORT_SERVICE, TRANSACTION_SERVICE } from '../core-exports';
-import { MeiCategoryService } from '../services/MeiCategoryService';
+import { SupabaseMeiCategoryService } from '../services/SupabaseMeiCategoryService';
 import { MeiAuthService } from '../services/MeiAuthService';
 import { MeiReportService } from '../services/MeiReportService';
-import { MeiTransactionService } from '../services/MeiTransactionService';
+import { SupabaseMeiTransactionService } from '../services/SupabaseMeiTransactionService';
+import { SupabaseMeiVendaService } from '../services/SupabaseMeiVendaService';
+import { SupabaseMeiClienteService } from '../services/SupabaseMeiClienteService';
+
+// Tokens para serviços específicos do MEI
+export const VENDA_SERVICE = 'venda-service';
+export const CLIENTE_SERVICE = 'cliente-service';
 
 /**
  * Inicializa o container de DI para o produto MEI
@@ -13,7 +19,7 @@ export function bootstrapMeiDI(): void {
   
   try {
     // Registrar serviços como singletons
-    DIContainer.registerSingleton(CATEGORY_SERVICE, new MeiCategoryService());
+    DIContainer.registerSingleton(CATEGORY_SERVICE, new SupabaseMeiCategoryService());
     console.log(`Serviço ${CATEGORY_SERVICE} registrado com sucesso`);
     
     DIContainer.registerSingleton(AUTH_SERVICE, new MeiAuthService());
@@ -22,8 +28,14 @@ export function bootstrapMeiDI(): void {
     DIContainer.registerSingleton(REPORT_SERVICE, new MeiReportService());
     console.log(`Serviço ${REPORT_SERVICE} registrado com sucesso`);
     
-    DIContainer.registerSingleton(TRANSACTION_SERVICE, new MeiTransactionService());
-    console.log(`Serviço ${TRANSACTION_SERVICE} registrado com sucesso`);
+    DIContainer.registerSingleton(TRANSACTION_SERVICE, new SupabaseMeiTransactionService());
+    console.log(`Serviço ${TRANSACTION_SERVICE} registrado com sucesso (usando Supabase)`);
+    
+    DIContainer.registerSingleton(VENDA_SERVICE, new SupabaseMeiVendaService());
+    console.log(`Serviço ${VENDA_SERVICE} registrado com sucesso (usando Supabase)`);
+    
+    DIContainer.registerSingleton(CLIENTE_SERVICE, new SupabaseMeiClienteService());
+    console.log(`Serviço ${CLIENTE_SERVICE} registrado com sucesso (usando Supabase)`);
     
     // Verificar se o container foi inicializado corretamente
     if (DIContainer.isInitialized()) {

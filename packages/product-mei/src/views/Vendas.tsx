@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -12,44 +12,112 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from '../hooks/use-toast';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { Cliente, clientesMock } from '../models/Cliente';
-import { Venda, vendasMock } from '../models/Venda';
+import { Venda } from '../models/Venda';
 import { ClienteDialog } from '../components/clientes/ClienteDialog';
 import { VendaDialog } from '../components/vendas/VendaDialog';
 import { DeleteConfirmation } from '../components/ui/DeleteConfirmation';
+import { ClienteController } from '../controllers/ClienteController';
+import { VendaController } from '../controllers/VendaController';
+import { ClienteFormData, adaptClienteFormToCreateDTO, adaptClienteFormToUpdateDTO } from '../adapters/ClienteFormAdapter';
+import { adaptSupabaseClientesToModel } from '../adapters/ClienteAdapter';
+import { adaptSupabaseVendasToModel, adaptModelVendaToCreateDTO, adaptModelVendaToUpdateDTO, convertStringValorToNumber } from '../adapters/VendaAdapter';
+import { isValidMoneyValue, formatMoneyValue } from '../utils/validation';
+import { AlertCircle } from 'lucide-react';
 
 /**
  * Componente para gerenciamento de vendas do MEI
  */
 const Vendas: React.FC = () => {
   // Estado para clientes
-  const [clientes, setClientes] = useState<Cliente[]>(clientesMock);
-  const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | undefined>(undefined);
+  const [clientes, setClientes] = useState<ClienteFormData[]>([]);
+  const [clienteSelecionado, setClienteSelecionado] = useState<ClienteFormData | undefined>(undefined);
   const [isClienteDialogOpen, setIsClienteDialogOpen] = useState(false);
   const [clienteSearchTerm, setClienteSearchTerm] = useState('');
   const [isDeleteClienteDialogOpen, setIsDeleteClienteDialogOpen] = useState(false);
+  const [isLoadingClientes, setIsLoadingClientes] = useState(false);
   
   // Estado para vendas
-  const [vendas, setVendas] = useState<Venda[]>(vendasMock);
+  const [vendas, setVendas] = useState<Venda[]>([]);
   const [vendaSelecionada, setVendaSelecionada] = useState<Venda | undefined>(undefined);
   const [isVendaDialogOpen, setIsVendaDialogOpen] = useState(false);
   const [vendaSearchTerm, setVendaSearchTerm] = useState('');
   const [isDeleteVendaDialogOpen, setIsDeleteVendaDialogOpen] = useState(false);
+  const [isLoadingVendas, setIsLoadingVendas] = useState(false);
   
   // Formulário de venda rápida
   const [isLoading, setIsLoading] = useState(false);
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [clienteId, setClienteId] = useState<string>('');
+  const [clienteId, setClienteId] = useState<number>(0);
   const [descricao, setDescricao] = useState<string>('');
   const [valor, setValor] = useState<string>('');
   const [formaPagamento, setFormaPagamento] = useState<string>('');
   const [comprovante, setComprovante] = useState<File | null>(null);
   
+  // Estados para validação do formulário de venda rápida
+  const [clienteIdError, setClienteIdError] = useState('');
+  const [descricaoError, setDescricaoError] = useState('');
+  const [valorError, setValorError] = useState('');
+  const [formaPagamentoError, setFormaPagamentoError] = useState('');
+  
+  // Carregar clientes e vendas ao iniciar o componente
+  useEffect(() => {
+    fetchClientes();
+    fetchVendas();
+  }, []);
+  
+  // Função para buscar clientes do servidor
+  const fetchClientes = async () => {
+    setIsLoadingClientes(true);
+    try {
+      const data = await ClienteController.getAll();
+      // Converte os clientes da API para o formato do formulário
+      const clientesForm = adaptSupabaseClientesToModel(data);
+      setClientes(clientesForm);
+    } catch (error) {
+      console.error('Erro ao buscar clientes:', error);
+    } finally {
+      setIsLoadingClientes(false);
+    }
+  };
+
+  // Função para buscar vendas do servidor
+  const fetchVendas = async () => {
+    setIsLoadingVendas(true);
+    try {
+      const data = await VendaController.getAll();
+      
+      // Verificar se há algum ID inválido
+      if (data && data.length > 0) {
+        const invalidIds = data.filter(v => !v.id || v.id === 'null' || v.id === 'undefined');
+        if (invalidIds.length > 0) {
+          console.warn('Vendas com IDs inválidos:', invalidIds);
+        }
+      }
+      
+      // Converte as vendas da API para o formato do modelo
+      const vendasModel = adaptSupabaseVendasToModel(data);
+      
+      // Verificar se há NaN IDs após conversão
+      const nanIds = vendasModel.filter(v => isNaN(v.id));
+      if (nanIds.length > 0) {
+        console.error('Vendas com IDs NaN após adaptação:', nanIds);
+      }
+      
+      console.log('Vendas após adaptação:', vendasModel);
+      setVendas(vendasModel);
+    } catch (error) {
+      console.error('Erro ao buscar vendas:', error);
+    } finally {
+      setIsLoadingVendas(false);
+    }
+  };
+  
   // Filtros
   const clientesFiltrados = clientes.filter(cliente => 
     cliente.nome.toLowerCase().includes(clienteSearchTerm.toLowerCase()) || 
-    cliente.email.toLowerCase().includes(clienteSearchTerm.toLowerCase()) ||
-    cliente.telefone.includes(clienteSearchTerm)
+    (cliente.email && cliente.email.toLowerCase().includes(clienteSearchTerm.toLowerCase())) ||
+    (cliente.telefone && cliente.telefone.includes(clienteSearchTerm)) ||
+    (cliente.cpfCnpj && cliente.cpfCnpj.includes(clienteSearchTerm))
   );
 
   const vendasFiltradas = vendas.filter(venda => 
@@ -63,45 +131,77 @@ const Vendas: React.FC = () => {
     setIsClienteDialogOpen(true);
   };
 
-  const handleEditCliente = (cliente: Cliente) => {
+  const handleEditCliente = (cliente: ClienteFormData) => {
     setClienteSelecionado(cliente);
     setIsClienteDialogOpen(true);
   };
 
-  const handleDeleteCliente = (cliente: Cliente) => {
+  const handleDeleteCliente = (cliente: ClienteFormData) => {
     setClienteSelecionado(cliente);
     setIsDeleteClienteDialogOpen(true);
   };
 
-  const confirmDeleteCliente = () => {
-    if (clienteSelecionado) {
-      setClientes(clientes.filter(c => c.id !== clienteSelecionado.id));
-      toast({
-        title: 'Cliente excluído',
-        description: 'O cliente foi excluído com sucesso.',
-      });
+  const confirmDeleteCliente = async () => {
+    if (clienteSelecionado && clienteSelecionado.id) {
+      setIsLoading(true);
+      try {
+        console.log('Excluindo cliente com ID:', clienteSelecionado.id, 'Tipo:', typeof clienteSelecionado.id);
+        // Converter id de number para string para o ClienteController
+        const success = await ClienteController.delete(String(clienteSelecionado.id));
+        if (success) {
+          await fetchClientes(); // Recarregar a lista após excluir
+          toast({
+            title: 'Cliente excluído',
+            description: 'O cliente foi excluído com sucesso.',
+          });
+        } else {
+          console.error('Falha ao excluir cliente. ID:', clienteSelecionado.id);
+          toast({
+            title: 'Erro',
+            description: 'Não foi possível excluir o cliente. Verifique se não há vendas associadas.',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao excluir cliente:', error);
+        toast({
+          title: 'Erro',
+          description: 'Ocorreu um erro ao excluir o cliente. Tente novamente.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+        setIsDeleteClienteDialogOpen(false);
+      }
     }
   };
 
-  const handleSaveCliente = (cliente: Cliente) => {
-    if (cliente.id === 0) {
-      // Novo cliente
-      const novoCliente = {
-        ...cliente,
-        id: clientes.length > 0 ? Math.max(...clientes.map(c => c.id)) + 1 : 1
-      };
-      setClientes([...clientes, novoCliente]);
+  const handleSaveCliente = async (cliente: ClienteFormData) => {
+    setIsLoading(true);
+    try {
+      if (cliente.id) {
+        // Atualizar cliente existente
+        console.log('Atualizando cliente com ID:', cliente.id, 'Tipo:', typeof cliente.id);
+        await ClienteController.update(String(cliente.id), adaptClienteFormToUpdateDTO(cliente));
+      } else {
+        // Criar novo cliente
+        console.log('Criando novo cliente');
+        await ClienteController.create(adaptClienteFormToCreateDTO(cliente));
+      }
+      
+      // Recarregar a lista de clientes
+      await fetchClientes();
+      // Fechar o diálogo após salvar
+      setIsClienteDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao salvar cliente:', error);
       toast({
-        title: 'Cliente cadastrado',
-        description: 'O cliente foi cadastrado com sucesso.',
+        title: 'Erro',
+        description: 'Não foi possível salvar o cliente. Tente novamente.',
+        variant: 'destructive',
       });
-    } else {
-      // Atualização de cliente existente
-      setClientes(clientes.map(c => c.id === cliente.id ? cliente : c));
-      toast({
-        title: 'Cliente atualizado',
-        description: 'Os dados do cliente foram atualizados com sucesso.',
-      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -121,35 +221,81 @@ const Vendas: React.FC = () => {
     setIsDeleteVendaDialogOpen(true);
   };
 
-  const confirmDeleteVenda = () => {
+  const confirmDeleteVenda = async () => {
     if (vendaSelecionada) {
-      setVendas(vendas.filter(v => v.id !== vendaSelecionada.id));
-      toast({
-        title: 'Venda excluída',
-        description: 'A venda foi excluída com sucesso.',
-      });
+      setIsLoading(true);
+      try {
+        console.log('Excluindo venda com ID:', vendaSelecionada.id, 'Tipo:', typeof vendaSelecionada.id);
+        const success = await VendaController.delete(String(vendaSelecionada.id));
+        if (success) {
+          await fetchVendas(); // Recarregar a lista após excluir
+          toast({
+            title: 'Venda excluída',
+            description: 'A venda foi excluída com sucesso.',
+          });
+        } else {
+          console.error('Falha ao excluir venda. ID:', vendaSelecionada.id);
+          toast({
+            title: 'Erro',
+            description: 'Não foi possível excluir a venda. Tente novamente.',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao excluir venda:', error);
+        toast({
+          title: 'Erro',
+          description: 'Ocorreu um erro ao excluir a venda. Tente novamente.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+        setIsDeleteVendaDialogOpen(false);
+      }
     }
   };
 
-  const handleSaveVenda = (venda: Venda) => {
-    if (venda.id === 0) {
-      // Nova venda
-      const novaVenda = {
-        ...venda,
-        id: vendas.length > 0 ? Math.max(...vendas.map(v => v.id)) + 1 : 1
-      };
-      setVendas([...vendas, novaVenda]);
+  const handleSaveVenda = async (venda: Venda) => {
+    // Evitar processamento duplicado
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    try {
+      console.log('Salvando venda:', venda);
+      
+      if (venda.id === 0) {
+        // Nova venda
+        console.log('Criando nova venda');
+        await VendaController.create(adaptModelVendaToCreateDTO(venda));
+        toast({
+          title: 'Venda registrada',
+          description: 'A venda foi registrada com sucesso.',
+        });
+      } else {
+        // Atualização de venda existente
+        console.log('Atualizando venda existente. ID:', venda.id, 'Tipo:', typeof venda.id);
+        const updateDTO = adaptModelVendaToUpdateDTO(venda);
+        console.log('UpdateDTO:', updateDTO);
+        await VendaController.update(String(venda.id), updateDTO);
+        toast({
+          title: 'Venda atualizada',
+          description: 'A venda foi atualizada com sucesso.',
+        });
+      }
+      
+      // Recarregar a lista de vendas
+      await fetchVendas();
+      // Fechar o dialog após salvar
+      setIsVendaDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao salvar venda:', error);
       toast({
-        title: 'Venda registrada',
-        description: 'A venda foi registrada com sucesso.',
+        title: 'Erro',
+        description: 'Não foi possível salvar a venda. Tente novamente.',
+        variant: 'destructive',
       });
-    } else {
-      // Atualização de venda existente
-      setVendas(vendas.map(v => v.id === venda.id ? venda : v));
-      toast({
-        title: 'Venda atualizada',
-        description: 'Os dados da venda foram atualizados com sucesso.',
-      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -160,39 +306,202 @@ const Vendas: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Resetar erros de validação
+  const resetFormErrors = () => {
+    setClienteIdError('');
+    setDescricaoError('');
+    setValorError('');
+    setFormaPagamentoError('');
+  };
+  
+  // Manipuladores para validação do formulário de venda rápida
+  const handleClienteIdChange = (value: string) => {
+    const id = Number(value);
+    setClienteId(id);
+    
+    if (!id) {
+      setClienteIdError('Cliente é obrigatório');
+    } else {
+      setClienteIdError('');
+    }
+  };
+  
+  const handleDescricaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDescricao(value);
+    
+    if (!value.trim()) {
+      setDescricaoError('Descrição é obrigatória');
+    } else {
+      setDescricaoError('');
+    }
+  };
+  
+  const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Permitir apenas números, vírgula e ponto
+    const cleanValue = value.replace(/[^\d,.]/g, '');
+    
+    setValor(cleanValue);
+    
+    if (!cleanValue) {
+      setValorError('Valor é obrigatório');
+    } else if (!isValidMoneyValue(cleanValue)) {
+      setValorError('Valor inválido. Use o formato 0,00');
+    } else {
+      setValorError('');
+    }
+  };
+  
+  // Impedir entrada de caracteres não permitidos no campo de valor
+  const handleValorKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Permite apenas números, vírgula e ponto
+    const regex = /^[0-9.,]+$/;
+    const char = e.key;
+    
+    // Permitir teclas de controle como Backspace, Delete, etc.
+    if (e.key.length > 1) return;
+    
+    // Verificar se já tem uma vírgula ou ponto e o usuário está tentando adicionar outro
+    if ((char === ',' || char === '.') && (e.currentTarget.value.includes(',') || e.currentTarget.value.includes('.'))) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Verificar se já tem duas casas decimais após a vírgula/ponto
+    if (char !== ',' && char !== '.') {
+      const parts = e.currentTarget.value.split(/[,.]/);
+      if (parts.length > 1 && parts[1].length >= 2) {
+        e.preventDefault();
+        return;
+      }
+    }
+    
+    if (!regex.test(char)) {
+      e.preventDefault();
+    }
+  };
+  
+  const handleFormaPagamentoChange = (value: string) => {
+    setFormaPagamento(value);
+    
+    if (!value) {
+      setFormaPagamentoError('Forma de pagamento é obrigatória');
+    } else {
+      setFormaPagamentoError('');
+    }
+  };
+  
+  // Validar formulário de venda rápida
+  const validateVendaRapidaForm = (): boolean => {
+    let isValid = true;
+    
+    // Validar cliente
+    if (!clienteId) {
+      setClienteIdError('Cliente é obrigatório');
+      isValid = false;
+    }
+    
+    // Validar descrição
+    if (!descricao.trim()) {
+      setDescricaoError('Descrição é obrigatória');
+      isValid = false;
+    }
+    
+    // Validar valor
+    if (!valor) {
+      setValorError('Valor é obrigatório');
+      isValid = false;
+    } else if (!isValidMoneyValue(valor)) {
+      setValorError('Valor inválido. Use o formato 0,00');
+      isValid = false;
+    }
+    
+    // Validar forma de pagamento
+    if (!formaPagamento) {
+      setFormaPagamentoError('Forma de pagamento é obrigatória');
+      isValid = false;
+    }
+    
+    return isValid;
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Evitar processamento duplicado
+    if (isLoading) return;
+    
+    // Validar formulário
+    if (!validateVendaRapidaForm()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Corrija os erros no formulário antes de continuar.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     setIsLoading(true);
 
-    // Simulando envio para API
-    setTimeout(() => {
-      const clienteSelecionado = clientes.find(c => c.id === Number(clienteId));
+    try {
+      const clienteSelecionado = clientes.find(c => c.id === clienteId);
       
-      const novaVenda: Venda = {
-        id: vendas.length > 0 ? Math.max(...vendas.map(v => v.id)) + 1 : 1,
-        clienteId: Number(clienteId),
-        clienteNome: clienteSelecionado?.nome || '',
-        data: format(date || new Date(), 'dd/MM/yyyy'),
+      // Criar objeto de venda no formato da API
+      const vendaDTO = {
+        cliente_id: clienteId ? String(clienteId) : undefined,
+        cliente_nome: clienteSelecionado?.nome,
+        data: format(date || new Date(), 'yyyy-MM-dd'),
         descricao,
-        valor: `R$ ${valor}`,
-        formaPagamento: formaPagamento.charAt(0).toUpperCase() + formaPagamento.slice(1)
+        valor: Number(valor.replace(',', '.')),
+        forma_pagamento: formaPagamento.toLowerCase(),
+        comprovante: comprovante || undefined
       };
-
-      setVendas([...vendas, novaVenda]);
-
+      
+      // Enviar para a API
+      await VendaController.create(vendaDTO);
+      
+      // Recarregar vendas
+      await fetchVendas();
+      
       toast({
         title: 'Venda registrada',
         description: 'A venda foi registrada com sucesso.',
       });
       
-      setIsLoading(false);
       // Resetar formulário
-      setClienteId('');
+      setClienteId(0);
       setDescricao('');
       setValor('');
       setFormaPagamento('');
       setComprovante(null);
-    }, 1500);
+      resetFormErrors();
+    } catch (error) {
+      console.error('Erro ao registrar venda:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível registrar a venda. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Formatar a data de cadastro
+  const formatarDataCadastro = (data: string | undefined) => {
+    if (!data) return '-';
+    try {
+      // Se a data estiver no formato ISO (YYYY-MM-DD), converter para DD/MM/YYYY
+      if (data.includes('-')) {
+        const [ano, mes, dia] = data.split('-');
+        return `${dia}/${mes}/${ano}`;
+      }
+      return data;
+    } catch (error) {
+      return data;
+    }
   };
 
   return (
@@ -216,18 +525,24 @@ const Vendas: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cliente">Cliente</Label>
-                    <Select value={clienteId} onValueChange={setClienteId}>
-                      <SelectTrigger>
+                    <Select value={String(clienteId)} onValueChange={handleClienteIdChange}>
+                      <SelectTrigger className={clienteIdError ? "border-red-500" : ""}>
                         <SelectValue placeholder="Selecione um cliente" />
                       </SelectTrigger>
                       <SelectContent>
                         {clientes.map((cliente) => (
-                          <SelectItem key={cliente.id} value={cliente.id.toString()}>
+                          <SelectItem key={cliente.id || 0} value={String(cliente.id || 0)}>
                             {cliente.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {clienteIdError && (
+                      <div className="flex items-center text-red-600 text-xs mt-1">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        {clienteIdError}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -258,10 +573,17 @@ const Vendas: React.FC = () => {
                   <Label htmlFor="descricao">Descrição</Label>
                   <Input
                     id="descricao"
-                    placeholder="Descrição da venda"
                     value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
+                    onChange={handleDescricaoChange}
+                    placeholder="Descrição da venda"
+                    className={descricaoError ? "border-red-500" : ""}
                   />
+                  {descricaoError && (
+                    <div className="flex items-center text-red-600 text-xs mt-1">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      {descricaoError}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -269,16 +591,24 @@ const Vendas: React.FC = () => {
                     <Label htmlFor="valor">Valor (R$)</Label>
                     <Input
                       id="valor"
-                      placeholder="Ex: 350,00"
                       value={valor}
-                      onChange={(e) => setValor(e.target.value)}
+                      onChange={handleValorChange}
+                      onKeyPress={handleValorKeyPress}
+                      placeholder="Ex: 350,00"
+                      className={valorError ? "border-red-500" : ""}
                     />
+                    {valorError && (
+                      <div className="flex items-center text-red-600 text-xs mt-1">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        {valorError}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="formaPagamento">Forma de Pagamento</Label>
-                    <Select value={formaPagamento} onValueChange={setFormaPagamento}>
-                      <SelectTrigger>
+                    <Select value={formaPagamento} onValueChange={handleFormaPagamentoChange}>
+                      <SelectTrigger className={formaPagamentoError ? "border-red-500" : ""}>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
@@ -289,35 +619,32 @@ const Vendas: React.FC = () => {
                         <SelectItem value="boleto">Boleto</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="comprovante">Comprovante/Nota Fiscal (opcional)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="comprovante"
-                      type="file"
-                      onChange={handleFileChange}
-                    />
-                    {comprovante && (
-                      <div className="text-sm text-gray-500">
-                        {comprovante.name}
+                    {formaPagamentoError && (
+                      <div className="flex items-center text-red-600 text-xs mt-1">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        {formaPagamentoError}
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="pt-2">
-                  <Button 
-                    type="submit" 
-                    className="bg-emerald-800 hover:bg-emerald-700"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Salvando...' : 'Registrar Venda'}
-                    <Plus className="ml-2 h-4 w-4" />
-                  </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="comprovante">Comprovante (opcional)</Label>
+                  <Input
+                    id="comprovante"
+                    type="file"
+                    onChange={handleFileChange}
+                    className="cursor-pointer"
+                  />
                 </div>
+
+                <Button 
+                  type="submit" 
+                  className="bg-emerald-800 hover:bg-emerald-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Registrando...' : 'Registrar Venda'}
+                </Button>
               </form>
             </Card>
 
@@ -356,42 +683,52 @@ const Vendas: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {vendasFiltradas.map((venda) => (
-                      <tr key={venda.id} className="border-b">
-                        <td className="px-4 py-3">{venda.clienteNome}</td>
-                        <td className="px-4 py-3">{venda.data}</td>
-                        <td className="px-4 py-3">{venda.descricao}</td>
-                        <td className="px-4 py-3">{venda.valor}</td>
-                        <td className="px-4 py-3">{venda.formaPagamento}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleEditVenda(venda)}
-                              title="Editar venda"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleDeleteVenda(venda)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Excluir venda"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {vendasFiltradas.length === 0 && (
+                    {isLoadingVendas ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-3 text-center text-gray-500">
-                          Nenhuma venda encontrada
+                          Carregando vendas...
                         </td>
                       </tr>
+                    ) : (
+                      <>
+                        {vendasFiltradas.map((venda, index) => (
+                          <tr key={venda.id ? venda.id : `venda-${index}`} className="border-b">
+                            <td className="px-4 py-3">{venda.clienteNome}</td>
+                            <td className="px-4 py-3">{venda.data}</td>
+                            <td className="px-4 py-3">{venda.descricao}</td>
+                            <td className="px-4 py-3">{venda.valor}</td>
+                            <td className="px-4 py-3">{venda.formaPagamento}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex space-x-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditVenda(venda)}
+                                  title="Editar venda"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleDeleteVenda(venda)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  title="Excluir venda"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {vendasFiltradas.length === 0 && !isLoadingVendas && (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-3 text-center text-gray-500">
+                              Nenhuma venda encontrada
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )}
                   </tbody>
                 </table>
@@ -436,42 +773,52 @@ const Vendas: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {clientesFiltrados.map((cliente) => (
-                      <tr key={cliente.id} className="border-b">
-                        <td className="px-4 py-3">{cliente.nome}</td>
-                        <td className="px-4 py-3">{cliente.email}</td>
-                        <td className="px-4 py-3">{cliente.telefone}</td>
-                        <td className="px-4 py-3">{cliente.cpfCnpj || '-'}</td>
-                        <td className="px-4 py-3">{cliente.dataCadastro}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleEditCliente(cliente)}
-                              title="Editar cliente"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleDeleteCliente(cliente)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Excluir cliente"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {clientesFiltrados.length === 0 && (
+                    {isLoadingClientes ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-3 text-center text-gray-500">
-                          Nenhum cliente encontrado
+                          Carregando clientes...
                         </td>
                       </tr>
+                    ) : (
+                      <>
+                        {clientesFiltrados.map((cliente, index) => (
+                          <tr key={cliente.id ? cliente.id : `cliente-${index}`} className="border-b">
+                            <td className="px-4 py-3">{cliente.nome}</td>
+                            <td className="px-4 py-3">{cliente.email || '-'}</td>
+                            <td className="px-4 py-3">{cliente.telefone || '-'}</td>
+                            <td className="px-4 py-3">{cliente.cpfCnpj || '-'}</td>
+                            <td className="px-4 py-3">{formatarDataCadastro(cliente.dataCadastro)}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex space-x-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditCliente(cliente)}
+                                  title="Editar cliente"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleDeleteCliente(cliente)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  title="Excluir cliente"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {clientesFiltrados.length === 0 && !isLoadingClientes && (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-3 text-center text-gray-500">
+                              Nenhum cliente encontrado
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )}
                   </tbody>
                 </table>

@@ -1,5 +1,9 @@
 import { LoginCredentials, RegisterData, UserModel } from '@/models/User';
 import { toast } from '@/hooks/use-toast';
+import { SupabaseAuthService } from '@/lib/services/auth';
+
+// Instanciar o serviço de autenticação do Supabase
+const authService = new SupabaseAuthService();
 
 export class AuthController {
   static async login(credentials: LoginCredentials): Promise<boolean> {
@@ -15,18 +19,22 @@ export class AuthController {
         return false;
       }
 
-      // Simulação de login - aqui seria integrado com a API real
-      console.log('Tentativa de login:', credentials);
+      const result = await authService.login(credentials);
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao FinManage",
-      });
-      
-      return true;
+      if (result.success) {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: `Bem-vindo ao FinManage, ${result.user?.name}`,
+        });
+        return true;
+      } else {
+        toast({
+          title: "Erro no login",
+          description: result.error?.message || "Credenciais inválidas",
+          variant: "destructive",
+        });
+        return false;
+      }
     } catch (error) {
       toast({
         title: "Erro no login",
@@ -50,18 +58,22 @@ export class AuthController {
         return false;
       }
 
-      // Simulação de cadastro - aqui seria integrado com a API real
-      console.log('Tentativa de cadastro:', userData);
+      const result = await authService.register(userData);
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Cadastro realizado com sucesso!",
-        description: "Sua conta foi criada. Faça login para continuar.",
-      });
-      
-      return true;
+      if (result.success) {
+        toast({
+          title: "Cadastro realizado com sucesso!",
+          description: "Sua conta foi criada. Faça login para continuar.",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Erro no cadastro",
+          description: result.error?.message || "Não foi possível criar a conta",
+          variant: "destructive",
+        });
+        return false;
+      }
     } catch (error) {
       toast({
         title: "Erro no cadastro",
@@ -74,13 +86,18 @@ export class AuthController {
   
   static async logout(): Promise<boolean> {
     try {
-      // Simulação de logout - aqui seria integrado com a API real
-      console.log('Realizando logout');
+      const result = await authService.logout();
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return true;
+      if (result.success) {
+        return true;
+      } else {
+        toast({
+          title: "Erro ao sair",
+          description: result.error?.message || "Não foi possível sair",
+          variant: "destructive",
+        });
+        return false;
+      }
     } catch (error) {
       toast({
         title: "Erro ao sair",
@@ -102,13 +119,22 @@ export class AuthController {
         return false;
       }
       
-      // Simulação de atualização - aqui seria integrado com a API real
-      console.log('Atualizando perfil:', { name });
+      const result = await authService.updateProfile(name);
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      return true;
+      if (result.success) {
+        toast({
+          title: "Perfil atualizado",
+          description: "Seu perfil foi atualizado com sucesso",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Erro na atualização",
+          description: result.error?.message || "Não foi possível atualizar o perfil",
+          variant: "destructive",
+        });
+        return false;
+      }
     } catch (error) {
       toast({
         title: "Erro na atualização",
@@ -139,13 +165,22 @@ export class AuthController {
         return false;
       }
       
-      // Simulação de atualização - aqui seria integrado com a API real
-      console.log('Atualizando senha');
+      const result = await authService.updatePassword(currentPassword, newPassword);
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      return true;
+      if (result.success) {
+        toast({
+          title: "Senha atualizada",
+          description: "Sua senha foi atualizada com sucesso",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Erro na atualização",
+          description: result.error?.message || "Não foi possível atualizar a senha",
+          variant: "destructive",
+        });
+        return false;
+      }
     } catch (error) {
       toast({
         title: "Erro na atualização",
@@ -154,5 +189,13 @@ export class AuthController {
       });
       return false;
     }
+  }
+  
+  static async isAuthenticated(): Promise<boolean> {
+    return await authService.isAuthenticated();
+  }
+  
+  static async getCurrentUser() {
+    return await authService.getCurrentUser();
   }
 }
