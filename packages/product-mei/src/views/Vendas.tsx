@@ -51,7 +51,6 @@ const Vendas: React.FC = () => {
   const [descricao, setDescricao] = useState<string>('');
   const [valor, setValor] = useState<string>('');
   const [formaPagamento, setFormaPagamento] = useState<string>('');
-  const [comprovante, setComprovante] = useState<File | null>(null);
   
   // Estados para validação do formulário de venda rápida
   const [clienteIdError, setClienteIdError] = useState('');
@@ -389,13 +388,6 @@ const Vendas: React.FC = () => {
     }
   };
 
-  // Manipulador para o formulário de venda rápida
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setComprovante(e.target.files[0]);
-    }
-  };
-
   // Resetar erros de validação
   const resetFormErrors = () => {
     setClienteIdError('');
@@ -546,7 +538,6 @@ const Vendas: React.FC = () => {
         descricao,
         valor: Number(valor.replace(',', '.')),
         forma_pagamento: formaPagamento.toLowerCase(),
-        comprovante: comprovante || undefined
       };
       
       // Enviar para a API
@@ -565,7 +556,6 @@ const Vendas: React.FC = () => {
       setDescricao('');
       setValor('');
       setFormaPagamento('');
-      setComprovante(null);
       resetFormErrors();
     } catch (error) {
       console.error('Erro ao registrar venda:', error);
@@ -716,16 +706,6 @@ const Vendas: React.FC = () => {
                       </div>
                     )}
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="comprovante">Comprovante (opcional)</Label>
-                  <Input
-                    id="comprovante"
-                    type="file"
-                    onChange={handleFileChange}
-                    className="cursor-pointer"
-                  />
                 </div>
 
                 <Button 

@@ -7,14 +7,12 @@ import { DIContainer, TRANSACTION_SERVICE, TransactionService } from '../core-ex
 export interface Venda {
   id: string;
   user_id: string;
-  cliente_id: string | null;
+  cliente_id?: string;
   cliente_nome?: string;
   data: string;
   descricao: string;
   valor: number;
   forma_pagamento: string;
-  comprovante_url: string | null;
-  transaction_id: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -29,7 +27,6 @@ export interface CreateVendaDTO {
   descricao: string;
   valor: number;
   forma_pagamento: string;
-  comprovante?: File;
 }
 
 /**
@@ -43,7 +40,6 @@ export interface UpdateVendaDTO {
   descricao?: string;
   valor?: number;
   forma_pagamento?: string;
-  comprovante?: File;
 }
 
 /**
@@ -84,8 +80,6 @@ export class SupabaseMeiVendaService {
         descricao: item.descricao,
         valor: Number(item.valor),
         forma_pagamento: item.forma_pagamento,
-        comprovante_url: item.comprovante_url,
-        transaction_id: item.transaction_id,
         created_at: item.created_at,
         updated_at: item.updated_at
       }));
@@ -162,8 +156,6 @@ export class SupabaseMeiVendaService {
         descricao: data.descricao,
         valor: Number(data.valor),
         forma_pagamento: data.forma_pagamento,
-        comprovante_url: data.comprovante_url,
-        transaction_id: data.transaction_id,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
@@ -221,26 +213,6 @@ export class SupabaseMeiVendaService {
         }
       }
       
-      // Processar o upload do comprovante, se houver
-      let comprovanteUrl: string | null = null;
-      if (venda.comprovante) {
-        const fileName = `${Date.now()}_${venda.comprovante.name.replace(/\s+/g, '_')}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('vendas_comprovantes')
-          .upload(`${userId}/${fileName}`, venda.comprovante);
-          
-        if (uploadError) {
-          console.error('[SupabaseMeiVendaService] create - Erro ao fazer upload do comprovante:', uploadError);
-        } else if (uploadData) {
-          // Obter a URL pública do arquivo
-          const { data: urlData } = supabase.storage
-            .from('vendas_comprovantes')
-            .getPublicUrl(`${userId}/${fileName}`);
-            
-          comprovanteUrl = urlData.publicUrl;
-        }
-      }
-      
       // Criar a transação correspondente à venda
       const transactionService = DIContainer.get<TransactionService>(TRANSACTION_SERVICE);
       const { data: transaction } = await transactionService.create({
@@ -259,7 +231,6 @@ export class SupabaseMeiVendaService {
         descricao: venda.descricao,
         valor: venda.valor,
         forma_pagamento: venda.forma_pagamento,
-        comprovante_url: comprovanteUrl,
         transaction_id: transaction?.id || null
       };
       
@@ -291,8 +262,6 @@ export class SupabaseMeiVendaService {
         descricao: data.descricao,
         valor: Number(data.valor),
         forma_pagamento: data.forma_pagamento,
-        comprovante_url: data.comprovante_url,
-        transaction_id: data.transaction_id,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
@@ -397,26 +366,6 @@ export class SupabaseMeiVendaService {
         return { data: null, error: new Error(getError?.message || 'Venda não encontrada') };
       }
       
-      // Processar o upload do comprovante, se houver
-      let comprovanteUrl: string | null = vendaExistente.comprovante_url;
-      if (venda.comprovante) {
-        const fileName = `${Date.now()}_${venda.comprovante.name.replace(/\s+/g, '_')}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('vendas_comprovantes')
-          .upload(`${userId}/${fileName}`, venda.comprovante);
-          
-        if (uploadError) {
-          console.error('[SupabaseMeiVendaService] update - Erro ao fazer upload do comprovante:', uploadError);
-        } else if (uploadData) {
-          // Obter a URL pública do arquivo
-          const { data: urlData } = supabase.storage
-            .from('vendas_comprovantes')
-            .getPublicUrl(`${userId}/${fileName}`);
-            
-          comprovanteUrl = urlData.publicUrl;
-        }
-      }
-      
       // Atualizar a transação correspondente, se existir
       if (vendaExistente.transaction_id) {
         const transactionService = DIContainer.get<TransactionService>(TRANSACTION_SERVICE);
@@ -434,7 +383,6 @@ export class SupabaseMeiVendaService {
       if (venda.descricao !== undefined) updateData.descricao = venda.descricao;
       if (venda.valor !== undefined) updateData.valor = venda.valor;
       if (venda.forma_pagamento !== undefined) updateData.forma_pagamento = venda.forma_pagamento;
-      if (comprovanteUrl !== vendaExistente.comprovante_url) updateData.comprovante_url = comprovanteUrl;
       
       console.log('[SupabaseMeiVendaService] update - Dados para atualização:', updateData);
       
@@ -466,8 +414,6 @@ export class SupabaseMeiVendaService {
         descricao: data.descricao,
         valor: Number(data.valor),
         forma_pagamento: data.forma_pagamento,
-        comprovante_url: data.comprovante_url,
-        transaction_id: data.transaction_id,
         created_at: data.created_at,
         updated_at: data.updated_at
       };
@@ -634,8 +580,6 @@ export class SupabaseMeiVendaService {
         descricao: item.descricao,
         valor: Number(item.valor),
         forma_pagamento: item.forma_pagamento,
-        comprovante_url: item.comprovante_url,
-        transaction_id: item.transaction_id,
         created_at: item.created_at,
         updated_at: item.updated_at
       }));

@@ -17,8 +17,8 @@ export function formatISODateToBrazilian(isoDate: string): string {
   }
   
   try {
-    // Converte de YYYY-MM-DD para DD/MM/YYYY
-    const [year, month, day] = isoDate.split('-');
+  // Converte de YYYY-MM-DD para DD/MM/YYYY
+  const [year, month, day] = isoDate.split('-');
     
     // Verificar se os componentes são válidos
     if (!year || !month || !day) {
@@ -48,8 +48,8 @@ export function formatBrazilianDateToISO(brDate: string): string {
   }
   
   try {
-    // Converte de DD/MM/YYYY para YYYY-MM-DD
-    const [day, month, year] = brDate.split('/');
+  // Converte de DD/MM/YYYY para YYYY-MM-DD
+  const [day, month, year] = brDate.split('/');
     
     // Verificar se os componentes são válidos
     if (!day || !month || !year) {
@@ -198,7 +198,7 @@ export function convertStringValorToNumber(valor: string): number {
   console.log('convertStringValorToNumber - Valor recebido:', valor);
   
   try {
-    // Remove o prefixo "R$ " e converte vírgula para ponto
+  // Remove o prefixo "R$ " e converte vírgula para ponto
     const valorLimpo = valor.replace(/[^\d,.-]/g, '').replace(',', '.');
     const valorNumerico = Number(valorLimpo);
     
@@ -216,103 +216,37 @@ export function convertStringValorToNumber(valor: string): number {
 }
 
 /**
- * Adapta uma venda do formato do modelo para criar uma nova venda na API
+ * Adapta uma venda do modelo para o DTO de criação para a API
+ * @param venda Venda do modelo
+ * @returns DTO de criação para a API
  */
-export function adaptModelVendaToCreateDTO(modelVenda: ModelVenda, comprovante?: File): CreateVendaDTO {
-  console.log('adaptModelVendaToCreateDTO - Venda do modelo:', modelVenda);
+export function adaptModelVendaToCreateDTO(venda: ModelVenda): any {
+  console.log('adaptModelVendaToCreateDTO - Venda do modelo:', venda);
   
-  // Obter o UUID do cliente em vez do ID numérico
-  let clienteUuid: string | undefined = undefined;
-  if (modelVenda.clienteUuid) {
-    // Se temos o UUID do cliente armazenado, usá-lo diretamente
-    clienteUuid = modelVenda.clienteUuid;
-    console.log('adaptModelVendaToCreateDTO - Usando UUID do cliente:', clienteUuid);
-  } else if (modelVenda.clienteId && modelVenda.clienteId > 0) {
-    // Tentar recuperar o UUID a partir do ID numérico
-    const uuid = getUuidFromNumericId(modelVenda.clienteId);
-    if (uuid) {
-      clienteUuid = uuid;
-      console.log('adaptModelVendaToCreateDTO - ID do cliente convertido para UUID:', modelVenda.clienteId, '->', clienteUuid);
-    } else {
-      // Se não encontrar o UUID, usar o ID numérico como string
-      clienteUuid = String(modelVenda.clienteId);
-      console.log('adaptModelVendaToCreateDTO - Usando ID numérico do cliente como string:', modelVenda.clienteId, '->', clienteUuid);
-    }
-  }
-  
-  // Formatar data para ISO
-  const dataISO = formatBrazilianDateToISO(modelVenda.data);
-  
-  // Converter valor para número
-  const valor = convertStringValorToNumber(modelVenda.valor);
-  
-  const createDTO: CreateVendaDTO = {
-    cliente_id: clienteUuid,
-    cliente_nome: modelVenda.clienteNome,
-    data: dataISO,
-    descricao: modelVenda.descricao,
-    valor: valor,
-    forma_pagamento: modelVenda.formaPagamento.toLowerCase(),
-    comprovante
+  return {
+    cliente_id: venda.clienteId ? String(venda.clienteId) : undefined,
+    cliente_nome: venda.clienteNome,
+    data: venda.data,
+    descricao: venda.descricao,
+    valor: convertStringValorToNumber(venda.valor),
+    forma_pagamento: venda.formaPagamento.toLowerCase()
   };
-  
-  console.log('adaptModelVendaToCreateDTO - Venda adaptada para DTO de criação:', createDTO);
-  return createDTO;
 }
 
 /**
- * Adapta uma venda do formato do modelo para atualizar uma venda existente na API
+ * Adapta uma venda do modelo para o DTO de atualização para a API
+ * @param venda Venda do modelo
+ * @returns DTO de atualização para a API
  */
-export function adaptModelVendaToUpdateDTO(modelVenda: ModelVenda, comprovante?: File): UpdateVendaDTO {
-  console.log('adaptModelVendaToUpdateDTO - Venda do modelo:', modelVenda);
+export function adaptModelVendaToUpdateDTO(venda: ModelVenda): any {
+  console.log('adaptModelVendaToUpdateDTO - Venda do modelo:', venda);
   
-  // Usar o UUID original da venda para atualização
-  let vendaUuid: string | undefined = undefined;
-  if (modelVenda.uuid) {
-    vendaUuid = modelVenda.uuid;
-    console.log('adaptModelVendaToUpdateDTO - Usando UUID da venda:', vendaUuid);
-  } else if (modelVenda.id > 0) {
-    // Tentar recuperar o UUID a partir do ID numérico
-    vendaUuid = getUuidFromNumericId(modelVenda.id);
-    console.log('adaptModelVendaToUpdateDTO - ID convertido para UUID:', modelVenda.id, '->', vendaUuid);
-  }
-  
-  // Obter o UUID do cliente
-  let clienteUuid: string | undefined = undefined;
-  if (modelVenda.clienteUuid) {
-    clienteUuid = modelVenda.clienteUuid;
-    console.log('adaptModelVendaToUpdateDTO - Usando UUID do cliente:', clienteUuid);
-  } else if (modelVenda.clienteId && modelVenda.clienteId > 0) {
-    // Tentar recuperar o UUID a partir do ID numérico
-    const uuid = getUuidFromNumericId(modelVenda.clienteId);
-    if (uuid) {
-      clienteUuid = uuid;
-      console.log('adaptModelVendaToUpdateDTO - ID do cliente convertido para UUID:', modelVenda.clienteId, '->', clienteUuid);
-    } else {
-      // Se não encontrar o UUID, usar o ID numérico como string
-      clienteUuid = String(modelVenda.clienteId);
-      console.log('adaptModelVendaToUpdateDTO - Usando ID numérico do cliente como string:', modelVenda.clienteId, '->', clienteUuid);
-    }
-  }
-  
-  // Formatar data para ISO
-  const dataISO = formatBrazilianDateToISO(modelVenda.data);
-  
-  // Converter valor para número
-  const valor = convertStringValorToNumber(modelVenda.valor);
-  console.log('adaptModelVendaToUpdateDTO - Valor convertido:', modelVenda.valor, '->', valor);
-  
-  const updateDTO: UpdateVendaDTO = {
-    id: vendaUuid, // Incluir ID explicitamente para garantir a atualização correta
-    cliente_id: clienteUuid,
-    cliente_nome: modelVenda.clienteNome,
-    data: dataISO,
-    descricao: modelVenda.descricao,
-    valor: valor,
-    forma_pagamento: modelVenda.formaPagamento.toLowerCase(),
-    comprovante
+  return {
+    cliente_id: venda.clienteId ? String(venda.clienteId) : undefined,
+    cliente_nome: venda.clienteNome,
+    data: venda.data,
+    descricao: venda.descricao,
+    valor: convertStringValorToNumber(venda.valor),
+    forma_pagamento: venda.formaPagamento.toLowerCase()
   };
-  
-  console.log('adaptModelVendaToUpdateDTO - Venda adaptada para DTO de atualização:', updateDTO);
-  return updateDTO;
 } 
