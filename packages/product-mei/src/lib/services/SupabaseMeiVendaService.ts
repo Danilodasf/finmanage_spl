@@ -36,6 +36,7 @@ export interface CreateVendaDTO {
  * Interface para atualizar uma venda existente
  */
 export interface UpdateVendaDTO {
+  id?: string; // ID da venda (UUID)
   cliente_id?: string;
   cliente_nome?: string;
   data?: string;
@@ -111,6 +112,34 @@ export class SupabaseMeiVendaService {
         return { data: null, error: new Error('Usuário não autenticado') };
       }
       
+      // Verificar se o ID da venda é um UUID válido
+      const isValidVendaId = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      
+      if (!isValidVendaId) {
+        console.error(`[SupabaseMeiVendaService] getById - ID da venda não é um UUID válido: ${id}`);
+        // Tentar converter ID numérico para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const { getUuidFromNumericId } = await import('../utils/uuidUtils');
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            id = uuid;
+            console.log(`[SupabaseMeiVendaService] getById - Convertendo ID numérico ${numericId} para UUID ${id}`);
+          } else {
+            console.error(`[SupabaseMeiVendaService] getById - Não foi possível encontrar UUID para o ID ${numericId}`);
+            return { 
+              data: null, 
+              error: new Error(`ID da venda inválido: ${numericId} não é um UUID válido`) 
+            };
+          }
+        } else {
+          return { 
+            data: null, 
+            error: new Error(`ID da venda inválido: ${id} não é um UUID válido`) 
+          };
+        }
+      }
+      
       const { data, error } = await supabase
         .from('vendas')
         .select('*, clientes(nome)')
@@ -161,6 +190,37 @@ export class SupabaseMeiVendaService {
         return { data: null, error: new Error('Usuário não autenticado') };
       }
       
+      // Verificar se o cliente_id é um UUID válido, se fornecido
+      let clienteId: string | null = null;
+      if (venda.cliente_id) {
+        const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venda.cliente_id);
+        
+        if (!isValidUuid) {
+          console.error(`[SupabaseMeiVendaService] create - ID do cliente não é um UUID válido: ${venda.cliente_id}`);
+          // Tentar converter ID numérico para UUID
+          const numericId = parseInt(venda.cliente_id);
+          if (!isNaN(numericId)) {
+            const { getUuidFromNumericId } = await import('../utils/uuidUtils');
+            const uuid = getUuidFromNumericId(numericId);
+            if (uuid) {
+              clienteId = uuid;
+              console.log(`[SupabaseMeiVendaService] create - Convertendo ID numérico ${venda.cliente_id} para UUID ${clienteId}`);
+            } else {
+              console.error(`[SupabaseMeiVendaService] create - Não foi possível encontrar UUID para o ID ${venda.cliente_id}`);
+              return { 
+                data: null, 
+                error: new Error(`ID do cliente inválido: ${venda.cliente_id} não é um UUID válido`) 
+              };
+            }
+          } else {
+            // Em vez de causar erro, definir como nulo
+            console.log('[SupabaseMeiVendaService] create - Definindo ID do cliente como nulo');
+          }
+        } else {
+          clienteId = venda.cliente_id;
+        }
+      }
+      
       // Processar o upload do comprovante, se houver
       let comprovanteUrl: string | null = null;
       if (venda.comprovante) {
@@ -194,7 +254,7 @@ export class SupabaseMeiVendaService {
       // Inserir a venda no banco de dados
       const vendaToInsert = {
         user_id: userId,
-        cliente_id: venda.cliente_id || null,
+        cliente_id: clienteId,
         data: venda.data,
         descricao: venda.descricao,
         valor: venda.valor,
@@ -260,6 +320,70 @@ export class SupabaseMeiVendaService {
         return { data: null, error: new Error('Usuário não autenticado') };
       }
       
+      // Verificar se o ID da venda é um UUID válido
+      const isValidVendaId = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      
+      if (!isValidVendaId) {
+        console.error(`[SupabaseMeiVendaService] update - ID da venda não é um UUID válido: ${id}`);
+        // Tentar converter ID numérico para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const { getUuidFromNumericId } = await import('../utils/uuidUtils');
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            id = uuid;
+            console.log(`[SupabaseMeiVendaService] update - Convertendo ID numérico ${numericId} para UUID ${id}`);
+          } else {
+            console.error(`[SupabaseMeiVendaService] update - Não foi possível encontrar UUID para o ID ${numericId}`);
+            return { 
+              data: null, 
+              error: new Error(`ID da venda inválido: ${numericId} não é um UUID válido`) 
+            };
+          }
+        } else {
+          return { 
+            data: null, 
+            error: new Error(`ID da venda inválido: ${id} não é um UUID válido`) 
+          };
+        }
+      }
+      
+      // Verificar se o cliente_id é um UUID válido, se fornecido
+      let clienteIdValidado: string | null | undefined = undefined;
+      if (venda.cliente_id !== undefined) {
+        if (venda.cliente_id === null || venda.cliente_id === '') {
+          clienteIdValidado = null;
+        } else {
+          const isValidClienteId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venda.cliente_id);
+          
+          if (!isValidClienteId) {
+            console.error(`[SupabaseMeiVendaService] update - ID do cliente não é um UUID válido: ${venda.cliente_id}`);
+            // Tentar converter ID numérico para UUID
+            const numericId = parseInt(venda.cliente_id);
+            if (!isNaN(numericId)) {
+              const { getUuidFromNumericId } = await import('../utils/uuidUtils');
+              const uuid = getUuidFromNumericId(numericId);
+              if (uuid) {
+                clienteIdValidado = uuid;
+                console.log(`[SupabaseMeiVendaService] update - Convertendo ID numérico do cliente ${venda.cliente_id} para UUID ${clienteIdValidado}`);
+              } else {
+                console.error(`[SupabaseMeiVendaService] update - Não foi possível encontrar UUID para o ID do cliente ${venda.cliente_id}`);
+                return { 
+                  data: null, 
+                  error: new Error(`ID do cliente inválido: ${venda.cliente_id} não é um UUID válido`) 
+                };
+              }
+            } else {
+              // Em vez de causar erro, definir como nulo
+              clienteIdValidado = null;
+              console.log('[SupabaseMeiVendaService] update - Definindo ID do cliente como nulo');
+            }
+          } else {
+            clienteIdValidado = venda.cliente_id;
+          }
+        }
+      }
+      
       // Buscar a venda existente para obter o ID da transação
       const { data: vendaExistente, error: getError } = await supabase
         .from('vendas')
@@ -305,7 +429,7 @@ export class SupabaseMeiVendaService {
       
       // Preparar dados para atualização
       const updateData: any = {};
-      if (venda.cliente_id !== undefined) updateData.cliente_id = venda.cliente_id;
+      if (clienteIdValidado !== undefined) updateData.cliente_id = clienteIdValidado;
       if (venda.data !== undefined) updateData.data = venda.data;
       if (venda.descricao !== undefined) updateData.descricao = venda.descricao;
       if (venda.valor !== undefined) updateData.valor = venda.valor;
@@ -370,7 +494,35 @@ export class SupabaseMeiVendaService {
         return { success: false, error: new Error('Usuário não autenticado') };
       }
       
-      // Buscar a venda para obter o ID da transação antes de excluí-la
+      // Verificar se o ID da venda é um UUID válido
+      const isValidVendaId = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      
+      if (!isValidVendaId) {
+        console.error(`[SupabaseMeiVendaService] delete - ID da venda não é um UUID válido: ${id}`);
+        // Tentar converter ID numérico para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const { getUuidFromNumericId } = await import('../utils/uuidUtils');
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            id = uuid;
+            console.log(`[SupabaseMeiVendaService] delete - Convertendo ID numérico ${numericId} para UUID ${id}`);
+          } else {
+            console.error(`[SupabaseMeiVendaService] delete - Não foi possível encontrar UUID para o ID ${numericId}`);
+            return { 
+              success: false, 
+              error: new Error(`ID da venda inválido: ${numericId} não é um UUID válido`) 
+            };
+          }
+        } else {
+          return { 
+            success: false, 
+            error: new Error(`ID da venda inválido: ${id} não é um UUID válido`) 
+          };
+        }
+      }
+      
+      // Buscar a venda para obter o ID da transação associada
       const { data: venda, error: getError } = await supabase
         .from('vendas')
         .select('transaction_id')
@@ -379,14 +531,13 @@ export class SupabaseMeiVendaService {
         .single();
         
       if (getError) {
-        console.error(`[SupabaseMeiVendaService] delete - Erro ao buscar venda ${id}:`, getError);
+        console.error('[SupabaseMeiVendaService] delete - Erro ao buscar venda:', getError);
+        // Se a venda não for encontrada, considera-se que já foi excluída
+        if (getError.code === 'PGRST116') {
+          console.log('[SupabaseMeiVendaService] delete - Venda não encontrada, considerando como já excluída');
+          return { success: true, error: null };
+        }
         return { success: false, error: new Error(getError.message) };
-      }
-      
-      // Excluir a transação associada, se existir
-      if (venda?.transaction_id) {
-        const transactionService = DIContainer.get<TransactionService>(TRANSACTION_SERVICE);
-        await transactionService.delete(venda.transaction_id);
       }
       
       // Excluir a venda
@@ -397,14 +548,27 @@ export class SupabaseMeiVendaService {
         .eq('user_id', userId);
         
       if (error) {
-        console.error(`[SupabaseMeiVendaService] delete - Erro ao excluir venda ${id}:`, error);
+        console.error('[SupabaseMeiVendaService] delete - Erro ao excluir venda:', error);
         return { success: false, error: new Error(error.message) };
       }
       
-      console.log(`[SupabaseMeiVendaService] delete - Venda ${id} removida com sucesso`);
+      // Excluir a transação associada, se existir
+      if (venda && venda.transaction_id) {
+        const transactionService = DIContainer.get<TransactionService>(TRANSACTION_SERVICE);
+        const { success, error: deleteError } = await transactionService.delete(venda.transaction_id);
+        
+        if (deleteError) {
+          console.error('[SupabaseMeiVendaService] delete - Erro ao excluir transação associada:', deleteError);
+          // Não falhar a operação principal caso a exclusão da transação falhe
+        } else if (success) {
+          console.log('[SupabaseMeiVendaService] delete - Transação associada excluída com sucesso');
+        }
+      }
+      
+      console.log('[SupabaseMeiVendaService] delete - Venda excluída com sucesso');
       return { success: true, error: null };
     } catch (error) {
-      console.error(`[SupabaseMeiVendaService] delete - Erro inesperado ao excluir venda ${id}:`, error);
+      console.error('[SupabaseMeiVendaService] delete - Erro inesperado:', error);
       return { success: false, error: error as Error };
     }
   }

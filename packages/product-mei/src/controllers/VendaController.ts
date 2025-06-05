@@ -1,6 +1,7 @@
 import { DIContainer, toast } from '../lib/core-exports';
 import { VENDA_SERVICE } from '../lib/di/bootstrap';
 import { SupabaseMeiVendaService, Venda, CreateVendaDTO, UpdateVendaDTO } from '../lib/services/SupabaseMeiVendaService';
+import { getUuidFromNumericId } from '../lib/utils/uuidUtils';
 
 /**
  * Controlador para gerenciamento de vendas
@@ -47,8 +48,32 @@ export class VendaController {
    */
   static async getById(id: string): Promise<Venda | null> {
     try {
+      console.log(`VendaController.getById - Buscando venda ${id}`);
+      
+      // Converter ID numérico para UUID, se necessário
+      let uuidId = id;
+      if (!id.includes('-')) {
+        // Parece ser um ID numérico, tentar converter para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            uuidId = uuid;
+            console.log(`VendaController.getById - Convertendo ID numérico ${id} para UUID ${uuidId}`);
+          } else {
+            console.error(`VendaController.getById - Não foi possível encontrar UUID para o ID ${id}`);
+            toast({
+              title: 'Erro',
+              description: `Não foi possível encontrar a venda com ID ${id}`,
+              variant: 'destructive',
+            });
+            return null;
+          }
+        }
+      }
+      
       const vendaService = this.getVendaService();
-      const { data, error } = await vendaService.getById(id);
+      const { data, error } = await vendaService.getById(uuidId);
       
       if (error) {
         console.error(`Erro ao buscar venda ${id}:`, error);
@@ -78,8 +103,33 @@ export class VendaController {
    */
   static async create(venda: CreateVendaDTO): Promise<Venda | null> {
     try {
+      console.log('VendaController.create - Criando venda:', venda);
+      
+      // Converter ID do cliente de numérico para UUID, se necessário
+      let vendaDto = { ...venda };
+      
+      if (venda.cliente_id && !venda.cliente_id.includes('-')) {
+        // Parece ser um ID numérico, tentar converter para UUID
+        const numericId = parseInt(venda.cliente_id);
+        if (!isNaN(numericId)) {
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            vendaDto.cliente_id = uuid;
+            console.log(`VendaController.create - Convertendo ID numérico do cliente ${venda.cliente_id} para UUID ${uuid}`);
+          } else {
+            console.error(`VendaController.create - Não foi possível encontrar UUID para o ID do cliente ${venda.cliente_id}`);
+            toast({
+              title: 'Erro',
+              description: `Não foi possível encontrar o cliente com ID ${venda.cliente_id}`,
+              variant: 'destructive',
+            });
+            return null;
+          }
+        }
+      }
+      
       const vendaService = this.getVendaService();
-      const { data, error } = await vendaService.create(venda);
+      const { data, error } = await vendaService.create(vendaDto);
       
       if (error) {
         console.error('Erro ao criar venda:', error);
@@ -115,8 +165,55 @@ export class VendaController {
    */
   static async update(id: string, venda: UpdateVendaDTO): Promise<Venda | null> {
     try {
+      console.log(`VendaController.update - Atualizando venda ${id}:`, venda);
+      
+      // Converter ID da venda de numérico para UUID, se necessário
+      let uuidId = id;
+      if (!id.includes('-')) {
+        // Parece ser um ID numérico, tentar converter para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            uuidId = uuid;
+            console.log(`VendaController.update - Convertendo ID numérico ${id} para UUID ${uuidId}`);
+          } else {
+            console.error(`VendaController.update - Não foi possível encontrar UUID para o ID ${id}`);
+            toast({
+              title: 'Erro',
+              description: `Não foi possível encontrar a venda com ID ${id}`,
+              variant: 'destructive',
+            });
+            return null;
+          }
+        }
+      }
+      
+      // Converter ID do cliente de numérico para UUID, se necessário
+      let vendaDto = { ...venda };
+      
+      if (venda.cliente_id && !venda.cliente_id.includes('-')) {
+        // Parece ser um ID numérico, tentar converter para UUID
+        const numericId = parseInt(venda.cliente_id);
+        if (!isNaN(numericId)) {
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            vendaDto.cliente_id = uuid;
+            console.log(`VendaController.update - Convertendo ID numérico do cliente ${venda.cliente_id} para UUID ${uuid}`);
+          } else {
+            console.error(`VendaController.update - Não foi possível encontrar UUID para o ID do cliente ${venda.cliente_id}`);
+            toast({
+              title: 'Erro',
+              description: `Não foi possível encontrar o cliente com ID ${venda.cliente_id}`,
+              variant: 'destructive',
+            });
+            return null;
+          }
+        }
+      }
+      
       const vendaService = this.getVendaService();
-      const { data, error } = await vendaService.update(id, venda);
+      const { data, error } = await vendaService.update(uuidId, vendaDto);
       
       if (error) {
         console.error(`Erro ao atualizar venda ${id}:`, error);
@@ -151,8 +248,32 @@ export class VendaController {
    */
   static async delete(id: string): Promise<boolean> {
     try {
+      console.log(`VendaController.delete - Excluindo venda ${id}`);
+      
+      // Converter ID da venda de numérico para UUID, se necessário
+      let uuidId = id;
+      if (!id.includes('-')) {
+        // Parece ser um ID numérico, tentar converter para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            uuidId = uuid;
+            console.log(`VendaController.delete - Convertendo ID numérico ${id} para UUID ${uuidId}`);
+          } else {
+            console.error(`VendaController.delete - Não foi possível encontrar UUID para o ID ${id}`);
+            toast({
+              title: 'Erro',
+              description: `Não foi possível encontrar a venda com ID ${id}`,
+              variant: 'destructive',
+            });
+            return false;
+          }
+        }
+      }
+      
       const vendaService = this.getVendaService();
-      const { success, error } = await vendaService.delete(id);
+      const { success, error } = await vendaService.delete(uuidId);
       
       if (error) {
         console.error(`Erro ao excluir venda ${id}:`, error);

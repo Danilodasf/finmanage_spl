@@ -1,6 +1,7 @@
 import { DIContainer, toast } from '../lib/core-exports';
 import { CLIENTE_SERVICE } from '../lib/di/bootstrap';
 import { SupabaseMeiClienteService, Cliente, CreateClienteDTO, UpdateClienteDTO } from '../lib/services/SupabaseMeiClienteService';
+import { getUuidFromNumericId } from '../lib/utils/uuidUtils';
 
 /**
  * Controlador para gerenciamento de clientes
@@ -47,27 +48,36 @@ export class ClienteController {
    */
   static async getById(id: string): Promise<Cliente | null> {
     try {
+      console.log(`ClienteController.getById - Buscando cliente ${id}`);
+      
+      // Converter ID numérico para UUID, se necessário
+      let uuidId = id;
+      if (!id.includes('-')) {
+        // Parece ser um ID numérico, tentar converter para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            uuidId = uuid;
+            console.log(`ClienteController.getById - Convertendo ID numérico ${id} para UUID ${uuidId}`);
+          } else {
+            console.error(`ClienteController.getById - Não foi possível encontrar UUID para o ID ${id}`);
+            return null;
+          }
+        }
+      }
+      
       const clienteService = this.getClienteService();
-      const { data, error } = await clienteService.getById(id);
+      const { data, error } = await clienteService.getById(uuidId);
       
       if (error) {
         console.error(`Erro ao buscar cliente ${id}:`, error);
-        toast({
-          title: 'Erro',
-          description: `Não foi possível carregar os detalhes do cliente: ${error.message}`,
-          variant: 'destructive',
-        });
         return null;
       }
       
       return data;
     } catch (error) {
       console.error(`Erro ao buscar cliente ${id}:`, error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os detalhes do cliente',
-        variant: 'destructive',
-      });
       return null;
     }
   }
@@ -86,28 +96,44 @@ export class ClienteController {
         if (checkError) {
           console.error('Erro ao verificar CPF/CNPJ:', checkError);
         } else if (exists) {
+          const errorMsg = 'Este CPF/CNPJ já está cadastrado para outro cliente';
+          console.error(errorMsg);
           toast({
             title: 'Erro',
-            description: 'Este CPF/CNPJ já está cadastrado para outro cliente',
+            description: errorMsg,
             variant: 'destructive',
           });
-          return null;
+          throw new Error(errorMsg);
         }
       }
       
       const clienteService = this.getClienteService();
+      console.log('ClienteController.create - Enviando dados para o serviço:', cliente);
       const { data, error } = await clienteService.create(cliente);
       
       if (error) {
         console.error('Erro ao criar cliente:', error);
+        const errorMsg = `Não foi possível cadastrar o cliente: ${error.message}`;
         toast({
           title: 'Erro',
-          description: `Não foi possível cadastrar o cliente: ${error.message}`,
+          description: errorMsg,
           variant: 'destructive',
         });
-        return null;
+        throw new Error(errorMsg);
       }
       
+      if (!data) {
+        const errorMsg = 'Não foi possível cadastrar o cliente: resposta vazia do servidor';
+        console.error(errorMsg);
+        toast({
+          title: 'Erro',
+          description: errorMsg,
+          variant: 'destructive',
+        });
+        throw new Error(errorMsg);
+      }
+      
+      console.log('Cliente criado com sucesso:', data);
       toast({
         title: 'Sucesso',
         description: 'Cliente cadastrado com sucesso',
@@ -116,12 +142,16 @@ export class ClienteController {
       return data;
     } catch (error) {
       console.error('Erro ao criar cliente:', error);
+      const errorMsg = error instanceof Error 
+        ? `Não foi possível cadastrar o cliente: ${error.message}`
+        : 'Não foi possível cadastrar o cliente';
+      
       toast({
         title: 'Erro',
-        description: 'Não foi possível cadastrar o cliente',
+        description: errorMsg,
         variant: 'destructive',
       });
-      return null;
+      throw error; // Propagar o erro para que seja tratado no componente
     }
   }
   
@@ -132,10 +162,34 @@ export class ClienteController {
    */
   static async update(id: string, cliente: UpdateClienteDTO): Promise<Cliente | null> {
     try {
+      console.log(`ClienteController.update - Atualizando cliente ${id}:`, cliente);
+      
+      // Converter ID numérico para UUID, se necessário
+      let uuidId = id;
+      if (!id.includes('-')) {
+        // Parece ser um ID numérico, tentar converter para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            uuidId = uuid;
+            console.log(`ClienteController.update - Convertendo ID numérico ${id} para UUID ${uuidId}`);
+          } else {
+            console.error(`ClienteController.update - Não foi possível encontrar UUID para o ID ${id}`);
+            toast({
+              title: 'Erro',
+              description: `Não foi possível encontrar o cliente com ID ${id}`,
+              variant: 'destructive',
+            });
+            return null;
+          }
+        }
+      }
+      
       // Validar CPF/CNPJ
       if (cliente.cpf_cnpj) {
         const clienteService = this.getClienteService();
-        const { exists, error: checkError } = await clienteService.checkCpfCnpjExists(cliente.cpf_cnpj, id);
+        const { exists, error: checkError } = await clienteService.checkCpfCnpjExists(cliente.cpf_cnpj, uuidId);
         
         if (checkError) {
           console.error('Erro ao verificar CPF/CNPJ:', checkError);
@@ -150,7 +204,7 @@ export class ClienteController {
       }
       
       const clienteService = this.getClienteService();
-      const { data, error } = await clienteService.update(id, cliente);
+      const { data, error } = await clienteService.update(uuidId, cliente);
       
       if (error) {
         console.error(`Erro ao atualizar cliente ${id}:`, error);
@@ -185,8 +239,32 @@ export class ClienteController {
    */
   static async delete(id: string): Promise<boolean> {
     try {
+      console.log(`ClienteController.delete - Excluindo cliente ${id}`);
+      
+      // Converter ID numérico para UUID, se necessário
+      let uuidId = id;
+      if (!id.includes('-')) {
+        // Parece ser um ID numérico, tentar converter para UUID
+        const numericId = parseInt(id);
+        if (!isNaN(numericId)) {
+          const uuid = getUuidFromNumericId(numericId);
+          if (uuid) {
+            uuidId = uuid;
+            console.log(`ClienteController.delete - Convertendo ID numérico ${id} para UUID ${uuidId}`);
+          } else {
+            console.error(`ClienteController.delete - Não foi possível encontrar UUID para o ID ${id}`);
+            toast({
+              title: 'Erro',
+              description: `Não foi possível encontrar o cliente com ID ${id}`,
+              variant: 'destructive',
+            });
+            return false;
+          }
+        }
+      }
+      
       const clienteService = this.getClienteService();
-      const { success, error } = await clienteService.delete(id);
+      const { success, error } = await clienteService.delete(uuidId);
       
       if (error) {
         console.error(`Erro ao excluir cliente ${id}:`, error);

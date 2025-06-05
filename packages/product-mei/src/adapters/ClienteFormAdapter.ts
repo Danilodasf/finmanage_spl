@@ -12,6 +12,7 @@ export interface ClienteFormData {
   endereco?: string;
   observacoes?: string;
   dataCadastro?: string;
+  uuid?: string; // UUID original do Supabase
 }
 
 /**

@@ -8,58 +8,88 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 // Criar cliente do Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Cache para o ID do usuário para minimizar chamadas à API
+let cachedUserId: string | null = null;
+let userCheckTimestamp: number = 0;
+const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutos
+
 // Função auxiliar para verificar se o usuário está autenticado
 export const isAuthenticated = async (): Promise<boolean> => {
-  const { data, error } = await supabase.auth.getSession();
-  return !error && data?.session !== null;
+  try {
+    console.log('isAuthenticated - Verificando autenticação...');
+    const { data, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('isAuthenticated - Erro ao verificar sessão:', error);
+      return false;
+    }
+    
+    const isAuth = data?.session !== null;
+    console.log('isAuthenticated - Usuário está autenticado:', isAuth);
+    return isAuth;
+  } catch (error) {
+    console.error('isAuthenticated - Erro inesperado:', error);
+    return false;
+  }
 };
 
 // Função para obter o usuário atual
 export const getCurrentUser = async () => {
-  const { data } = await supabase.auth.getUser();
-  return data?.user || null;
+  try {
+    console.log('getCurrentUser - Obtendo usuário atual...');
+    const { data, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.error('getCurrentUser - Erro ao obter usuário:', error);
+      return null;
+    }
+    
+    if (!data?.user) {
+      console.warn('getCurrentUser - Nenhum usuário encontrado na sessão');
+      return null;
+    }
+    
+    console.log('getCurrentUser - Usuário obtido com sucesso:', data.user.id);
+    return data.user;
+  } catch (error) {
+    console.error('getCurrentUser - Erro inesperado:', error);
+    return null;
+  }
 };
 
 // Função para obter o ID do usuário atual
 export const getCurrentUserId = async (): Promise<string | null> => {
   try {
+    // Verificar se temos um ID em cache válido
+    const now = Date.now();
+    if (cachedUserId && (now - userCheckTimestamp) < CACHE_LIFETIME_MS) {
+      console.log('getCurrentUserId - Usando ID em cache:', cachedUserId);
+      return cachedUserId;
+    }
+    
+    console.log('getCurrentUserId - Verificando autenticação...');
+    const authenticated = await isAuthenticated();
+    
+    if (!authenticated) {
+      console.error('getCurrentUserId - Usuário não autenticado');
+      cachedUserId = null;
+      userCheckTimestamp = now;
+      return null;
+    }
+    
+    console.log('getCurrentUserId - Obtendo usuário...');
     const user = await getCurrentUser();
-    console.log('getCurrentUserId - usuário obtido:', user);
     
     if (!user) {
-      console.error('getCurrentUserId - Usuário não autenticado');
+      console.error('getCurrentUserId - Não foi possível obter o usuário');
+      cachedUserId = null;
+      userCheckTimestamp = now;
       return null;
     }
     
     console.log('getCurrentUserId - ID do usuário:', user.id);
-    
-    // Verificar se o usuário existe na tabela auth.users
-    const { data: userExists, error: userCheckError } = await supabase
-      .from('auth.users')
-      .select('id')
-      .eq('id', user.id)
-      .single();
-    
-    if (userCheckError) {
-      console.log('getCurrentUserId - Erro ao verificar usuário no banco:', userCheckError);
-      
-      // Vamos verificar se o erro é porque a tabela não existe ou se o usuário não existe
-      if (userCheckError.code === '42P01') { // Relação não existe
-        console.log('getCurrentUserId - Tabela auth.users não acessível diretamente, assumindo que o usuário existe');
-        return user.id;
-      } else {
-        console.error('getCurrentUserId - Erro ao verificar usuário:', userCheckError);
-        
-        // Mesmo com erro, vamos tentar retornar o ID do usuário, já que o erro pode ser de permissão
-        return user.id;
-      }
-    }
-    
-    if (!userExists) {
-      console.error('getCurrentUserId - ID do usuário não encontrado no banco');
-      return null;
-    }
-    
+    cachedUserId = user.id;
+    userCheckTimestamp = now;
     return user.id;
   } catch (error) {
     console.error('getCurrentUserId - Erro ao obter ID do usuário:', error);
@@ -70,30 +100,36 @@ export const getCurrentUserId = async (): Promise<string | null> => {
 // Função para testar a conexão com o Supabase
 export const testSupabaseConnection = async (): Promise<boolean> => {
   try {
-    console.log('Testando conexão com o Supabase...');
+    console.log('testSupabaseConnection - Testando conexão com o Supabase...');
     console.log('URL do Supabase:', supabaseUrl);
     
+    // Verificar autenticação primeiro
+    const authenticated = await isAuthenticated();
+    console.log('testSupabaseConnection - Usuário autenticado:', authenticated);
+    
     // Tentar fazer uma consulta simples
-    const { data, error } = await supabase.from('_test_connection').select('*').limit(1).maybeSingle();
+    console.log('testSupabaseConnection - Tentando consulta básica...');
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('count')
+      .limit(1)
+      .single();
     
-    if (error && error.code !== '42P01') { // Ignora erro de tabela não existente (esperado)
-      console.error('Erro ao testar conexão com Supabase:', error);
+    if (error) {
+      // Ignora erro específico de não encontrar registros (PGRST116), pois é apenas um teste de conectividade
+      if (error.code === 'PGRST116') {
+        console.log('testSupabaseConnection - Nenhum perfil encontrado, mas conexão OK');
+        return true;
+      }
+      
+      console.error('testSupabaseConnection - Erro na consulta:', error);
       return false;
     }
     
-    // Verificar a sessão atual para testar autenticação
-    const { data: session, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error('Erro ao testar autenticação com Supabase:', sessionError);
-      return false;
-    }
-    
-    console.log('Sessão do Supabase:', session);
-    console.log('Conexão com Supabase bem-sucedida!');
+    console.log('testSupabaseConnection - Conexão com Supabase bem-sucedida!');
     return true;
   } catch (error) {
-    console.error('Erro ao testar conexão com Supabase:', error);
+    console.error('testSupabaseConnection - Erro ao testar conexão:', error);
     return false;
   }
 };
@@ -101,36 +137,49 @@ export const testSupabaseConnection = async (): Promise<boolean> => {
 // Função para garantir que o perfil do usuário exista
 export const ensureUserProfile = async (): Promise<boolean> => {
   try {
-    const user = await getCurrentUser();
+    console.log('ensureUserProfile - Verificando perfil do usuário...');
+    const userId = await getCurrentUserId();
     
-    if (!user) {
+    if (!userId) {
       console.error('ensureUserProfile - Usuário não autenticado');
       return false;
     }
     
     // Verificar se o perfil já existe
+    console.log('ensureUserProfile - Verificando se perfil já existe...');
     const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
       
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = Não encontrado
-      console.error('ensureUserProfile - Erro ao verificar perfil:', checkError);
-    }
-    
-    // Se o perfil já existe, não precisa criar
-    if (existingProfile) {
-      console.log('ensureUserProfile - Perfil já existe');
+    if (checkError) {
+      if (checkError.code !== 'PGRST116') { // PGRST116 = Não encontrado
+        console.error('ensureUserProfile - Erro ao verificar perfil:', checkError);
+        return false;
+      }
+      console.log('ensureUserProfile - Perfil não encontrado, será criado');
+    } else {
+      console.log('ensureUserProfile - Perfil já existe:', existingProfile);
       return true;
     }
     
+    // Obter dados do usuário para o perfil
+    const user = await getCurrentUser();
+    if (!user) {
+      console.error('ensureUserProfile - Não foi possível obter dados do usuário');
+      return false;
+    }
+    
     // Criar perfil caso não exista
+    console.log('ensureUserProfile - Criando perfil...');
     const { error: insertError } = await supabase
       .from('profiles')
       .insert({
-        id: user.id,
-        email: user.email
+        id: userId,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || null,
+        updated_at: new Date().toISOString()
       });
       
     if (insertError) {
@@ -141,7 +190,7 @@ export const ensureUserProfile = async (): Promise<boolean> => {
     console.log('ensureUserProfile - Perfil criado com sucesso');
     return true;
   } catch (error) {
-    console.error('ensureUserProfile - Erro:', error);
+    console.error('ensureUserProfile - Erro inesperado:', error);
     return false;
   }
 }; 

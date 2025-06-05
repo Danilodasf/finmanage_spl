@@ -145,17 +145,28 @@ const Vendas: React.FC = () => {
     if (clienteSelecionado && clienteSelecionado.id) {
       setIsLoading(true);
       try {
-        console.log('Excluindo cliente com ID:', clienteSelecionado.id, 'Tipo:', typeof clienteSelecionado.id);
-        // Converter id de number para string para o ClienteController
-        const success = await ClienteController.delete(String(clienteSelecionado.id));
+        console.log('Excluindo cliente:', clienteSelecionado);
+        
+        // Usar o UUID original se disponível, caso contrário converter o ID numérico
+        let clienteId: string;
+        if (clienteSelecionado.uuid) {
+          clienteId = clienteSelecionado.uuid;
+          console.log('Usando UUID original para exclusão:', clienteId);
+        } else {
+          clienteId = String(clienteSelecionado.id);
+          console.log('Usando ID numérico convertido para exclusão:', clienteId);
+        }
+        
+        const success = await ClienteController.delete(clienteId);
         if (success) {
-          await fetchClientes(); // Recarregar a lista após excluir
+          // Remover o cliente da lista local para evitar ter que recarregar
+          setClientes(clientes.filter(c => c.id !== clienteSelecionado.id));
           toast({
             title: 'Cliente excluído',
             description: 'O cliente foi excluído com sucesso.',
           });
         } else {
-          console.error('Falha ao excluir cliente. ID:', clienteSelecionado.id);
+          console.error('Falha ao excluir cliente. ID:', clienteSelecionado.id, 'UUID:', clienteSelecionado.uuid);
           toast({
             title: 'Erro',
             description: 'Não foi possível excluir o cliente. Verifique se não há vendas associadas.',
@@ -179,25 +190,67 @@ const Vendas: React.FC = () => {
   const handleSaveCliente = async (cliente: ClienteFormData) => {
     setIsLoading(true);
     try {
+      console.log('Salvando cliente:', cliente);
+      
       if (cliente.id) {
         // Atualizar cliente existente
-        console.log('Atualizando cliente com ID:', cliente.id, 'Tipo:', typeof cliente.id);
-        await ClienteController.update(String(cliente.id), adaptClienteFormToUpdateDTO(cliente));
+        console.log('Atualizando cliente:', cliente);
+        
+        // Usar o UUID original se disponível, caso contrário converter o ID numérico
+        let clienteId: string;
+        if (cliente.uuid) {
+          clienteId = cliente.uuid;
+          console.log('Usando UUID original para atualização:', clienteId);
+        } else {
+          clienteId = String(cliente.id);
+          console.log('Usando ID numérico convertido para atualização:', clienteId);
+        }
+        
+        const updateDTO = adaptClienteFormToUpdateDTO(cliente);
+        console.log('UpdateDTO:', updateDTO);
+        const updatedCliente = await ClienteController.update(clienteId, updateDTO);
+        
+        if (updatedCliente) {
+          // Atualizar o cliente na lista local
+          setClientes(clientes.map(c => c.id === cliente.id ? cliente : c));
+          toast({
+            title: 'Cliente atualizado',
+            description: 'O cliente foi atualizado com sucesso.',
+          });
+        } else {
+          throw new Error('Falha ao atualizar cliente');
+        }
       } else {
         // Criar novo cliente
         console.log('Criando novo cliente');
-        await ClienteController.create(adaptClienteFormToCreateDTO(cliente));
+        const createDTO = adaptClienteFormToCreateDTO(cliente);
+        console.log('CreateDTO:', createDTO);
+        const newCliente = await ClienteController.create(createDTO);
+      
+        if (newCliente) {
+          // Adicionar o novo cliente à lista local
+      await fetchClientes();
+          toast({
+            title: 'Cliente cadastrado',
+            description: 'O cliente foi cadastrado com sucesso.',
+          });
+        } else {
+          throw new Error('Falha ao criar cliente: resposta nula do servidor');
+        }
       }
       
-      // Recarregar a lista de clientes
-      await fetchClientes();
       // Fechar o diálogo após salvar
       setIsClienteDialogOpen(false);
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
+      // Exibir mensagem de erro mais detalhada
+      let errorMessage = 'Não foi possível salvar o cliente.';
+      if (error instanceof Error) {
+        errorMessage += ` Erro: ${error.message}`;
+      }
       toast({
         title: 'Erro',
-        description: 'Não foi possível salvar o cliente. Tente novamente.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -225,16 +278,28 @@ const Vendas: React.FC = () => {
     if (vendaSelecionada) {
       setIsLoading(true);
       try {
-        console.log('Excluindo venda com ID:', vendaSelecionada.id, 'Tipo:', typeof vendaSelecionada.id);
-        const success = await VendaController.delete(String(vendaSelecionada.id));
+        console.log('Excluindo venda:', vendaSelecionada);
+        
+        // Usar o UUID original se disponível, caso contrário converter o ID numérico
+        let vendaId: string;
+        if (vendaSelecionada.uuid) {
+          vendaId = vendaSelecionada.uuid;
+          console.log('Usando UUID original para exclusão:', vendaId);
+        } else {
+          vendaId = String(vendaSelecionada.id);
+          console.log('Usando ID numérico convertido para exclusão:', vendaId);
+        }
+        
+        const success = await VendaController.delete(vendaId);
         if (success) {
-          await fetchVendas(); // Recarregar a lista após excluir
+          // Remover a venda da lista local para evitar ter que recarregar
+          setVendas(vendas.filter(v => v.id !== vendaSelecionada.id));
           toast({
             title: 'Venda excluída',
             description: 'A venda foi excluída com sucesso.',
           });
         } else {
-          console.error('Falha ao excluir venda. ID:', vendaSelecionada.id);
+          console.error('Falha ao excluir venda. ID:', vendaSelecionada.id, 'UUID:', vendaSelecionada.uuid);
           toast({
             title: 'Erro',
             description: 'Não foi possível excluir a venda. Tente novamente.',
@@ -266,21 +331,46 @@ const Vendas: React.FC = () => {
       if (venda.id === 0) {
         // Nova venda
         console.log('Criando nova venda');
-        await VendaController.create(adaptModelVendaToCreateDTO(venda));
+        const createDTO = adaptModelVendaToCreateDTO(venda);
+        console.log('CreateDTO:', createDTO);
+        const newVenda = await VendaController.create(createDTO);
+        
+        if (newVenda) {
         toast({
           title: 'Venda registrada',
           description: 'A venda foi registrada com sucesso.',
         });
+        } else {
+          throw new Error('Falha ao criar venda');
+        }
       } else {
         // Atualização de venda existente
-        console.log('Atualizando venda existente. ID:', venda.id, 'Tipo:', typeof venda.id);
+        console.log('Atualizando venda existente:', venda);
+        
+        // Usar o UUID original se disponível, caso contrário converter o ID numérico
+        let vendaId: string;
+        if (venda.uuid) {
+          vendaId = venda.uuid;
+          console.log('Usando UUID original para atualização:', vendaId);
+        } else {
+          vendaId = String(venda.id);
+          console.log('Usando ID numérico convertido para atualização:', vendaId);
+        }
+        
         const updateDTO = adaptModelVendaToUpdateDTO(venda);
         console.log('UpdateDTO:', updateDTO);
-        await VendaController.update(String(venda.id), updateDTO);
+        const updatedVenda = await VendaController.update(vendaId, updateDTO);
+        
+        if (updatedVenda) {
+          // Atualizar a venda na lista local
+          setVendas(vendas.map(v => v.id === venda.id ? venda : v));
         toast({
           title: 'Venda atualizada',
           description: 'A venda foi atualizada com sucesso.',
         });
+        } else {
+          throw new Error('Falha ao atualizar venda');
+        }
       }
       
       // Recarregar a lista de vendas

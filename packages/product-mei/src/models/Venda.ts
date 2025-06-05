@@ -7,6 +7,8 @@ export interface Venda {
   valor: string;
   formaPagamento: string;
   comprovante?: string;
+  uuid?: string;
+  clienteUuid?: string;
 }
 
 export const vendasMock: Venda[] = [
