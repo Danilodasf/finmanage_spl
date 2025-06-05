@@ -109,6 +109,18 @@ export class SupabaseMeiTransactionService implements TransactionService {
         return { data: null, error: new Error('Usuário não autenticado') };
       }
       
+      // Verificar se a categoria é um UUID válido
+      if (entity.categoryId) {
+        const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(entity.categoryId);
+        
+        if (!isValidUuid) {
+          console.error(`[SupabaseMeiTransactionService] create - ID da categoria não é um UUID válido: ${entity.categoryId}`);
+          // Em vez de causar erro, definir como nulo
+          entity.categoryId = '';
+          console.log('[SupabaseMeiTransactionService] create - Definindo ID da categoria como vazio');
+        }
+      }
+      
       // Preparar dados para inserção
       const transactionToInsert = {
         user_id: userId,

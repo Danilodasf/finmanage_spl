@@ -33,6 +33,7 @@ export interface CreateClienteDTO {
  * Interface para atualizar um cliente existente
  */
 export interface UpdateClienteDTO {
+  id?: string; // ID do cliente (UUID)
   nome?: string;
   email?: string;
   telefone?: string;
@@ -89,6 +90,14 @@ export class SupabaseMeiClienteService {
       if (!userId) {
         console.error('[SupabaseMeiClienteService] getById - Usuário não autenticado');
         return { data: null, error: new Error('Usuário não autenticado') };
+      }
+      
+      // Verificar se o ID é um UUID válido
+      const isValidUuid = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      
+      if (!isValidUuid) {
+        console.error(`[SupabaseMeiClienteService] getById - ID não é um UUID válido: ${id}`);
+        return { data: null, error: new Error(`ID inválido: ${id} não é um UUID válido`) };
       }
       
       const { data, error } = await supabase
@@ -175,6 +184,17 @@ export class SupabaseMeiClienteService {
         return { data: null, error: new Error('Usuário não autenticado') };
       }
       
+      // Verificar se o ID é um UUID válido (tem o formato padrão com hífens)
+      const isValidUuid = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      
+      if (!isValidUuid) {
+        console.error(`[SupabaseMeiClienteService] update - ID não é um UUID válido: ${id}`);
+        return { 
+          data: null, 
+          error: new Error(`ID inválido: ${id} não é um UUID válido`) 
+        };
+      }
+      
       const { data, error } = await supabase
         .from('clientes')
         .update(cliente)
@@ -213,6 +233,14 @@ export class SupabaseMeiClienteService {
       if (!userId) {
         console.error('[SupabaseMeiClienteService] delete - Usuário não autenticado');
         return { success: false, error: new Error('Usuário não autenticado') };
+      }
+      
+      // Verificar se o ID é um UUID válido
+      const isValidUuid = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      
+      if (!isValidUuid) {
+        console.error(`[SupabaseMeiClienteService] delete - ID não é um UUID válido: ${id}`);
+        return { success: false, error: new Error(`ID inválido: ${id} não é um UUID válido`) };
       }
       
       // Verificar se o cliente tem vendas associadas
@@ -309,6 +337,14 @@ export class SupabaseMeiClienteService {
         
       // Se for edição, excluir o próprio cliente da consulta
       if (clienteId) {
+        // Verificar se o ID é um UUID válido
+        const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteId);
+        
+        if (!isValidUuid) {
+          console.error(`[SupabaseMeiClienteService] checkCpfCnpjExists - ID não é um UUID válido: ${clienteId}`);
+          return { exists: false, error: new Error(`ID inválido: ${clienteId} não é um UUID válido`) };
+        }
+        
         query = query.neq('id', clienteId);
       }
       

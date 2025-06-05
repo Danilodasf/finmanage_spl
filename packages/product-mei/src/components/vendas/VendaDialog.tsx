@@ -35,6 +35,7 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
   const [valor, setValor] = useState('');
   const [formaPagamento, setFormaPagamento] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [vendaId, setVendaId] = useState<number>(0); // Armazenar o ID da venda em edição
   
   // Estados para validação
   const [clienteIdError, setClienteIdError] = useState('');
@@ -43,8 +44,12 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
   const [formaPagamentoError, setFormaPagamentoError] = useState('');
 
   useEffect(() => {
+    if (isOpen) {
     if (venda) {
+        // Armazenar o ID da venda em edição
+        setVendaId(venda.id);
       setClienteId(venda.clienteId);
+        
       // Converter string de data para objeto Date
       try {
         const dateParts = venda.data.split('/');
@@ -67,11 +72,16 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
       // Registrar o ID da venda que está sendo editada
       console.log('Editando venda com ID:', venda.id, 'Tipo:', typeof venda.id);
     } else {
+        setVendaId(0);
       resetForm();
     }
     
     // Limpar erros ao abrir o diálogo
     resetErrors();
+    } else {
+      // Resetar o estado isLoading quando o diálogo é fechado
+      setIsLoading(false);
+    }
   }, [venda, isOpen]);
 
   const resetForm = () => {
@@ -220,7 +230,7 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
     const clienteSelecionado = clientes.find(c => c.id === Number(clienteId));
 
     const novaVenda: Venda = {
-      id: venda ? venda.id : 0,
+      id: vendaId, // Usar o ID armazenado
       clienteId: Number(clienteId),
       clienteNome: clienteSelecionado?.nome || '',
       data: data ? format(data, 'dd/MM/yyyy') : new Date().toLocaleDateString(),
@@ -235,9 +245,15 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
     // Não resetamos isLoading aqui, pois isso será feito pelo componente pai
   };
 
+  // Adicionar um wrapper para o onClose que reseta o estado isLoading
+  const handleClose = () => {
+    setIsLoading(false);
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[500px]" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{venda ? 'Editar Venda' : 'Registrar Nova Venda'}</DialogTitle>
         </DialogHeader>
@@ -251,7 +267,7 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
                 required
               >
                 <SelectTrigger className={clienteIdError ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Selecione um cliente" />
+                  <SelectValue placeholder="Selecione o cliente" />
                 </SelectTrigger>
                 <SelectContent>
                   {clientes.map((cliente) => (
@@ -270,23 +286,27 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="data">Data da Venda *</Label>
+              <Label htmlFor="data">Data *</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
-                    id="data"
                     variant="outline"
                     className="w-full justify-start text-left font-normal"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {data ? format(data, 'PPP', { locale: ptBR }) : <span>Selecione uma data</span>}
+                    {data ? (
+                      format(data, 'dd/MM/yyyy', { locale: ptBR })
+                    ) : (
+                      <span>Selecione uma data</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={data}
                     onSelect={setData}
+                    disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
                     initialFocus
                   />
                 </PopoverContent>
@@ -299,7 +319,7 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
                 id="descricao"
                 value={descricao}
                 onChange={handleDescricaoChange}
-                placeholder="Descrição da venda"
+                placeholder="Descrição do serviço ou produto"
                 required
                 className={descricaoError ? "border-red-500" : ""}
               />
@@ -360,7 +380,7 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
               Cancelar
             </Button>
             <Button 
@@ -368,7 +388,7 @@ export const VendaDialog: React.FC<VendaDialogProps> = ({
               disabled={isLoading}
               className="bg-emerald-800 hover:bg-emerald-700 text-white"
             >
-              {isLoading ? 'Salvando...' : venda ? 'Salvar Alterações' : 'Registrar Venda'}
+              {isLoading ? 'Salvando...' : venda ? 'Atualizar' : 'Salvar'}
             </Button>
           </DialogFooter>
         </form>

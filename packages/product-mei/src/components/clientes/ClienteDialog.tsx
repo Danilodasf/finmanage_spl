@@ -29,6 +29,7 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
   const [endereco, setEndereco] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [clienteId, setClienteId] = useState<number>(0); // Armazenar o ID do cliente em edição
   
   // Estados para validação
   const [nomeError, setNomeError] = useState('');
@@ -37,7 +38,10 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
   const [cpfCnpjError, setCpfCnpjError] = useState('');
 
   useEffect(() => {
+    if (isOpen) {
     if (cliente) {
+        // Armazenar o ID do cliente em edição
+        setClienteId(cliente.id || 0);
       setNome(cliente.nome);
       setEmail(cliente.email || '');
       setTelefone(cliente.telefone || '');
@@ -48,11 +52,16 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
       // Registrar o ID do cliente que está sendo editado
       console.log('Editando cliente com ID:', cliente.id, 'Tipo:', typeof cliente.id);
     } else {
+        setClienteId(0);
       resetForm();
     }
     
     // Limpar erros ao abrir o diálogo
     resetErrors();
+    } else {
+      // Resetar o estado isLoading quando o diálogo é fechado
+      setIsLoading(false);
+    }
   }, [cliente, isOpen]);
 
   const resetForm = () => {
@@ -231,7 +240,7 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
     setIsLoading(true);
 
     const novoCliente: ClienteFormData = {
-      id: cliente?.id || 0,
+      id: clienteId, // Usar o ID armazenado
       nome,
       email,
       telefone,
@@ -245,9 +254,15 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
     // O componente pai gerenciará o estado de loading e fechamento do diálogo
   };
 
+  // Adicionar um wrapper para o onClose que reseta o estado isLoading
+  const handleClose = () => {
+    setIsLoading(false);
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[500px]" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{cliente ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</DialogTitle>
         </DialogHeader>
@@ -352,7 +367,7 @@ export const ClienteDialog: React.FC<ClienteDialogProps> = ({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
             <Button 
