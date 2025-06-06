@@ -1,5 +1,9 @@
-import { toast } from '../hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '../lib/supabase';
 import { SupabaseMeiDASService, DASPayment } from '../lib/services/SupabaseMeiDASService';
+import { SupabaseMeiTransactionService } from '../lib/services/SupabaseMeiTransactionService';
+// Importação do DIContainer comentada temporariamente até encontrar o caminho correto
+// import DIContainer from '../lib/di-container';
 
 /**
  * Controlador para gerenciar pagamentos DAS
@@ -112,6 +116,86 @@ export class DIDASController {
       
       console.log('[DIDASController] createPayment - Pagamento DAS criado com sucesso:', data);
       
+      // Criar transação de despesa se o pagamento estiver como Pago
+      if (data && payment.status === 'Pago' && payment.data_pagamento) {
+        try {
+          // Validar saldo antes de criar a transação
+          const transactionService = new SupabaseMeiTransactionService();
+          const financialSummary = await transactionService.getFinancialSummary('month');
+          
+          if (financialSummary.saldo < (payment.valor || 0)) {
+            toast({
+              title: 'Saldo Insuficiente',
+              description: `Saldo atual: R$ ${financialSummary.saldo.toFixed(2)}. Valor do DAS: R$ ${(payment.valor || 0).toFixed(2)}. Não é possível registrar o pagamento.`,
+              variant: 'destructive',
+            });
+            // Reverter o pagamento DAS criado
+            await this.getDASService().delete(data.id);
+            return null;
+          }
+          
+          // Buscar o ID da categoria "Impostos"
+          const { data: categoria, error: catError } = await supabase
+            .from('categories')
+            .select('id')
+            .eq('name', 'Impostos')
+            .single();
+          
+          if (catError || !categoria) {
+            console.error('Categoria "Impostos" não encontrada ou erro:', catError);
+            toast({
+              title: 'Erro',
+              description: 'Categoria "Impostos" não encontrada. Não foi possível registrar a transação de despesa.',
+              variant: 'destructive',
+            });
+            return data;
+          }
+          
+          const categoriaId = categoria.id;
+          const transactionData = {
+            user_id: data.user_id,
+            type: 'despesa',
+            category_id: categoriaId,
+            description: `DAS - Competência ${payment.competencia}`,
+            value: payment.valor || 0,
+            date: payment.data_pagamento,
+            payment_method: 'Transferência',
+          };
+          
+          const { data: transactionResult, error: transError } = await supabase
+            .from('transactions')
+            .insert([transactionData])
+            .select()
+            .single();
+            
+          if (transError || !transactionResult) {
+            console.error('Erro ao criar transação de despesa:', transError);
+            toast({
+              title: 'Erro',
+              description: 'Erro ao criar transação de despesa: ' + (transError?.message || 'Erro desconhecido'),
+              variant: 'destructive',
+            });
+          } else {
+            console.log('Transação de despesa criada para o pagamento DAS:', transactionResult);
+            
+            // Atualizar o pagamento DAS com o transaction_id
+            const { error: updateError } = await supabase
+              .from('imposto_das')
+              .update({ transaction_id: transactionResult.id })
+              .eq('id', data.id);
+              
+            if (updateError) {
+              console.error('Erro ao vincular transaction_id ao pagamento DAS:', updateError);
+            } else {
+              console.log('Transaction_id vinculado ao pagamento DAS com sucesso');
+              data.transaction_id = transactionResult.id;
+            }
+          }
+        } catch (transactionError) {
+          console.error('Erro ao criar transação de despesa:', transactionError);
+        }
+      }
+      
       toast({
         title: "Sucesso",
         description: "Pagamento DAS registrado com sucesso.",
@@ -147,6 +231,13 @@ export class DIDASController {
           variant: "destructive",
         });
         return null;
+      }
+      
+      if (data) {
+        console.log(`[DIDASController.updatePayment] dasService.update retornou: id=${data.id}, status=${data.status}, transaction_id=${data.transaction_id}`);
+      } else {
+        console.log(`[DIDASController.updatePayment] dasService.update não retornou dados.`);
+        // Considerar se isso é um erro que deve ser tratado se 'data' for crucial aqui além do toast
       }
       
       toast({
@@ -238,4 +329,4 @@ export class DIDASController {
       return null;
     }
   }
-} 
+}

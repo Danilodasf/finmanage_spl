@@ -14,9 +14,11 @@ import { toast } from '../hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { Checkbox } from '../components/ui/checkbox';
+import { DeleteConfirmation } from '../components/ui/DeleteConfirmation';
 import { isValidMoneyValue, formatMoneyValue } from '../utils/validation';
 import { DIDASController } from '../controllers/DIDASController';
 import { DASPayment } from '../lib/services/SupabaseMeiDASService';
+import { SupabaseMeiTransactionService } from '../lib/services/SupabaseMeiTransactionService';
 
 // Interface para o estado de exibição dos pagamentos na tabela
 interface PagamentoDisplay extends Omit<DASPayment, 'valor'> {
@@ -62,6 +64,26 @@ const ImpostoDAS: React.FC = () => {
   const [faturamentoMensalError, setFaturamentoMensalError] = useState('');
   const [faturamentoAnualError, setFaturamentoAnualError] = useState('');
   const [competenciaError, setCompetenciaError] = useState('');
+  
+  // Estados para verificação de saldo
+  const [saldoDisponivel, setSaldoDisponivel] = useState<number>(0);
+  const [mostrarAlertaSaldo, setMostrarAlertaSaldo] = useState(false);
+
+  // Estados para o diálogo de confirmação de deleção
+  const [isDeleteDASDialogOpen, setIsDeleteDASDialogOpen] = useState(false);
+  const [dasParaDeletar, setDasParaDeletar] = useState<string | null>(null);
+
+  // Função para carregar o saldo disponível
+  const loadSaldoDisponivel = async () => {
+    try {
+      const transactionService = new SupabaseMeiTransactionService();
+      const financialSummary = await transactionService.getFinancialSummary('month');
+      setSaldoDisponivel(financialSummary.saldo);
+    } catch (error) {
+      console.error('Erro ao carregar saldo disponível:', error);
+      setSaldoDisponivel(0);
+    }
+  };
 
   // Função para carregar os pagamentos
   const loadPayments = async () => {
@@ -75,10 +97,29 @@ const ImpostoDAS: React.FC = () => {
     setIsPageLoading(false);
   };
 
-  // Carregar pagamentos ao montar o componente
+  // Carregar pagamentos e saldo ao montar o componente
   useEffect(() => {
     loadPayments();
+    loadSaldoDisponivel();
   }, []);
+
+  // Verificar saldo quando o valor do DAS mudar
+  useEffect(() => {
+    if (valor && dataPagamento) {
+      const valorNumerico = parseFloat(valor.replace('.', '').replace(',', '.'));
+      
+      // Se estiver editando, considerar o valor anterior para calcular saldo disponível
+      let saldoParaVerificacao = saldoDisponivel;
+      if (editandoPagamento && editandoPagamento.status === 'Pago') {
+        const valorAnterior = parseFloat(editandoPagamento.valor.replace('R$ ', '').replace('.', '').replace(',', '.'));
+        saldoParaVerificacao += valorAnterior; // Adicionar o valor anterior de volta ao saldo
+      }
+      
+      setMostrarAlertaSaldo(valorNumerico > saldoParaVerificacao);
+    } else {
+      setMostrarAlertaSaldo(false);
+    }
+  }, [valor, dataPagamento, saldoDisponivel, editandoPagamento]);
 
   // Função para lidar com a alteração do faturamento mensal
   const handleFaturamentoMensalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,6 +200,27 @@ const ImpostoDAS: React.FC = () => {
     const statusForm: 'Pago' | 'Pendente' = dataPagamento ? 'Pago' : 'Pendente';
     const valorNumerico = parseFloat(valor.replace('.', '').replace(',', '.')); // Input é XX,XX ou X.XXX,XX
 
+    // Verificar saldo se o pagamento estiver marcado como pago
+    if (statusForm === 'Pago') {
+      let saldoParaVerificacao = saldoDisponivel;
+      
+      // Se estiver editando, considerar o valor anterior
+      if (editandoPagamento && editandoPagamento.status === 'Pago') {
+        const valorAnterior = parseFloat(editandoPagamento.valor.replace('R$ ', '').replace('.', '').replace(',', '.'));
+        saldoParaVerificacao += valorAnterior;
+      }
+      
+      if (valorNumerico > saldoParaVerificacao) {
+        toast({
+          title: 'Saldo Insuficiente',
+          description: `Saldo disponível: R$ ${saldoParaVerificacao.toFixed(2).replace('.', ',')}. Valor do DAS: R$ ${valorNumerico.toFixed(2).replace('.', ',')}. Não é possível registrar o pagamento.`,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+    }
+
     const paymentData = {
       competencia: competencia || '',
       vencimento: date ? format(date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
@@ -197,6 +259,7 @@ const ImpostoDAS: React.FC = () => {
     if (success) {
       console.log('ImpostoDAS - handleSubmit - Operação bem-sucedida, recarregando pagamentos');
       await loadPayments(); // Recarregar lista
+      await loadSaldoDisponivel(); // Recarregar saldo
       // Resetar formulário
       setValor('');
       setNumeroDas('');
@@ -232,19 +295,28 @@ const ImpostoDAS: React.FC = () => {
     setNumeroDas(pagamento.numero_das || '');
   };
 
-  const handleDeletarPagamento = async (id: string) => { // ID agora é string
-    if (confirm('Tem certeza que deseja excluir este pagamento?')) {
-      setIsLoading(true);
-      const success = await DIDASController.deletePayment(id);
-      if (success) {
-        await loadPayments();
-        toast({
-          title: 'Pagamento excluído',
-          description: 'O pagamento foi excluído com sucesso.',
-        });
-      }
-      setIsLoading(false);
+  const handleDeletarPagamento = async (id: string) => {
+    setDasParaDeletar(id);
+    setIsDeleteDASDialogOpen(true);
+  };
+
+  // Nova função para confirmar a deleção
+  const confirmDeleteDAS = async () => {
+    if (!dasParaDeletar) return;
+    
+    setIsLoading(true);
+    const success = await DIDASController.deletePayment(dasParaDeletar);
+    if (success) {
+      await loadPayments();
+      await loadSaldoDisponivel();
+      toast({
+        title: 'Pagamento excluído',
+        description: 'O pagamento foi excluído com sucesso.',
+      });
     }
+    setIsLoading(false);
+    setIsDeleteDASDialogOpen(false);
+    setDasParaDeletar(null);
   };
 
   const handleMarcarComoPago = (id: string) => { // ID agora é string
@@ -263,6 +335,7 @@ const ImpostoDAS: React.FC = () => {
       
       if (updatedPayment) {
         await loadPayments();
+        await loadSaldoDisponivel(); // Recarregar saldo
         toast({
           title: 'Pagamento confirmado',
           description: 'O pagamento foi marcado como pago com sucesso.',
@@ -545,6 +618,31 @@ const ImpostoDAS: React.FC = () => {
               <h2 className="text-lg font-medium mb-4">
                 {editandoPagamento ? 'Editar Pagamento de DAS' : 'Cadastrar Pagamento de DAS'}
               </h2>
+              
+              {/* Alerta de saldo insuficiente */}
+              {mostrarAlertaSaldo && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800">
+                        Saldo Insuficiente
+                      </h3>
+                      <div className="mt-2 text-sm text-red-700">
+                        <p>
+                          Seu saldo atual (R$ {saldoDisponivel.toFixed(2).replace('.', ',')}) é insuficiente para pagar este DAS. 
+                          Você pode registrar o pagamento como "Pendente" ou adicionar receitas antes de marcar como "Pago".
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -661,6 +759,7 @@ const ImpostoDAS: React.FC = () => {
                           selected={dataPagamento}
                           onSelect={setDataPagamento}
                           initialFocus
+                          disabled={(date) => date > new Date()}
                         />
                       </PopoverContent>
                     </Popover>
@@ -985,8 +1084,20 @@ const ImpostoDAS: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo de confirmação de deleção */}
+      <DeleteConfirmation
+        isOpen={isDeleteDASDialogOpen}
+        onClose={() => {
+          setIsDeleteDASDialogOpen(false);
+          setDasParaDeletar(null);
+        }}
+        onDelete={confirmDeleteDAS}
+        title="Excluir Pagamento DAS"
+        description="Tem certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita e também excluirá a transação associada."
+      />
     </MainLayout>
   );
 };
 
-export default ImpostoDAS; 
+export default ImpostoDAS;

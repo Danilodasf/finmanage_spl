@@ -141,7 +141,8 @@ const Transactions: React.FC = () => {
           description: '',
           category_id: ''
         });
-        loadTransactions();
+        await loadTransactions();
+        await updateAvailableBalance(); // Explicitly update balance after transaction
       }
     } catch (error) {
       console.error('Erro ao criar transação:', error);

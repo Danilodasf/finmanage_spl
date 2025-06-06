@@ -37,6 +37,8 @@ export interface CreateImpostoDasDTO {
  * Interface para atualizar um pagamento de DAS existente
  */
 export interface UpdateImpostoDasDTO {
+  transaction_id?: string | null; // Para sincronização financeira
+
   competencia?: string;
   vencimento?: string;
   valor?: number;
@@ -143,19 +145,47 @@ export class ImpostoDasService {
       }
       
       // Criar a transação correspondente ao pagamento, se for pago
-      let transactionId = null;
-      if (impostoDas.status === 'Pago' && impostoDas.data_pagamento) {
-        const transaction = await TransactionService.create({
-          type: 'despesa',
-          category_id: '', // Buscar a categoria "Impostos" ou criar
-          description: `DAS - Competência ${impostoDas.competencia}`,
-          value: impostoDas.valor,
-          date: impostoDas.data_pagamento,
-          payment_method: 'Transferência',
-        });
-        
-        if (transaction) {
-          transactionId = transaction.id;
+      let transactionId: string | null = null;
+      if (impostoDas.status === 'Pago' && impostoDas.data_pagamento && userId) {
+        let categoriaIdParaImposto: string | undefined = undefined;
+        try {
+          const { data: categoriaImposto, error: catError } = await supabase
+            .from('categories')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('name', 'Impostos') // Assumindo que a categoria se chama 'Impostos'
+            .single();
+
+          if (catError && catError.code !== 'PGRST116') { // PGRST116: single row not found
+            console.error('[ImpostoDasService.create] Erro ao buscar categoria Impostos:', catError);
+          } else if (categoriaImposto) {
+            categoriaIdParaImposto = categoriaImposto.id;
+          } else {
+            console.warn('[ImpostoDasService.create] Categoria "Impostos" não encontrada para o usuário.');
+          }
+        } catch (e) {
+          console.error('[ImpostoDasService.create] Exceção ao buscar categoria Impostos:', e);
+        }
+
+        if (!categoriaIdParaImposto) {
+          console.error('[ImpostoDasService.create] Categoria "Impostos" não encontrada. A transação de despesa para DAS não será criada.');
+          // Opcional: Adicionar um toast para o usuário informando sobre a falha na criação da transação por falta de categoria
+          // toast({ title: "Atenção", description: "Categoria 'Impostos' não configurada. A transação do pagamento DAS não pôde ser registrada automaticamente.", variant: "warning" });
+        } else {
+          const transaction = await TransactionService.create({
+            type: 'despesa',
+            category_id: categoriaIdParaImposto,
+            description: `DAS - Competência ${impostoDas.competencia}`,
+            value: impostoDas.valor,
+            date: impostoDas.data_pagamento,
+            payment_method: 'Transferência', // Considere tornar isso dinâmico ou configurável
+          });
+          
+          if (transaction) {
+            transactionId = transaction.id;
+          } else {
+            console.error('[ImpostoDasService.create] Falha ao criar transação para DAS via TransactionService.');
+          }
         }
       }
       
@@ -241,28 +271,74 @@ export class ImpostoDasService {
         impostoDas.data_pagamento;
       
       // Criar transação se o status mudou para pago
-      let transactionId = dasExistente.transaction_id;
-      if (statusMudouParaPago) {
-        const transaction = await TransactionService.create({
-          type: 'despesa',
-          category_id: '', // Buscar a categoria "Impostos" ou criar
-          description: `DAS - Competência ${impostoDas.competencia || dasExistente.competencia}`,
-          value: impostoDas.valor || dasExistente.valor,
-          date: impostoDas.data_pagamento,
-          payment_method: 'Transferência',
-        });
-        
-        if (transaction) {
-          transactionId = transaction.id;
+      let transactionId: string | null = dasExistente.transaction_id;
+      if (statusMudouParaPago && userId && impostoDas.data_pagamento) { // Adicionado userId e impostoDas.data_pagamento para consistência
+        let categoriaIdParaImpostoUpdate: string | undefined = undefined;
+        try {
+          const { data: categoriaImposto, error: catError } = await supabase
+            .from('categories')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('name', 'Impostos') // Assumindo que a categoria se chama 'Impostos'
+            .single();
+
+          if (catError && catError.code !== 'PGRST116') { // PGRST116: single row not found
+            console.error('[ImpostoDasService.update] Erro ao buscar categoria Impostos:', catError);
+          } else if (categoriaImposto) {
+            categoriaIdParaImpostoUpdate = categoriaImposto.id;
+          } else {
+            console.warn('[ImpostoDasService.update] Categoria "Impostos" não encontrada para o usuário.');
+          }
+        } catch (e) {
+          console.error('[ImpostoDasService.update] Exceção ao buscar categoria Impostos:', e);
+        }
+
+        if (!categoriaIdParaImpostoUpdate) {
+          console.error('[ImpostoDasService.update] Categoria "Impostos" não encontrada. A transação de despesa para DAS não será criada durante a atualização.');
+          // Opcional: Adicionar um toast para o usuário
+        } else {
+          const transaction = await TransactionService.create({
+            type: 'despesa',
+            category_id: categoriaIdParaImpostoUpdate,
+            description: `DAS - Competência ${impostoDas.competencia || dasExistente.competencia}`,
+            value: impostoDas.valor || dasExistente.valor,
+            date: impostoDas.data_pagamento, // data_pagamento é checado no if externo
+            payment_method: 'Transferência', // Considere tornar isso dinâmico ou configurável
+          });
+          
+          if (transaction) {
+            transactionId = transaction.id;
+            // Restaurado: Vincular o ID da transação de volta ao imposto_das
+            const { error: updateDasError } = await supabase
+              .from('imposto_das')
+              .update({ transaction_id: transaction.id })
+              .eq('id', dasExistente.id);
+
+            if (updateDasError) {
+              console.error('[ImpostoDasService.update] Erro ao vincular transaction_id ao imposto DAS:', updateDasError);
+            } else {
+              console.log('[ImpostoDasService.update] transaction_id vinculado ao imposto DAS com sucesso.');
+            }
+          } else {
+            console.error('[ImpostoDasService.update] Falha ao criar transação para DAS (update) via TransactionService.');
+          }
         }
       } 
       // Atualizar a transação existente, se houver
       else if (dasExistente.transaction_id && impostoDas.status === 'Pago') {
-        await TransactionService.update(dasExistente.transaction_id, {
+        const transactionUpdatePayload: any = {
           description: `DAS - Competência ${impostoDas.competencia || dasExistente.competencia}`,
           value: impostoDas.valor,
-          date: impostoDas.data_pagamento,
-        });
+        };
+        // Somente atualiza a data da transação se um valor válido for fornecido
+        // e não for explicitamente null (Transaction.date não é nullable)
+        if (impostoDas.data_pagamento !== undefined && impostoDas.data_pagamento !== null) {
+          transactionUpdatePayload.date = impostoDas.data_pagamento;
+        }
+        // Se impostoDas.data_pagamento for null, não tentamos definir a data da transação como null,
+        // pois o campo 'date' na tabela 'transactions' provavelmente não é anulável.
+        // Se for undefined, simplesmente não atualizamos a data.
+        await TransactionService.update(dasExistente.transaction_id, transactionUpdatePayload);
       }
       // Se o status mudou de pago para pendente, remover a transação
       else if (dasExistente.status === 'Pago' && impostoDas.status === 'Pendente' && dasExistente.transaction_id) {

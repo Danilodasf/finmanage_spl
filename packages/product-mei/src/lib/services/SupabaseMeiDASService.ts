@@ -12,6 +12,7 @@ export interface DASPayment {
   numero_das?: string;
   data_pagamento?: string;
   status: 'Pago' | 'Pendente';
+  transaction_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -182,16 +183,30 @@ export class SupabaseMeiDASService {
         return { data: null, error: new Error('Usuário não autenticado') };
       }
       
+      // Buscar o registro atual para comparar mudanças
+      const { data: currentData, error: fetchError } = await supabase
+        .from('imposto_das')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', userId)
+        .single();
+        
+      if (fetchError || !currentData) {
+        console.error('[SupabaseMeiDASService] update - Erro ao buscar registro atual:', fetchError);
+        return { data: null, error: new Error('Registro não encontrado') };
+      }
+      
       // Preparar dados para atualização
-      const updateData: any = {};
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      };
+      
       if (payment.competencia !== undefined) updateData.competencia = payment.competencia;
       if (payment.vencimento !== undefined) updateData.vencimento = payment.vencimento;
       if (payment.valor !== undefined) updateData.valor = payment.valor;
       if (payment.numero_das !== undefined) updateData.numero_das = payment.numero_das;
-      if (payment.data_pagamento !== undefined) updateData.data_pagamento = payment.data_pagamento;
       if (payment.status !== undefined) updateData.status = payment.status;
-      
-      console.log('[SupabaseMeiDASService] update - Dados para atualização:', updateData);
+      if (payment.data_pagamento !== undefined) updateData.data_pagamento = payment.data_pagamento;
       
       const { data, error } = await supabase
         .from('imposto_das')
@@ -233,19 +248,55 @@ export class SupabaseMeiDASService {
         return { success: false, error: new Error('Usuário não autenticado') };
       }
       
-      const { error } = await supabase
+      // Buscar o DAS antes de deletar para verificar se tem transação associada
+      const { data: dasData, error: fetchError } = await supabase
         .from('imposto_das')
-        .delete()
+        .select('*')
         .eq('id', id)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .single();
         
-      if (error) {
-        console.error(`[SupabaseMeiDASService] delete - Erro ao excluir pagamento DAS ${id}:`, error);
-        return { success: false, error: new Error(error.message) };
+      if (fetchError) {
+        console.error(`[SupabaseMeiDASService] delete - Erro ao buscar DAS ${id}:`, fetchError);
+        return { success: false, error: new Error(fetchError.message) };
       }
       
-      console.log(`[SupabaseMeiDASService] delete - Pagamento DAS ${id} removido com sucesso`);
-      return { success: true, error: null };
+      // Se o DAS tem transação associada, usar o TransactionService para deletar
+      // Isso permitirá que os triggers funcionem corretamente
+      if (dasData && dasData.transaction_id) {
+        console.log(`[SupabaseMeiDASService] delete - Usando TransactionService para deletar transação ${dasData.transaction_id}`);
+        
+        // Importar o TransactionService dinamicamente para evitar dependência circular
+        const { SupabaseMeiTransactionService } = await import('./SupabaseMeiTransactionService');
+        const transactionService = new SupabaseMeiTransactionService();
+        
+        const { success: transactionDeleted, error: deleteTransactionError } = await transactionService.delete(dasData.transaction_id);
+        
+        if (!transactionDeleted || deleteTransactionError) {
+          console.error(`[SupabaseMeiDASService] delete - Erro ao deletar transação associada ${dasData.transaction_id}:`, deleteTransactionError);
+          return { success: false, error: deleteTransactionError || new Error('Falha ao deletar transação associada') };
+        }
+        
+        console.log(`[SupabaseMeiDASService] delete - Transação ${dasData.transaction_id} deletada via TransactionService (triggers devem ter removido o DAS automaticamente)`);
+        return { success: true, error: null };
+      } else {
+        // Se não tem transação associada, deletar o DAS diretamente
+        console.log(`[SupabaseMeiDASService] delete - DAS sem transação associada, deletando diretamente`);
+        
+        const { error } = await supabase
+          .from('imposto_das')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', userId);
+          
+        if (error) {
+          console.error(`[SupabaseMeiDASService] delete - Erro ao excluir pagamento DAS ${id}:`, error);
+          return { success: false, error: new Error(error.message) };
+        }
+        
+        console.log(`[SupabaseMeiDASService] delete - Pagamento DAS ${id} removido com sucesso`);
+        return { success: true, error: null };
+      }
     } catch (error) {
       console.error(`[SupabaseMeiDASService] delete - Erro inesperado ao excluir pagamento DAS ${id}:`, error);
       return { success: false, error: error as Error };
@@ -270,4 +321,104 @@ export class SupabaseMeiDASService {
       return { data: null, error: error as Error };
     }
   }
-} 
+  
+  /**
+   * Gerencia transação associada baseado nas mudanças de status do DAS
+   * @param currentData Dados atuais do DAS
+   * @param updatedData Dados atualizados do DAS
+   * @param userId ID do usuário
+   */
+  private async manageAssociatedTransaction(currentData: any, updatedData: any, userId: string): Promise<void> {
+    try {
+      const statusChanged = currentData.status !== updatedData.status;
+      const wasUnpaid = currentData.status === 'Pendente';
+      const nowPaid = updatedData.status === 'Pago';
+      const wasPaid = currentData.status === 'Pago';
+      const nowUnpaid = updatedData.status === 'Pendente';
+      
+      // Caso 1: Mudou de Pendente para Pago - criar transação
+      if (statusChanged && wasUnpaid && nowPaid && updatedData.data_pagamento) {
+        // Buscar categoria "Impostos"
+        const { data: categoria, error: catError } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('name', 'Impostos')
+          .single();
+          
+        if (!catError && categoria) {
+          const transactionData = {
+            user_id: userId,
+            type: 'despesa',
+            category_id: categoria.id,
+            description: `DAS - Competência ${updatedData.competencia}`,
+            value: updatedData.valor,
+            date: updatedData.data_pagamento,
+            payment_method: 'Transferência',
+          };
+          
+          const { data: transactionResult, error: transError } = await supabase
+            .from('transactions')
+            .insert([transactionData])
+            .select()
+            .single();
+            
+          if (!transError && transactionResult) {
+            // Atualizar DAS com transaction_id
+            await supabase
+              .from('imposto_das')
+              .update({ transaction_id: transactionResult.id })
+              .eq('id', updatedData.id);
+              
+            console.log(`[SupabaseMeiDASService] manageAssociatedTransaction - Transação criada: ${transactionResult.id}`);
+          }
+        }
+      }
+      
+      // Caso 2: Mudou de Pago para Pendente - deletar transação
+      else if (statusChanged && wasPaid && nowUnpaid && currentData.transaction_id) {
+        const { error: deleteError } = await supabase
+          .from('transactions')
+          .delete()
+          .eq('id', currentData.transaction_id)
+          .eq('user_id', userId);
+          
+        if (!deleteError) {
+          // Limpar transaction_id do DAS
+          await supabase
+            .from('imposto_das')
+            .update({ transaction_id: null })
+            .eq('id', updatedData.id);
+            
+          console.log(`[SupabaseMeiDASService] manageAssociatedTransaction - Transação deletada: ${currentData.transaction_id}`);
+        }
+      }
+      
+      // Caso 3: Status continua Pago mas dados mudaram - atualizar transação
+      else if (!statusChanged && nowPaid && currentData.transaction_id) {
+        const updateTransactionData: any = {};
+        
+        if (currentData.valor !== updatedData.valor) {
+          updateTransactionData.value = updatedData.valor;
+        }
+        if (currentData.data_pagamento !== updatedData.data_pagamento) {
+          updateTransactionData.date = updatedData.data_pagamento;
+        }
+        if (currentData.competencia !== updatedData.competencia) {
+          updateTransactionData.description = `DAS - Competência ${updatedData.competencia}`;
+        }
+        
+        if (Object.keys(updateTransactionData).length > 0) {
+          await supabase
+            .from('transactions')
+            .update(updateTransactionData)
+            .eq('id', currentData.transaction_id)
+            .eq('user_id', userId);
+            
+          console.log(`[SupabaseMeiDASService] manageAssociatedTransaction - Transação atualizada: ${currentData.transaction_id}`);
+        }
+      }
+    } catch (error) {
+      console.error('[SupabaseMeiDASService] manageAssociatedTransaction - Erro:', error);
+    }
+  }
+}

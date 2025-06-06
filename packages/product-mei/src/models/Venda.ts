@@ -11,6 +11,7 @@ export interface Venda {
   formaPagamento: string;
   uuid?: string;
   clienteUuid?: string;
+  transaction_id?: string | null; // ID da transação financeira vinculada
 }
 
 export const vendasMock: Venda[] = [
