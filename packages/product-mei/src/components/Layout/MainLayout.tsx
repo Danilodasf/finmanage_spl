@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Settings, LogOut, LayoutDashboard, Receipt, FolderOpen, BarChart, Bell, FileText, ShoppingBag, Menu, X } from 'lucide-react';
 import { toast } from '../../hooks/use-toast';
-import { AuthController } from '../../controllers/AuthController';
+import { DIAuthController } from '../../controllers/DIAuthController';
 
 // Exportar interface e funções de notificação para reutilização
 export interface Notification {
@@ -35,8 +35,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     
-    // Chamar o método de logout do AuthController
-    const success = await AuthController.logout();
+    // Chamar o método de logout do DIAuthController
+    const success = await DIAuthController.logout();
     
     if (success) {
       toast({
@@ -84,10 +84,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-2">
             <li>
-              <Link to="/dashboard-di" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
+              <Link to="/dashboard" onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}>
                 <Button 
-                  className={`w-full justify-start ${isActive('/dashboard-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
-                  variant={isActive('/dashboard-di') ? 'default' : 'ghost'}
+                  className={`w-full justify-start ${isActive('/dashboard') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}`}
+                  variant={isActive('/dashboard') ? 'default' : 'ghost'}
                   size="sm"
                 >
                   <LayoutDashboard className="w-4 h-4 mr-2" />
@@ -190,4 +190,4 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       </main>
     </div>
   );
-}; 
+};

@@ -120,7 +120,9 @@ export interface AuthService {
   register(userData: RegisterData): Promise<{ success: boolean; error: Error | null }>;
   logout(): Promise<{ success: boolean; error: Error | null }>;
   updateProfile(name: string): Promise<{ success: boolean; error: Error | null }>;
-  updatePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error: Error | null }>;
+  updatePassword(newPassword: string, currentPassword?: string): Promise<{ success: boolean; error: Error | null }>;
+  isAuthenticated(): Promise<boolean>;
+  getCurrentUser(): Promise<User | null>;
 }
 
 // Re-exportar
@@ -130,4 +132,4 @@ export {
   AUTH_SERVICE,
   toast,
   useToast
-}; 
+};

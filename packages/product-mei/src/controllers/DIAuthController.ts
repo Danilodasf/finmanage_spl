@@ -170,9 +170,14 @@ export class DIAuthController {
    * @returns true se a atualização foi bem-sucedida
    */
   static async updatePassword(currentPassword: string, newPassword: string): Promise<boolean> {
+    console.log('🔧 DIAuthController.updatePassword - INÍCIO');
+    console.log('🔧 DIAuthController.updatePassword - currentPassword length:', currentPassword?.length);
+    console.log('🔧 DIAuthController.updatePassword - newPassword length:', newPassword?.length);
+    
     try {
       // Validações básicas
       if (!currentPassword) {
+        console.log('🔧 DIAuthController.updatePassword - ERRO: Senha atual vazia');
         toast({
           title: "Erro de validação",
           description: "Senha atual é obrigatória",
@@ -182,6 +187,7 @@ export class DIAuthController {
       }
       
       if (newPassword.length < 6) {
+        console.log('🔧 DIAuthController.updatePassword - ERRO: Nova senha muito curta');
         toast({
           title: "Erro de validação",
           description: "Nova senha deve ter pelo menos 6 caracteres",
@@ -190,13 +196,18 @@ export class DIAuthController {
         return false;
       }
 
+      console.log('🔧 DIAuthController.updatePassword - Obtendo authService...');
       const authService = this.getAuthService();
-      const { success, error } = await authService.updatePassword(currentPassword, newPassword);
+      console.log('🔧 DIAuthController.updatePassword - AuthService obtido:', authService.constructor.name);
+      
+      console.log('🔧 DIAuthController.updatePassword - Chamando authService.updatePassword...');
+      const { success, error } = await authService.updatePassword(newPassword, currentPassword);
+      console.log('🔧 DIAuthController.updatePassword - Resultado do authService:', { success, error: error?.message });
       
       if (error) {
         let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
         
-        if (error.code === 'invalid_current_password') {
+        if (error.message.includes('Senha atual incorreta')) {
           errorMessage = "Senha atual incorreta";
         } else if (error.message) {
           errorMessage = error.message;
@@ -211,21 +222,52 @@ export class DIAuthController {
       }
       
       if (success) {
+        console.log('🔧 DIAuthController.updatePassword - SUCESSO: Senha alterada!');
         toast({
           title: "Senha alterada com sucesso!",
           description: "Sua nova senha já está ativa.",
         });
       }
       
+      console.log('🔧 DIAuthController.updatePassword - RETORNANDO:', success);
       return success;
     } catch (error) {
-      console.error('Erro na atualização da senha:', error);
+      console.error('🔧 DIAuthController.updatePassword - ERRO CATCH:', error);
+      console.error('🔧 DIAuthController.updatePassword - ERRO STACK:', error instanceof Error ? error.stack : 'No stack trace');
       toast({
         title: "Erro na atualização",
         description: "Ocorreu um erro inesperado. Tente novamente.",
         variant: "destructive",
       });
       return false;
+    }
+  }
+
+  /**
+   * Verifica se o usuário está autenticado
+   * @returns true se o usuário está autenticado
+   */
+  static async isAuthenticated(): Promise<boolean> {
+    try {
+      const authService = this.getAuthService();
+      return await authService.isAuthenticated();
+    } catch (error) {
+      console.error('Erro ao verificar autenticação:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Obtém o usuário atual
+   * @returns Dados do usuário atual ou null se não autenticado
+   */
+  static async getCurrentUser(): Promise<any> {
+    try {
+      const authService = this.getAuthService();
+      return await authService.getCurrentUser();
+    } catch (error) {
+      console.error('Erro ao obter usuário atual:', error);
+      return null;
     }
   }
 }
