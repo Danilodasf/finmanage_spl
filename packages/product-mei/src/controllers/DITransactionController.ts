@@ -18,10 +18,17 @@ export class DITransactionController {
    */
   static async getTransactions(): Promise<Transaction[]> {
     try {
+      console.log('[DITransactionController] getTransactions - Iniciando...');
       const transactionService = this.getTransactionService();
+      console.log('[DITransactionController] getTransactions - Serviço obtido:', transactionService);
+      
       const { data, error } = await transactionService.getAll();
+      console.log('[DITransactionController] getTransactions - Resultado do serviço:');
+      console.log('- Data:', data);
+      console.log('- Error:', error);
       
       if (error) {
+        console.error('[DITransactionController] getTransactions - Erro do serviço:', error);
         toast({
           title: "Erro",
           description: "Erro ao buscar transações.",
@@ -30,9 +37,10 @@ export class DITransactionController {
         return [];
       }
       
+      console.log(`[DITransactionController] getTransactions - Retornando ${data?.length || 0} transações`);
       return data || [];
     } catch (error) {
-      console.error('Erro ao buscar transações:', error);
+      console.error('[DITransactionController] getTransactions - Erro inesperado:', error);
       toast({
         title: "Erro",
         description: "Erro ao buscar transações.",
@@ -186,8 +194,9 @@ export class DITransactionController {
    */
   static async updateTransaction(id: string, data: Partial<CreateTransactionData>): Promise<boolean> {
     try {
+      console.log('[updateTransaction] INICIADO', { id, data });
       const transactionService = this.getTransactionService();
-      
+
       // Preparar dados para atualização
       const updateData: Partial<Omit<Transaction, 'id' | 'created_at' | 'updated_at'>> = {
         type: data.type,
@@ -195,15 +204,19 @@ export class DITransactionController {
         value: data.value,
         categoryId: data.categoryId
       };
-      
+      console.log('[updateTransaction] Dados preparados para update:', updateData);
+
       // Converter data para string se estiver presente
       if (data.date) {
         updateData.date = data.date.toISOString().split('T')[0]; // Formato 'YYYY-MM-DD'
+        console.log('[updateTransaction] Data convertida:', updateData.date);
       }
-      
+
       const { data: updatedTransaction, error } = await transactionService.update(id, updateData);
-      
+      console.log('[updateTransaction] Resposta do service:', { updatedTransaction, error });
+
       if (error) {
+        console.error('[updateTransaction] ERRO do service:', error);
         toast({
           title: "Erro",
           description: "Erro ao atualizar transação.",
@@ -211,15 +224,15 @@ export class DITransactionController {
         });
         return false;
       }
-      
+
       toast({
         title: "Sucesso",
         description: "Transação atualizada com sucesso!",
       });
-      
+
       return true;
     } catch (error) {
-      console.error('Erro ao atualizar transação:', error);
+      console.error('[updateTransaction] EXCEPTION:', error);
       toast({
         title: "Erro",
         description: "Erro ao atualizar transação.",
@@ -491,4 +504,4 @@ export class DITransactionController {
       return [];
     }
   }
-} 
+}

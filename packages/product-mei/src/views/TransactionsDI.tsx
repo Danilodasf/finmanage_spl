@@ -12,11 +12,13 @@ import {
   Loader2,
   Wallet,
   AlertCircle,
-  Calendar,
+  Calendar as CalendarIcon,
   X
 } from 'lucide-react';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Calendar } from '../components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,8 +76,6 @@ const TransactionsDI: React.FC = () => {
     saldo: 0,
     transactions: []
   });
-  const [upcomingPayments, setUpcomingPayments] = useState<Transaction[]>([]);
-  const [showPaymentsAlert, setShowPaymentsAlert] = useState(true);
   const [transactionFormData, setTransactionFormData] = useState<TransactionFormData>({
     description: '',
     value: '',
@@ -94,23 +94,30 @@ const TransactionsDI: React.FC = () => {
   const loadData = async () => {
     setIsPageLoading(true);
     try {
+      console.log('[TransactionsDI] loadData - Iniciando carregamento...');
+      
       // Carregar transações
+      console.log('[TransactionsDI] loadData - Carregando transações...');
       const transactionsData = await DITransactionController.getTransactions();
+      console.log('[TransactionsDI] loadData - Transações recebidas:', transactionsData);
+      console.log('[TransactionsDI] loadData - Número de transações:', transactionsData.length);
       setTransactions(transactionsData);
       
       // Carregar categorias
+      console.log('[TransactionsDI] loadData - Carregando categorias...');
       const categoriesData = await DICategoryController.getCategories();
+      console.log('[TransactionsDI] loadData - Categorias recebidas:', categoriesData.length);
       setCategories(categoriesData);
       
       // Carregar resumo financeiro
+      console.log('[TransactionsDI] loadData - Carregando resumo financeiro...');
       const summary = await DITransactionController.getFinancialSummary('month');
+      console.log('[TransactionsDI] loadData - Resumo financeiro:', summary);
       setFinancialSummary(summary);
       
-      // Buscar pagamentos próximos do vencimento
-      const upcoming = await DITransactionController.getUpcomingPayments();
-      setUpcomingPayments(upcoming);
+      console.log('[TransactionsDI] loadData - Carregamento concluído');
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('[TransactionsDI] loadData - Erro ao carregar dados:', error);
       toast({
         title: "Erro",
         description: "Erro ao carregar dados das transações.",
@@ -326,51 +333,6 @@ const TransactionsDI: React.FC = () => {
           </div>
         </div>
         
-        {/* Alerta de Pagamentos Próximos */}
-        {showPaymentsAlert && upcomingPayments.length > 0 && (
-          <Alert className="bg-amber-50 border-amber-200">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 text-amber-600 mr-2" />
-                <div>
-                  <h3 className="font-medium text-amber-800">
-                    {upcomingPayments.length === 1 
-                      ? '1 pagamento próximo do vencimento' 
-                      : `${upcomingPayments.length} pagamentos próximos do vencimento`}
-                  </h3>
-                  <AlertDescription className="text-amber-700">
-                    Você tem pagamentos que vencem nos próximos 7 dias
-                  </AlertDescription>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="text-amber-700 border-amber-300 hover:bg-amber-100"
-                  onClick={() => {
-                    // Aqui poderia abrir um modal com detalhes dos pagamentos
-                    toast({
-                      title: "Pagamentos próximos",
-                      description: `Você tem ${upcomingPayments.length} pagamentos nos próximos 7 dias.`,
-                    });
-                  }}
-                >
-                  Ver detalhes
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-amber-700 hover:bg-amber-100 h-8 w-8 p-0"
-                  onClick={() => setShowPaymentsAlert(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Alert>
-        )}
-        
         {/* Resumo Financeiro */}
         <Card className="p-6 bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200 shadow-md">
           <div className="flex flex-col space-y-4">
@@ -444,7 +406,7 @@ const TransactionsDI: React.FC = () => {
                       <div>
                         <h3 className="font-medium">{transaction.description}</h3>
                         <p className="text-sm text-gray-500">
-                          {format(new Date(transaction.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                          {format(new Date(transaction.date + 'T00:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                         </p>
                         <p className="text-xs text-gray-500">
                           Categoria: {getCategoryName(transaction.categoryId)}
@@ -537,12 +499,33 @@ const TransactionsDI: React.FC = () => {
             
             <div className="grid gap-2">
               <Label htmlFor="edit-date">Data</Label>
-              <Input
-                id="edit-date"
-                type="date"
-                value={transactionFormData.date}
-                onChange={(e) => setTransactionFormData({ ...transactionFormData, date: e.target.value })}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {transactionFormData.date ? 
+                      format(new Date(transactionFormData.date + 'T00:00:00'), 'PPP', { locale: ptBR }) : 
+                      <span>Selecione uma data</span>
+                    }
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={transactionFormData.date ? new Date(transactionFormData.date + 'T00:00:00') : undefined}
+                    onSelect={(date) => 
+                      setTransactionFormData({ 
+                        ...transactionFormData, 
+                        date: date ? format(date, 'yyyy-MM-dd') : '' 
+                      })
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="grid gap-2">
@@ -661,12 +644,33 @@ const TransactionsDI: React.FC = () => {
             
             <div className="grid gap-2">
               <Label htmlFor="new-date">Data</Label>
-              <Input
-                id="new-date"
-                type="date"
-                value={transactionFormData.date}
-                onChange={(e) => setTransactionFormData({ ...transactionFormData, date: e.target.value })}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {transactionFormData.date ? 
+                      format(new Date(transactionFormData.date + 'T00:00:00'), 'PPP', { locale: ptBR }) : 
+                      <span>Selecione uma data</span>
+                    }
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={transactionFormData.date ? new Date(transactionFormData.date + 'T00:00:00') : undefined}
+                    onSelect={(date) => 
+                      setTransactionFormData({ 
+                        ...transactionFormData, 
+                        date: date ? format(date, 'yyyy-MM-dd') : '' 
+                      })
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="grid gap-2">
@@ -734,4 +738,4 @@ const TransactionsDI: React.FC = () => {
   );
 };
 
-export default TransactionsDI; 
+export default TransactionsDI;

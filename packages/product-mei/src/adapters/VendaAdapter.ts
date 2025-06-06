@@ -48,8 +48,8 @@ export function formatBrazilianDateToISO(brDate: string): string {
   }
   
   try {
-  // Converte de DD/MM/YYYY para YYYY-MM-DD
-  const [day, month, year] = brDate.split('/');
+    // Converte de DD/MM/YYYY para YYYY-MM-DD
+    const [day, month, year] = brDate.split('/');
     
     // Verificar se os componentes são válidos
     if (!day || !month || !year) {
@@ -57,7 +57,11 @@ export function formatBrazilianDateToISO(brDate: string): string {
       return brDate; // Retorna a data original em caso de erro
     }
     
-    const formattedDate = `${year}-${month}-${day}`;
+    // Garantir que dia e mês tenham 2 dígitos para evitar problemas de fuso horário
+    const paddedDay = day.padStart(2, '0');
+    const paddedMonth = month.padStart(2, '0');
+    
+    const formattedDate = `${year}-${paddedMonth}-${paddedDay}`;
     console.log('formatBrazilianDateToISO - Data formatada:', brDate, '->', formattedDate);
     return formattedDate;
   } catch (error) {
@@ -226,7 +230,7 @@ export function adaptModelVendaToCreateDTO(venda: ModelVenda): any {
   return {
     cliente_id: venda.clienteId ? String(venda.clienteId) : undefined,
     cliente_nome: venda.clienteNome,
-    data: venda.data,
+    data: formatBrazilianDateToISO(venda.data),
     descricao: venda.descricao,
     valor: convertStringValorToNumber(venda.valor),
     forma_pagamento: venda.formaPagamento.toLowerCase()
@@ -244,9 +248,9 @@ export function adaptModelVendaToUpdateDTO(venda: ModelVenda): any {
   return {
     cliente_id: venda.clienteId ? String(venda.clienteId) : undefined,
     cliente_nome: venda.clienteNome,
-    data: venda.data,
+    data: formatBrazilianDateToISO(venda.data),
     descricao: venda.descricao,
     valor: convertStringValorToNumber(venda.valor),
     forma_pagamento: venda.formaPagamento.toLowerCase()
   };
-} 
+}

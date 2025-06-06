@@ -33,6 +33,8 @@ export interface CreateVendaDTO {
  * Interface para atualizar uma venda existente
  */
 export interface UpdateVendaDTO {
+  transaction_id?: string | null; // Para sincronização financeira
+
   id?: string; // ID da venda (UUID)
   cliente_id?: string;
   cliente_nome?: string;
