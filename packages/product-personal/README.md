@@ -12,7 +12,6 @@
 
 - [📱 Visão Geral](#-visão-geral)
 - [🏗️ Arquitetura e Injeção de Dependências](#️-arquitetura-e-injeção-de-dependências)
-- [🗄️ Banco de Dados](#️-banco-de-dados)
 - [🛠️ Tecnologias Utilizadas](#️-tecnologias-utilizadas)
 - [🚀 Funcionalidades](#-funcionalidades)
 - [📱 Telas do Sistema](#-telas-do-sistema)
@@ -94,61 +93,6 @@ O sistema utiliza **Supabase** como backend, oferecendo:
 - 🚀 **API REST automática** gerada a partir do schema
 - 📊 **Real-time subscriptions** para atualizações em tempo real
 - 🔒 **Políticas de segurança** a nível de linha
-
-### Estrutura das Tabelas
-
-#### 1. Tabela `profiles`
-```sql
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id),
-  first_name TEXT,
-  last_name TEXT,
-  avatar_url TEXT,
-  email TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-#### 2. Tabela `budgets`
-```sql
-CREATE TABLE budgets (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id),
-  name TEXT NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  spent_amount DECIMAL(10,2) DEFAULT 0,
-  category_id UUID REFERENCES categories(id),
-  period TEXT CHECK (period IN ('mensal', 'anual'))
-);
-```
-
-#### 3. Tabela `goals`
-```sql
-CREATE TABLE goals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id),
-  name TEXT NOT NULL,
-  target_amount DECIMAL(10,2) NOT NULL,
-  current_amount DECIMAL(10,2) DEFAULT 0,
-  target_date DATE,
-  status TEXT CHECK (status IN ('ativo', 'concluido', 'pausado'))
-);
-```
-
-#### 4. Tabelas Herdadas do Core
-- `categories`: Categorias de receitas, despesas e investimentos
-- `transactions`: Transações financeiras
-- `investments`: Carteira de investimentos
-- `investment_returns`: Rendimentos dos investimentos
-
-### Políticas de Segurança (RLS)
-
-Todas as tabelas implementam **Row Level Security**:
-```sql
--- Exemplo: Usuários só veem seus próprios dados
-CREATE POLICY "user_data_isolation" ON profiles
-  FOR ALL USING (auth.uid() = id);
-```
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -535,21 +479,7 @@ export class PersonalTransactionService implements ITransactionService {
 - **Prettier**: Formatação automática de código
 - **TypeScript**: Tipagem estática obrigatória
 - **Conventional Commits**: Padrão de commits semânticos
-
-### Arquitetura de Componentes
-
-- **Atomic Design**: Organização hierárquica
-- **Composition Pattern**: Reutilização através de composição
-- **Custom Hooks**: Lógica compartilhada
-- **Context API**: Gerenciamento de estado global
-
-### Gerenciamento de Estado
-
-- **TanStack Query**: Cache e sincronização com servidor
-- **React Hook Form**: Gerenciamento de formulários
-- **Context API**: Estado global da aplicação
-- **Local Storage**: Persistência de preferências
-
+  
 ### Segurança
 
 - **Row Level Security**: Isolamento de dados por usuário
