@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '../lib/core-exports';
 import { DIReportController } from '../controllers/DIReportController';
+import { supabase, getCurrentUserId } from '../lib/supabase';
 
 const ReportsDI: React.FC = () => {
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('month');
@@ -40,22 +41,123 @@ const ReportsDI: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Obter resumo financeiro
-      const summaryData = await DIReportController.getFinancialSummary(period);
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Calcular datas baseadas no período
+      const now = new Date();
+      let startDate: Date;
+      let endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Último dia do mês atual
+
+      switch (period) {
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'quarter':
+          const quarterStart = Math.floor(now.getMonth() / 3) * 3;
+          startDate = new Date(now.getFullYear(), quarterStart, 1);
+          endDate = new Date(now.getFullYear(), quarterStart + 3, 0);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          endDate = new Date(now.getFullYear(), 11, 31);
+          break;
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+
+      // Buscar transações do Supabase
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('date', startDate.toISOString().split('T')[0])
+        .lte('date', endDate.toISOString().split('T')[0])
+        .order('date', { ascending: false });
+
+      if (transactionsError) {
+        throw transactionsError;
+      }
+
+      const transactionsArray = transactionsData || [];
+      setTransactions(transactionsArray);
+
+      // Calcular resumo financeiro
+      const receitas = transactionsArray
+        .filter(t => t.type === 'receita')
+        .reduce((sum, t) => sum + (t.value || 0), 0);
+      
+      const despesas = transactionsArray
+        .filter(t => t.type === 'despesa')
+        .reduce((sum, t) => sum + (t.value || 0), 0);
       
       setSummary({
-        receitas: summaryData.receitas,
-        despesas: summaryData.despesas,
-        saldo: summaryData.saldo
+        receitas,
+        despesas,
+        saldo: receitas - despesas
       });
       
-      setTransactions(summaryData.transactions);
+      // Buscar categorias para os gráficos
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (categoriesError) {
+        throw categoriesError;
+      }
+
+      const categoriesArray = categoriesData || [];
+
+      // Preparar dados para gráfico de barras (por mês)
+      const monthlyData = [];
+      const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
       
-      // Processar dados para o gráfico de barras
-      processBarChartData(summaryData.transactions);
+      for (let i = 0; i < 12; i++) {
+        const monthTransactions = transactionsArray.filter(t => {
+          const transactionDate = new Date(t.date);
+          return transactionDate.getMonth() === i;
+        });
+        
+        const receitas = monthTransactions
+          .filter(t => t.type === 'receita')
+          .reduce((sum, t) => sum + (t.value || 0), 0);
+        
+        const despesas = monthTransactions
+          .filter(t => t.type === 'despesa')
+          .reduce((sum, t) => sum + (t.value || 0), 0);
+        
+        monthlyData.push({
+          name: months[i],
+          receitas,
+          despesas
+        });
+      }
       
-      // Processar dados para o gráfico de pizza
-      processPieChartData(summaryData.transactions);
+      setBarChartData(monthlyData);
+
+      // Preparar dados para gráfico de pizza (por categoria)
+      const categoryTotals = new Map();
+      
+      transactionsArray.forEach(transaction => {
+        const category = categoriesArray.find(c => c.id === transaction.category_id);
+        const categoryName = category?.name || 'Sem categoria';
+        
+        if (!categoryTotals.has(categoryName)) {
+          categoryTotals.set(categoryName, 0);
+        }
+        
+        categoryTotals.set(categoryName, categoryTotals.get(categoryName) + (transaction.value || 0));
+      });
+      
+      const pieData = Array.from(categoryTotals.entries()).map(([name, value]) => ({
+        name,
+        value
+      }));
+      
+      setPieChartData(pieData);
     } catch (error) {
       console.error('Erro ao carregar dados do relatório:', error);
       toast({
@@ -350,4 +452,4 @@ const ReportsDI: React.FC = () => {
   );
 };
 
-export default ReportsDI; 
+export default ReportsDI;

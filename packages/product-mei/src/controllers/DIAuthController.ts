@@ -106,6 +106,13 @@ export class DIAuthController {
         return false;
       }
       
+      if (success) {
+        toast({
+          title: "Logout realizado com sucesso!",
+          description: "Você foi desconectado da sua conta.",
+        });
+      }
+      
       return success;
     } catch (error) {
       console.error('Erro ao sair:', error);
@@ -139,8 +146,8 @@ export class DIAuthController {
       
       if (success) {
         toast({
-          title: "Perfil atualizado",
-          description: "Suas informações foram atualizadas com sucesso.",
+          title: "Perfil atualizado com sucesso!",
+          description: "Suas informações foram salvas.",
         });
       }
       
@@ -164,13 +171,40 @@ export class DIAuthController {
    */
   static async updatePassword(currentPassword: string, newPassword: string): Promise<boolean> {
     try {
+      // Validações básicas
+      if (!currentPassword) {
+        toast({
+          title: "Erro de validação",
+          description: "Senha atual é obrigatória",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      if (newPassword.length < 6) {
+        toast({
+          title: "Erro de validação",
+          description: "Nova senha deve ter pelo menos 6 caracteres",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       const authService = this.getAuthService();
       const { success, error } = await authService.updatePassword(currentPassword, newPassword);
       
       if (error) {
+        let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
+        
+        if (error.code === 'invalid_current_password') {
+          errorMessage = "Senha atual incorreta";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
         toast({
           title: "Erro na atualização",
-          description: error.message || "Ocorreu um erro inesperado. Tente novamente.",
+          description: errorMessage,
           variant: "destructive",
         });
         return false;
@@ -178,8 +212,8 @@ export class DIAuthController {
       
       if (success) {
         toast({
-          title: "Senha atualizada",
-          description: "Sua senha foi atualizada com sucesso.",
+          title: "Senha alterada com sucesso!",
+          description: "Sua nova senha já está ativa.",
         });
       }
       
@@ -194,4 +228,4 @@ export class DIAuthController {
       return false;
     }
   }
-} 
+}

@@ -3,6 +3,7 @@ import { Bell, Check } from 'lucide-react';
 import { Button } from './button';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { useNavigate } from 'react-router-dom';
+import { getNextDASDate, formatDASDate } from '../../utils/dasDateUtils';
 
 export interface Notification {
   id: number;
@@ -13,26 +14,57 @@ export interface Notification {
 
 export const NotificationCenter: React.FC = () => {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: 1, message: 'Seu relatório mensal está pronto', date: '2023-10-15', read: false },
-    { id: 2, message: 'Lembrete: Pagamento de imposto DAS até dia 20', date: '2023-10-14', read: false },
-    { id: 3, message: 'Nova funcionalidade disponível: Exportação de relatórios', date: '2023-10-10', read: true },
-    { id: 4, message: 'Dica: Categorize suas despesas para melhor controle', date: '2023-10-05', read: true },
-    { id: 5, message: 'Bem-vindo ao FinManage MEI!', date: '2023-10-01', read: true },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>(() => {
+    // Tentar carregar notificações do localStorage
+    const savedNotifications = localStorage.getItem('mei_notifications');
+    if (savedNotifications) {
+      try {
+        return JSON.parse(savedNotifications);
+      } catch (error) {
+        console.error('Erro ao carregar notificações do localStorage:', error);
+      }
+    }
+    
+    // Se não há notificações salvas, criar as padrão
+    const now = new Date();
+    
+    // Calcular próximo vencimento do DAS usando utilitário
+    const nextDASDate = getNextDASDate(now);
+    
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+    
+    const defaultNotifications = [
+      { id: 1, message: 'Seu relatório mensal está pronto', date: formatDate(new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)), read: false },
+      { id: 2, message: `Lembrete: Pagamento de imposto DAS até dia ${formatDASDate(nextDASDate)}`, date: formatDate(new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)), read: false },
+      { id: 3, message: 'Nova funcionalidade disponível: Exportação de relatórios', date: formatDate(new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000)), read: true },
+      { id: 4, message: 'Dica: Categorize suas despesas para melhor controle', date: formatDate(new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000)), read: true },
+      { id: 5, message: 'Bem-vindo ao FinManage MEI!', date: formatDate(new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000)), read: true },
+    ];
+    
+    // Salvar no localStorage
+    localStorage.setItem('mei_notifications', JSON.stringify(defaultNotifications));
+    
+    return defaultNotifications;
+  });
   
   const [open, setOpen] = useState(false);
   
   const unreadCount = notifications.filter(n => !n.read).length;
   
   const markAsRead = (id: number) => {
-    setNotifications(notifications.map(n => 
+    const updatedNotifications = notifications.map(n => 
       n.id === id ? { ...n, read: true } : n
-    ));
+    );
+    setNotifications(updatedNotifications);
+    // Salvar no localStorage
+    localStorage.setItem('mei_notifications', JSON.stringify(updatedNotifications));
   };
   
   const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+    const updatedNotifications = notifications.map(n => ({ ...n, read: true }));
+    setNotifications(updatedNotifications);
+    // Salvar no localStorage
+    localStorage.setItem('mei_notifications', JSON.stringify(updatedNotifications));
   };
   
   const formatDate = (dateString: string) => {
@@ -126,4 +158,4 @@ export const NotificationCenter: React.FC = () => {
       </PopoverContent>
     </Popover>
   );
-}; 
+};

@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Alert, AlertDescription } from "../components/ui/alert";
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 interface TransactionFormData {
   description: string;
@@ -89,6 +90,36 @@ const TransactionsDI: React.FC = () => {
   
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Listener para eventos de DAS
+  useEffect(() => {
+    const handleDASUpdate = () => {
+      console.log('[TransactionsDI] DAS atualizado - recarregando dados...');
+      loadData();
+    };
+
+    const handleDASDelete = () => {
+      console.log('[TransactionsDI] DAS deletado - recarregando dados...');
+      loadData();
+    };
+
+    const handleDASCreate = () => {
+      console.log('[TransactionsDI] DAS criado - recarregando dados...');
+      loadData();
+    };
+
+    // Registrar listeners
+    eventBus.on(EVENTS.DAS_UPDATED, handleDASUpdate);
+    eventBus.on(EVENTS.DAS_DELETED, handleDASDelete);
+    eventBus.on(EVENTS.DAS_CREATED, handleDASCreate);
+
+    // Cleanup - remover listeners quando o componente for desmontado
+    return () => {
+      eventBus.off(EVENTS.DAS_UPDATED, handleDASUpdate);
+      eventBus.off(EVENTS.DAS_DELETED, handleDASDelete);
+      eventBus.off(EVENTS.DAS_CREATED, handleDASCreate);
+    };
   }, []);
   
   const loadData = async () => {
@@ -202,6 +233,12 @@ const TransactionsDI: React.FC = () => {
         // Atualizar a lista de transações
         await loadData();
         setEditDialogOpen(false);
+        
+        // Emitir evento para notificar outras telas sobre a atualização
+        eventBus.emit(EVENTS.TRANSACTION_UPDATED, {
+          transactionId: currentTransaction.id,
+          updatedData
+        });
       }
     } catch (error) {
       console.error('Erro ao atualizar transação:', error);
@@ -269,6 +306,11 @@ const TransactionsDI: React.FC = () => {
       if (success) {
         // Atualizar a lista de transações
         await loadData();
+        
+        // Emitir evento para notificar outras telas sobre a exclusão
+        eventBus.emit(EVENTS.TRANSACTION_DELETED, {
+          transactionId: id
+        });
       }
     } catch (error) {
       console.error('Erro ao excluir transação:', error);
@@ -276,6 +318,35 @@ const TransactionsDI: React.FC = () => {
       // Remover estado de carregamento
       setIsLoading(prev => ({ ...prev, [id]: false }));
     }
+  };
+
+  // Função para formatar valor monetário (apenas números e 2 casas decimais)
+  const formatMoneyValue = (value: string): string => {
+    // Remove tudo que não é número ou vírgula/ponto
+    let cleanValue = value.replace(/[^\d.,]/g, '');
+    
+    // Substitui vírgula por ponto para processamento
+    cleanValue = cleanValue.replace(',', '.');
+    
+    // Remove pontos extras (mantém apenas o último)
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+      cleanValue = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Limita a 2 casas decimais
+    if (cleanValue.includes('.')) {
+      const [integerPart, decimalPart] = cleanValue.split('.');
+      cleanValue = integerPart + '.' + (decimalPart || '').substring(0, 2);
+    }
+    
+    return cleanValue;
+  };
+
+  // Handler para mudança de valor com formatação
+  const handleValueChange = (value: string) => {
+    const formattedValue = formatMoneyValue(value);
+    setTransactionFormData({ ...transactionFormData, value: formattedValue });
   };
 
   const openEditDialog = (transaction: Transaction) => {
@@ -490,10 +561,10 @@ const TransactionsDI: React.FC = () => {
               <Label htmlFor="edit-value">Valor (R$)</Label>
               <Input
                 id="edit-value"
-                type="number"
-                step="0.01"
+                type="text"
+                placeholder="0.00"
                 value={transactionFormData.value}
-                onChange={(e) => setTransactionFormData({ ...transactionFormData, value: e.target.value })}
+                onChange={(e) => handleValueChange(e.target.value)}
               />
             </div>
             
@@ -627,10 +698,10 @@ const TransactionsDI: React.FC = () => {
               <Label htmlFor="new-value">Valor (R$)</Label>
               <Input
                 id="new-value"
-                type="number"
-                step="0.01"
+                type="text"
+                placeholder="0.00"
                 value={transactionFormData.value}
-                onChange={(e) => setTransactionFormData({ ...transactionFormData, value: e.target.value })}
+                onChange={(e) => handleValueChange(e.target.value)}
               />
               
               {transactionFormData.type === 'despesa' && 

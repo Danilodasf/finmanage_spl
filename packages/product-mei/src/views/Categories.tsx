@@ -4,7 +4,9 @@ import { DICategoryController } from '../controllers/DICategoryController';
 import { Category } from '../lib/core-exports';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
-import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { toast } from '../hooks/use-toast';
 import {
   Dialog,
   DialogContent,
@@ -105,18 +107,98 @@ const Categories: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
+      // Encontrar a categoria que está sendo deletada
+      const categoryToDelete = categories.find(cat => cat.id === id);
+      if (!categoryToDelete) {
+        toast({
+          title: "Erro",
+          description: "Categoria não encontrada.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Verificar se é uma categoria protegida (relacionada a vendas ou impostos)
+      const protectedCategories = [
+        'vendas', 'venda', 'receita de vendas', 'faturamento',
+        'das', 'imposto', 'impostos', 'tributos', 'taxas',
+        'inss', 'icms', 'iss', 'pis', 'cofins'
+      ];
+      
+      const isProtected = protectedCategories.some((protectedKeyword) => {
+        return categoryToDelete.name.toLowerCase().includes(protectedKeyword);
+      });
+
+      if (isProtected) {
+        toast({
+          title: "Categoria Protegida",
+          description: "Esta categoria está relacionada a vendas ou impostos e não pode ser excluída.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Verificar se existem transações usando esta categoria
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('category_id', id)
+        .limit(1);
+
+      if (error) {
+        console.error('Erro ao verificar transações:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao verificar se a categoria possui transações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (transactions && transactions.length > 0) {
+        toast({
+          title: "Categoria em Uso",
+          description: "Esta categoria não pode ser excluída pois possui transações associadas.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Confirmar exclusão
+      const confirmed = window.confirm(
+        `Tem certeza que deseja excluir a categoria "${categoryToDelete.name}"?`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
       // Marcar categoria específica como carregando
       setIsLoading(prev => ({ ...prev, [id]: true }));
       
-      // Chamar o controller para excluir a categoria
+      // Proceder com a exclusão
       const success = await DICategoryController.deleteCategory(id);
-      
       if (success) {
+        toast({
+          title: "Sucesso",
+          description: "Categoria excluída com sucesso.",
+        });
         // Atualizar o estado removendo a categoria excluída
         setCategories(categories.filter(category => category.id !== id));
+      } else {
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a categoria.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Erro ao excluir categoria:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao excluir categoria.",
+        variant: "destructive",
+      });
     } finally {
       // Remover estado de carregamento
       setIsLoading(prev => ({ ...prev, [id]: false }));
@@ -157,6 +239,33 @@ const Categories: React.FC = () => {
       type: 'receita'
     });
     setNewCategoryDialogOpen(true);
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'receita':
+        return 'bg-green-100 text-green-800';
+      case 'despesa':
+        return 'bg-red-100 text-red-800';
+      case 'investimento':
+        return 'bg-blue-100 text-blue-800';
+      case 'ambos':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const isProtectedCategory = (categoryName: string) => {
+    const protectedCategories = [
+      'vendas', 'venda', 'receita de vendas', 'faturamento',
+      'das', 'imposto', 'impostos', 'tributos', 'taxas',
+      'inss', 'icms', 'iss', 'pis', 'cofins'
+    ];
+    
+    return protectedCategories.some(protectedKeyword => 
+      categoryName.toLowerCase().includes(protectedKeyword)
+    );
   };
 
   return (
@@ -200,16 +309,27 @@ const Categories: React.FC = () => {
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => handleDelete(category.id)}
-                      disabled={isLoading[category.id]}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {isLoading[category.id] && <span className="ml-2">...</span>}
-                    </Button>
+                    {isProtectedCategory(category.name) ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        title="Esta categoria está protegida e não pode ser excluída"
+                      >
+                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleDelete(category.id)}
+                        disabled={isLoading[category.id]}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {isLoading[category.id] && <span className="ml-2">...</span>}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -345,4 +465,4 @@ const Categories: React.FC = () => {
   );
 };
 
-export default Categories; 
+export default Categories;

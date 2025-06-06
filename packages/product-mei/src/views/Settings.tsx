@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MainLayout } from '../components/Layout/MainLayout';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -6,10 +6,15 @@ import { Label } from '../components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { DIAuthController } from '../controllers/DIAuthController';
 import { toast } from '../hooks/use-toast';
+import { useAuth } from '../lib/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 const Settings: React.FC = () => {
-  const [name, setName] = useState('João da Silva');
+  const { user } = useAuth();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -17,6 +22,29 @@ const Settings: React.FC = () => {
     confirmPassword: '',
   });
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  useEffect(() => {
+    const loadUserData = async () => {
+      setIsLoadingData(true);
+      try {
+        if (user) {
+          setName(user.name || '');
+          setEmail(user.email || '');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do usuário:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar seus dados.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadUserData();
+  }, [user]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,8 +54,8 @@ const Settings: React.FC = () => {
     
     if (success) {
       toast({
-        title: "Perfil atualizado",
-        description: "Suas informações foram atualizadas com sucesso.",
+        title: "Perfil atualizado com sucesso!",
+        description: "Suas informações foram salvas.",
       });
     }
     
@@ -45,10 +73,29 @@ const Settings: React.FC = () => {
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validações no frontend
+    if (!passwordData.currentPassword) {
+      toast({
+        title: "Erro de validação",
+        description: "Senha atual é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        title: "Erro de validação",
+        description: "Nova senha deve ter pelo menos 6 caracteres",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast({
         title: "Erro de validação",
-        description: "As senhas não coincidem.",
+        description: "As senhas não coincidem",
         variant: "destructive",
       });
       return;
@@ -62,11 +109,8 @@ const Settings: React.FC = () => {
     );
     
     if (success) {
-      toast({
-        title: "Senha atualizada",
-        description: "Sua senha foi atualizada com sucesso.",
-      });
-      
+      // Limpar os campos apenas se a atualização foi bem-sucedida
+      // A mensagem de sucesso já é exibida pelo DIAuthController
       setPasswordData({
         currentPassword: '',
         newPassword: '',
@@ -76,6 +120,17 @@ const Settings: React.FC = () => {
     
     setIsUpdatingPassword(false);
   };
+
+  if (isLoadingData) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Carregando dados do usuário...</span>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -99,6 +154,7 @@ const Settings: React.FC = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
+                    placeholder="Digite seu nome"
                   />
                 </div>
                 
@@ -107,7 +163,7 @@ const Settings: React.FC = () => {
                   <Input
                     id="email"
                     type="email"
-                    value="joao@email.com"
+                    value={email}
                     disabled
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -117,7 +173,7 @@ const Settings: React.FC = () => {
                 
                 <Button
                   type="submit"
-                  disabled={isUpdatingProfile}
+                  disabled={isUpdatingProfile || !name.trim()}
                   className="bg-emerald-800 hover:bg-emerald-700"
                 >
                   {isUpdatingProfile ? 'Salvando...' : 'Salvar Alterações'}
@@ -173,7 +229,13 @@ const Settings: React.FC = () => {
                 
                 <Button
                   type="submit"
-                  disabled={isUpdatingPassword}
+                  disabled={
+                    isUpdatingPassword || 
+                    !passwordData.currentPassword || 
+                    !passwordData.newPassword || 
+                    !passwordData.confirmPassword || 
+                    passwordData.newPassword.length < 6
+                  }
                   className="bg-emerald-800 hover:bg-emerald-700"
                 >
                   {isUpdatingPassword ? 'Atualizando...' : 'Atualizar Senha'}
@@ -187,4 +249,4 @@ const Settings: React.FC = () => {
   );
 };
 
-export default Settings; 
+export default Settings;

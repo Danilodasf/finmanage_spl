@@ -42,12 +42,20 @@ export const isValidPhone = (value: string): boolean => {
  */
 export const formatPhone = (value: string): string => {
   // Remove caracteres não numéricos
-  const numericValue = value.replace(/\D/g, '');
+  let numericValue = value.replace(/\D/g, '');
+  
+  // Limita a 11 dígitos
+  if (numericValue.length > 11) {
+    numericValue = numericValue.substring(0, 11);
+  }
   
   // Formata o telefone de acordo com a quantidade de dígitos
-  if (numericValue.length <= 10) {
-    // Formato: (XX) XXXX-XXXX
-    return numericValue.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+  if (numericValue.length <= 2) {
+    return numericValue;
+  } else if (numericValue.length <= 6) {
+    return numericValue.replace(/(\d{2})(\d+)/, '($1) $2');
+  } else if (numericValue.length <= 10) {
+    return numericValue.replace(/(\d{2})(\d{4})(\d+)/, '($1) $2-$3');
   } else {
     // Formato: (XX) XXXXX-XXXX
     return numericValue.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
@@ -275,4 +283,4 @@ export const moneyValueToNumber = (value: string): number => {
   // Remove R$, pontos e espaços, e substitui vírgula por ponto
   const cleanValue = value.replace(/[R$\s.]/g, '').replace(',', '.');
   return parseFloat(cleanValue) || 0;
-}; 
+};

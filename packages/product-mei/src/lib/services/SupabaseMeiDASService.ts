@@ -226,6 +226,11 @@ export class SupabaseMeiDASService {
         return { data: null, error: new Error(error.message) };
       }
       
+      // Gerenciar transação associada baseado nas mudanças de status
+      if (data) {
+        await this.manageAssociatedTransaction(currentData, data, userId);
+      }
+      
       console.log(`[SupabaseMeiDASService] update - Pagamento DAS ${id} atualizado com sucesso:`, data);
       return { data, error: null };
     } catch (error) {
