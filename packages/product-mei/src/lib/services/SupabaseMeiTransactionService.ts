@@ -273,8 +273,9 @@ export class SupabaseMeiTransactionService implements TransactionService {
       if (transactionToDelete.type === 'despesa' && transactionToDelete.description?.includes('DAS')) {
         const { data: dasRecords, error: dasError } = await supabase
           .from('imposto_das')
-          .select('id, competencia, valor')
-          .eq('transaction_id', id);
+          .select('id, competencia, valor, user_id, transaction_id')
+          .eq('transaction_id', id)
+          .eq('user_id', userId);
         
         console.log('[DEBUG] Registros DAS encontrados ANTES da deleção:', dasRecords);
         if (dasError) console.error('[DEBUG] Erro ao buscar DAS:', dasError);
@@ -310,13 +311,41 @@ export class SupabaseMeiTransactionService implements TransactionService {
       
       // Verificar registros relacionados APÓS a deleção
       if (transactionToDelete.type === 'despesa' && transactionToDelete.description?.includes('DAS')) {
+        // Verificação 1: Por transaction_id (deve estar NULL ou não existir)
         const { data: dasRecordsAfter, error: dasErrorAfter } = await supabase
           .from('imposto_das')
-          .select('id, competencia, valor')
-          .eq('transaction_id', id);
+          .select('id, competencia, valor, user_id, transaction_id')
+          .eq('transaction_id', id)
+          .eq('user_id', userId);
         
-        console.log('[DEBUG] Registros DAS encontrados APÓS a deleção:', dasRecordsAfter);
+        console.log('[DEBUG] Registros DAS encontrados APÓS a deleção (por transaction_id):', dasRecordsAfter);
         if (dasErrorAfter) console.error('[DEBUG] Erro ao buscar DAS após deleção:', dasErrorAfter);
+        
+        // Verificação 2: Por competência e valor (para detectar registros órfãos)
+        const competenciaMatch = transactionToDelete.description?.match(/DAS\s+(\d{2}\/\d{4})/);
+        if (competenciaMatch) {
+          const competencia = competenciaMatch[1];
+          const { data: dasOrphans, error: orphanError } = await supabase
+            .from('imposto_das')
+            .select('id, competencia, valor, user_id, transaction_id')
+            .eq('competencia', competencia)
+            .eq('user_id', userId)
+            .is('transaction_id', null);
+          
+          console.log(`[DEBUG] Registros DAS órfãos encontrados (competência ${competencia}):`, dasOrphans);
+          if (orphanError) console.error('[DEBUG] Erro ao buscar DAS órfãos:', orphanError);
+        }
+        
+        // Verificação 3: Todos os registros DAS do usuário (para debug completo)
+        const { data: allDasRecords, error: allDasError } = await supabase
+          .from('imposto_das')
+          .select('id, competencia, valor, user_id, transaction_id')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        console.log('[DEBUG] Últimos 5 registros DAS do usuário:', allDasRecords);
+        if (allDasError) console.error('[DEBUG] Erro ao buscar todos os DAS:', allDasError);
         
         if (dasRecordsAfter && dasRecordsAfter.length > 0) {
           console.error('❌ [DEBUG] PROBLEMA: Registros DAS não foram deletados pelos triggers!');
