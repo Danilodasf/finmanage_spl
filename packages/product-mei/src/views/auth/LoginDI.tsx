@@ -34,7 +34,7 @@ const LoginDI: React.FC = () => {
     const success = await DIAuthController.login(formData);
     
     if (success) {
-      navigate('/dashboard-di');
+      navigate('/dashboard');
     }
     
     setIsLoading(false);
@@ -42,8 +42,8 @@ const LoginDI: React.FC = () => {
 
   return (
     <AuthLayout 
-      title="Entrar (DI)"
-      subtitle="Acesse sua conta MEI com DI"
+      title="Entrar"
+      subtitle="Acesse sua conta MEI"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -90,4 +90,4 @@ const LoginDI: React.FC = () => {
   );
 };
 
-export default LoginDI; 
+export default LoginDI;

@@ -138,9 +138,29 @@ export class PersonalAuthService implements AuthService {
   /**
    * Atualiza a senha do usuário
    * @param newPassword Nova senha do usuário
+   * @param currentPassword Senha atual do usuário (opcional para compatibilidade)
    */
-  async updatePassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
+  async updatePassword(newPassword: string, currentPassword?: string): Promise<{ success: boolean; error?: string }> {
     try {
+      // Se a senha atual foi fornecida, vamos validá-la primeiro
+      if (currentPassword) {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user?.email) {
+          return { success: false, error: 'Usuário não autenticado' };
+        }
+        
+        // Verificar senha atual tentando fazer login
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword,
+        });
+        
+        if (signInError) {
+          return { success: false, error: 'Senha atual incorreta' };
+        }
+      }
+      
       // Atualizar senha
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       
@@ -154,4 +174,4 @@ export class PersonalAuthService implements AuthService {
       return { success: false, error: 'Ocorreu um erro inesperado. Tente novamente.' };
     }
   }
-} 
+}

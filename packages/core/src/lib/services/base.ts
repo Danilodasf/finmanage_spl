@@ -77,8 +77,9 @@ export interface AuthService {
   /**
    * Atualiza a senha do usuário
    * @param newPassword Nova senha do usuário
+   * @param currentPassword Senha atual do usuário (opcional)
    */
-  updatePassword(newPassword: string): Promise<{ success: boolean; error?: string }>;
+  updatePassword(newPassword: string, currentPassword?: string): Promise<{ success: boolean; error?: string }>;
 }
 
 /**
@@ -108,4 +109,4 @@ export interface StorageService {
    * Limpa todos os itens
    */
   clear(): Promise<void>;
-} 
+}

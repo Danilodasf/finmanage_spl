@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AuthController } from '../controllers/AuthController';
+import { DIAuthController } from '../controllers/DIAuthController';
 import { User } from '../models/User';
 import { DICategoryController } from '../controllers/DICategoryController';
 import { ensureUserProfile } from './supabase';
@@ -27,10 +27,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const isAuth = await AuthController.isAuthenticated();
+        const isAuth = await DIAuthController.isAuthenticated();
         
         if (isAuth) {
-          const currentUser = await AuthController.getCurrentUser();
+          const currentUser = await DIAuthController.getCurrentUser();
           setUser(currentUser);
           
           // Garantir que o perfil do usuário exista no Supabase
@@ -74,7 +74,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   
   useEffect(() => {
     const checkAuth = async () => {
-      const isAuth = await AuthController.isAuthenticated();
+      const isAuth = await DIAuthController.isAuthenticated();
       if (!isAuth) {
         navigate('/login');
       }
@@ -94,4 +94,4 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   }
   
   return user ? <>{children}</> : null;
-}; 
+};

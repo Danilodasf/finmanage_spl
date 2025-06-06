@@ -1,37 +1,22 @@
-import { AuthService, LoginCredentials, RegisterData } from '../core-exports';
+import { AuthService, LoginCredentials, RegisterData } from '@finmanage/core';
+import { SupabaseMeiAuthService } from './SupabaseMeiAuthService';
 
 /**
  * Implementação do serviço de autenticação para o produto MEI
+ * Delega para o SupabaseMeiAuthService para funcionalidade real
  */
 export class MeiAuthService implements AuthService {
+  private supabaseService: SupabaseMeiAuthService;
+
+  constructor() {
+    this.supabaseService = new SupabaseMeiAuthService();
+  }
   /**
    * Realiza o login do usuário
    * @param credentials Credenciais de login
    */
   async login(credentials: LoginCredentials): Promise<{ success: boolean; error: Error | null }> {
-    try {
-      // Validar email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(credentials.email)) {
-        return { success: false, error: new Error('Email inválido') };
-      }
-
-      // Validar senha
-      if (!credentials.password) {
-        return { success: false, error: new Error('Senha é obrigatória') };
-      }
-
-      // Simulação de login - aqui seria integrado com a API real
-      console.log('Tentativa de login MEI (via DI):', credentials);
-      
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erro no login:', error);
-      return { success: false, error: error as Error };
-    }
+    return await this.supabaseService.login(credentials);
   }
 
   /**
@@ -39,63 +24,14 @@ export class MeiAuthService implements AuthService {
    * @param userData Dados do usuário
    */
   async register(userData: RegisterData): Promise<{ success: boolean; error: Error | null }> {
-    try {
-      const errors: string[] = [];
-
-      // Validar nome
-      if (!userData.name.trim()) {
-        errors.push('Nome é obrigatório');
-      }
-
-      // Validar email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(userData.email)) {
-        errors.push('Email inválido');
-      }
-
-      // Validar senha
-      if (userData.password.length < 6) {
-        errors.push('Senha deve ter pelo menos 6 caracteres');
-      }
-
-      // Validar confirmação de senha
-      if (userData.password !== userData.confirmPassword) {
-        errors.push('Senhas não coincidem');
-      }
-
-      if (errors.length > 0) {
-        return { success: false, error: new Error(errors.join(', ')) };
-      }
-
-      // Simulação de cadastro - aqui seria integrado com a API real
-      console.log('Tentativa de cadastro MEI (via DI):', userData);
-      
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erro no cadastro:', error);
-      return { success: false, error: error as Error };
-    }
+    return await this.supabaseService.register(userData);
   }
 
   /**
    * Realiza o logout do usuário
    */
   async logout(): Promise<{ success: boolean; error: Error | null }> {
-    try {
-      // Simulação de logout - aqui seria integrado com a API real
-      console.log('Realizando logout MEI (via DI)');
-      
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erro ao sair:', error);
-      return { success: false, error: error as Error };
-    }
+    return await this.supabaseService.logout();
   }
 
   /**
@@ -103,49 +39,30 @@ export class MeiAuthService implements AuthService {
    * @param name Novo nome do usuário
    */
   async updateProfile(name: string): Promise<{ success: boolean; error: Error | null }> {
-    try {
-      if (!name.trim()) {
-        return { success: false, error: new Error('Nome não pode ser vazio') };
-      }
-      
-      // Simulação de atualização - aqui seria integrado com a API real
-      console.log('Atualizando perfil MEI (via DI):', { name });
-      
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erro na atualização do perfil:', error);
-      return { success: false, error: error as Error };
-    }
+    return await this.supabaseService.updateProfile(name);
   }
 
   /**
    * Atualiza a senha do usuário
-   * @param currentPassword Senha atual
    * @param newPassword Nova senha
+   * @param currentPassword Senha atual (opcional)
    */
-  async updatePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error: Error | null }> {
-    try {
-      if (!currentPassword) {
-        return { success: false, error: new Error('Senha atual é obrigatória') };
-      }
-      
-      if (newPassword.length < 6) {
-        return { success: false, error: new Error('Nova senha deve ter pelo menos 6 caracteres') };
-      }
-      
-      // Simulação de atualização - aqui seria integrado com a API real
-      console.log('Atualizando senha MEI (via DI)');
-      
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erro na atualização da senha:', error);
-      return { success: false, error: error as Error };
-    }
+  async updatePassword(newPassword: string, currentPassword?: string): Promise<{ success: boolean; error: Error | null }> {
+    console.log('🔧 MeiAuthService.updatePassword - Delegando para SupabaseMeiAuthService');
+    return await this.supabaseService.updatePassword(newPassword, currentPassword);
   }
-} 
+
+  /**
+   * Verifica se o usuário está autenticado
+   */
+  async isAuthenticated(): Promise<boolean> {
+    return await this.supabaseService.isAuthenticated();
+  }
+
+  /**
+   * Obtém o usuário atual
+   */
+  async getCurrentUser(): Promise<any> {
+    return await this.supabaseService.getCurrentUser();
+  }
+}

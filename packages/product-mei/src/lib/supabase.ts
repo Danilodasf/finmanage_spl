@@ -19,6 +19,13 @@ let cachedUserId: string | null = null;
 let userCheckTimestamp: number = 0;
 const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutos
 
+// Função para limpar cache local
+export const clearUserCache = () => {
+  console.log('clearUserCache - Limpando cache do usuário...');
+  cachedUserId = null;
+  userCheckTimestamp = 0;
+};
+
 // Função auxiliar para verificar se o usuário está autenticado
 export const isAuthenticated = async (): Promise<boolean> => {
   try {

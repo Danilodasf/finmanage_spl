@@ -44,8 +44,8 @@ const RegisterDI: React.FC = () => {
 
   return (
     <AuthLayout 
-      title="Criar Conta (DI)"
-      subtitle="Registre-se para acessar o FinManage MEI com DI"
+      title="Criar Conta"
+      subtitle="Registre-se para acessar o FinManage MEI"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -118,4 +118,4 @@ const RegisterDI: React.FC = () => {
   );
 };
 
-export default RegisterDI; 
+export default RegisterDI;

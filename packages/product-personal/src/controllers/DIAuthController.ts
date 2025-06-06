@@ -198,7 +198,7 @@ export class DIAuthController {
       }
       
       const authService = this.getAuthService();
-      const { success, error } = await authService.updatePassword(newPassword);
+      const { success, error } = await authService.updatePassword(newPassword, currentPassword);
       
       if (!success) {
         toast({
@@ -225,4 +225,4 @@ export class DIAuthController {
       return false;
     }
   }
-} 
+}
