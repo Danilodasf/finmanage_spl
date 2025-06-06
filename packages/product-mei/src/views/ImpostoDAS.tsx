@@ -20,6 +20,7 @@ import { DIDASController } from '../controllers/DIDASController';
 import { DASPayment } from '../lib/services/SupabaseMeiDASService';
 import { SupabaseMeiTransactionService } from '../lib/services/SupabaseMeiTransactionService';
 import { eventBus, EVENTS } from '../utils/eventBus';
+import { NotificationCenter } from '../components/ui/notification';
 
 // Interface para o estado de exibição dos pagamentos na tabela
 interface PagamentoDisplay extends Omit<DASPayment, 'valor'> {
@@ -652,13 +653,16 @@ const ImpostoDAS: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-emerald-800">Imposto DAS</h1>
-          <Button 
-            onClick={() => setIsCalculadoraOpen(true)}
-            className="bg-emerald-800 hover:bg-emerald-700 flex items-center gap-2"
-          >
-            <Calculator className="h-4 w-4" />
-            Calcular DAS
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => setIsCalculadoraOpen(true)}
+              className="bg-emerald-800 hover:bg-emerald-700 flex items-center gap-2"
+            >
+              <Calculator className="h-4 w-4" />
+              Calcular DAS
+            </Button>
+            <NotificationCenter />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
