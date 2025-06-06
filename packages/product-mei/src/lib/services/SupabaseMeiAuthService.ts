@@ -212,8 +212,41 @@ export class SupabaseMeiAuthService {
    */
   async updatePassword(currentPassword: string, newPassword: string): Promise<AuthResult> {
     try {
-      // O Supabase não tem um método direto para atualizar senha com verificação da senha atual
-      // Poderíamos implementar uma verificação manual aqui, mas para simplificar vamos apenas atualizar
+      // Primeiro, verificamos se o usuário está autenticado
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !userData.user) {
+        return {
+          success: false,
+          error: {
+            message: 'Usuário não autenticado',
+          },
+        };
+      }
+
+      // Criar um cliente temporário para verificar a senha atual sem afetar a sessão
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qvtniooiarxjczikmiui.supabase.co';
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2dG5pb29pYXJ4amN6aWttaXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNjEwNjgsImV4cCI6MjA2NDYzNzA2OH0.aNl9IBCYvzOEAQpHZkeWh14jY5OmLpXcIANvoDah7kg';
+      const tempClient = createClient(supabaseUrl, supabaseAnonKey);
+
+      // Verificar a senha atual usando o cliente temporário
+      const { error: signInError } = await tempClient.auth.signInWithPassword({
+        email: userData.user.email || '',
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        return {
+          success: false,
+          error: {
+            message: 'Senha atual incorreta',
+            code: 'invalid_current_password',
+          },
+        };
+      }
+
+      // Se a senha atual está correta, atualizar para a nova senha usando o cliente principal
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -272,4 +305,4 @@ export class SupabaseMeiAuthService {
       return null;
     }
   }
-} 
+}

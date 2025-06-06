@@ -12,42 +12,42 @@ export class MeiTransactionService implements TransactionService {
     {
       id: '1',
       type: 'receita',
-      date: '2023-06-15',
+      date: `${new Date().getFullYear()}-06-15`,
       value: 1500,
       description: 'Venda de produtos',
       categoryId: '1',
-      created_at: '2023-06-15T10:00:00Z',
-      updated_at: '2023-06-15T10:00:00Z'
+      created_at: `${new Date().getFullYear()}-06-15T10:00:00Z`,
+      updated_at: `${new Date().getFullYear()}-06-15T10:00:00Z`
     },
     {
       id: '2',
       type: 'despesa',
-      date: '2023-06-10',
+      date: `${new Date().getFullYear()}-06-10`,
       value: 350,
       description: 'Compra de materiais',
       categoryId: '3',
-      created_at: '2023-06-10T10:00:00Z',
-      updated_at: '2023-06-10T10:00:00Z'
+      created_at: `${new Date().getFullYear()}-06-10T10:00:00Z`,
+      updated_at: `${new Date().getFullYear()}-06-10T10:00:00Z`
     },
     {
       id: '3',
       type: 'receita',
-      date: '2023-06-05',
+      date: `${new Date().getFullYear()}-06-05`,
       value: 2000,
       description: 'Serviço de consultoria',
       categoryId: '2',
-      created_at: '2023-06-05T10:00:00Z',
-      updated_at: '2023-06-05T10:00:00Z'
+      created_at: `${new Date().getFullYear()}-06-05T10:00:00Z`,
+      updated_at: `${new Date().getFullYear()}-06-05T10:00:00Z`
     },
     {
       id: '4',
       type: 'despesa',
-      date: '2023-06-02',
+      date: `${new Date().getFullYear()}-06-02`,
       value: 800,
       description: 'Aluguel do escritório',
       categoryId: '4',
-      created_at: '2023-06-02T10:00:00Z',
-      updated_at: '2023-06-02T10:00:00Z'
+      created_at: `${new Date().getFullYear()}-06-02T10:00:00Z`,
+      updated_at: `${new Date().getFullYear()}-06-02T10:00:00Z`
     }
   ];
   
@@ -338,4 +338,4 @@ export class MeiTransactionService implements TransactionService {
       };
     }
   }
-} 
+}

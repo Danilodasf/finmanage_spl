@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Configuração do Supabase
-// Usando valores fixos por simplicidade
-const supabaseUrl = 'https://qvtniooiarxjczikmiui.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2dG5pb29pYXJ4amN6aWttaXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNjEwNjgsImV4cCI6MjA2NDYzNzA2OH0.aNl9IBCYvzOEAQpHZkeWh14jY5OmLpXcIANvoDah7kg';
+// Usando variáveis de ambiente ou valores padrão
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qvtniooiarxjczikmiui.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2dG5pb29pYXJ4amN6aWttaXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNjEwNjgsImV4cCI6MjA2NDYzNzA2OH0.aNl9IBCYvzOEAQpHZkeWh14jY5OmLpXcIANvoDah7kg';
+
+// Verificar se as variáveis de ambiente estão configuradas
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Erro: Variáveis de ambiente do Supabase não configuradas');
+  throw new Error('Configuração do Supabase incompleta');
+}
 
 // Criar cliente do Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -193,4 +199,4 @@ export const ensureUserProfile = async (): Promise<boolean> => {
     console.error('ensureUserProfile - Erro inesperado:', error);
     return false;
   }
-}; 
+};

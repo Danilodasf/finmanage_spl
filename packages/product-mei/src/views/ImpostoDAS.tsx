@@ -19,6 +19,7 @@ import { isValidMoneyValue, formatMoneyValue } from '../utils/validation';
 import { DIDASController } from '../controllers/DIDASController';
 import { DASPayment } from '../lib/services/SupabaseMeiDASService';
 import { SupabaseMeiTransactionService } from '../lib/services/SupabaseMeiTransactionService';
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 // Interface para o estado de exibição dos pagamentos na tabela
 interface PagamentoDisplay extends Omit<DASPayment, 'valor'> {
@@ -101,6 +102,31 @@ const ImpostoDAS: React.FC = () => {
   useEffect(() => {
     loadPayments();
     loadSaldoDisponivel();
+  }, []);
+
+  // Listener para eventos de transações
+  useEffect(() => {
+    const handleTransactionUpdate = () => {
+      console.log('[ImpostoDAS] Transação atualizada - recarregando dados...');
+      loadPayments();
+      loadSaldoDisponivel();
+    };
+
+    const handleTransactionDelete = () => {
+      console.log('[ImpostoDAS] Transação deletada - recarregando dados...');
+      loadPayments();
+      loadSaldoDisponivel();
+    };
+
+    // Registrar listeners
+    eventBus.on(EVENTS.TRANSACTION_UPDATED, handleTransactionUpdate);
+    eventBus.on(EVENTS.TRANSACTION_DELETED, handleTransactionDelete);
+
+    // Cleanup - remover listeners quando o componente for desmontado
+    return () => {
+      eventBus.off(EVENTS.TRANSACTION_UPDATED, handleTransactionUpdate);
+      eventBus.off(EVENTS.TRANSACTION_DELETED, handleTransactionDelete);
+    };
   }, []);
 
   // Verificar saldo quando o valor do DAS mudar
@@ -260,6 +286,23 @@ const ImpostoDAS: React.FC = () => {
       console.log('ImpostoDAS - handleSubmit - Operação bem-sucedida, recarregando pagamentos');
       await loadPayments(); // Recarregar lista
       await loadSaldoDisponivel(); // Recarregar saldo
+      
+      // Emitir evento para notificar outras telas
+      if (editandoPagamento) {
+        eventBus.emit(EVENTS.DAS_UPDATED, {
+          dasId: editandoPagamento.id
+        });
+      } else {
+        eventBus.emit(EVENTS.DAS_CREATED, {
+          dasData: {
+            competencia,
+            valor: valorNumerico,
+            status: statusForm,
+            dataPagamento
+          }
+        });
+      }
+      
       // Resetar formulário
       setValor('');
       setNumeroDas('');
@@ -309,6 +352,12 @@ const ImpostoDAS: React.FC = () => {
     if (success) {
       await loadPayments();
       await loadSaldoDisponivel();
+      
+      // Emitir evento para notificar outras telas sobre a exclusão
+      eventBus.emit(EVENTS.DAS_DELETED, {
+        dasId: dasParaDeletar
+      });
+      
       toast({
         title: 'Pagamento excluído',
         description: 'O pagamento foi excluído com sucesso.',
@@ -652,7 +701,7 @@ const ImpostoDAS: React.FC = () => {
                     <Input 
                       id="competencia"
                       type="text"
-                      placeholder="Ex: 03/2023"
+                      placeholder={`Ex: 03/${new Date().getFullYear()}`}
                       value={competencia}
                       onChange={handleCompetenciaChange}
                       onKeyPress={handleCompetenciaKeyPress}

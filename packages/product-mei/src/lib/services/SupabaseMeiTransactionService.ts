@@ -229,7 +229,8 @@ export class SupabaseMeiTransactionService implements TransactionService {
         return { data: null, error: new Error(error.message) };
       }
 
-      // Nota: A sincronização de registros associados (DAS/vendas) é feita automaticamente pelos triggers do banco
+      // Sincronizar registros associados (DAS/vendas)
+      await this.updateAssociatedDAS(currentTransaction, data);
 
       console.log('[SupabaseMeiTransactionService] update - Transação atualizada:', data);
       return { data, error: null };
