@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut, Target, LineChart, Layers, Database, TrendingUp, CircleCheck, RefreshCw, ListTree, FileWarning } from 'lucide-react';
+import { Settings, LogOut, Target, LineChart, Layers, Database, TrendingUp, CircleCheck, RefreshCw, ListTree, FileWarning, BarChart3, CreditCard, PiggyBank, FolderOpen, FileText } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { DIAuthController } from '@/controllers/DIAuthController';
 
@@ -34,112 +34,124 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-emerald-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-bold text-emerald-800 -ml-2">FinManage Personal</h1>
-            
-            <div className="flex space-x-4">
-              <Link to="/dashboard">
-                <Button 
-                  className={isActive('/dashboard') || isActive('/dashboard-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/dashboard') || isActive('/dashboard-di') ? 'default' : 'ghost'}
-                  size="sm"
-                >
-                  Dashboard
-                </Button>
-              </Link>
-              
-              <Link to="/transactions">
-                <Button 
-                  className={isActive('/transactions') || isActive('/transactions-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/transactions') || isActive('/transactions-di') ? 'default' : 'ghost'}
-                  size="sm"
-                >
-                  Transações
-                </Button>
-              </Link>
-              
-              <Link to="/investments">
-                <Button 
-                  className={isActive('/investments') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/investments') ? 'default' : 'ghost'}
-                  size="sm"
-                >
-                  Investimentos
-                </Button>
-              </Link>
-              
-              <Link to="/categories">
-                <Button 
-                  className={isActive('/categories') || isActive('/categories-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/categories') || isActive('/categories-di') ? 'default' : 'ghost'}
-                  size="sm"
-                >
-                  Categorias
-                </Button>
-              </Link>
-              
-              <Link to="/goals">
-                <Button 
-                  className={isActive('/goals') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/goals') ? 'default' : 'ghost'}
-                  size="sm"
-                >
-                  Objetivos
-                </Button>
-              </Link>
-              
-              <Link to="/budgets">
-                <Button 
-                  className={isActive('/budgets') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/budgets') ? 'default' : 'ghost'}
-                  size="sm"
-                >
-                  Orçamentos
-                </Button>
-              </Link>
-              
-              <Link to="/reports">
-                <Button 
-                  className={isActive('/reports') || isActive('/reports-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/reports') || isActive('/reports-di') ? 'default' : 'ghost'}
-                  size="sm"
-                >
-                  Relatórios
-                </Button>
-              </Link>
-              
-              <Link to="/settings">
-                <Button 
-                  className={isActive('/settings') || isActive('/settings-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : ''}
-                  variant={isActive('/settings') || isActive('/settings-di') ? 'default' : 'ghost'}
-                  size="sm"
-                >
-                  <Settings className="w-4 h-4 mr-1" />
-                  Configurações
-                </Button>
-              </Link>
-              
-              <Button 
-                variant="ghost"
-                size="sm"
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-              >
-                <LogOut className="w-4 w-4 mr-1" />
-                {isLoggingOut ? 'Saindo...' : 'Sair'}
-              </Button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-emerald-50 flex">
+      {/* Sidebar Lateral Esquerda */}
+      <aside className="w-64 bg-white shadow-lg border-r border-emerald-100 flex flex-col">
+        {/* Header da Sidebar */}
+        <div className="p-6 border-b border-emerald-100">
+          <h1 className="text-xl font-bold text-emerald-800">FinManage Personal</h1>
         </div>
-      </nav>
+        
+        {/* Menu de Navegação */}
+        <nav className="flex-1 p-4 space-y-2">
+          <Link to="/dashboard">
+            <Button 
+              className={`w-full justify-start ${isActive('/dashboard') || isActive('/dashboard-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : 'hover:bg-emerald-50'}`}
+              variant={isActive('/dashboard') || isActive('/dashboard-di') ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <BarChart3 className="w-4 h-4 mr-3" />
+              Dashboard
+            </Button>
+          </Link>
+          
+          <Link to="/transactions">
+            <Button 
+              className={`w-full justify-start ${isActive('/transactions') || isActive('/transactions-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : 'hover:bg-emerald-50'}`}
+              variant={isActive('/transactions') || isActive('/transactions-di') ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <CreditCard className="w-4 h-4 mr-3" />
+              Transações
+            </Button>
+          </Link>
+          
+          <Link to="/investments">
+            <Button 
+              className={`w-full justify-start ${isActive('/investments') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : 'hover:bg-emerald-50'}`}
+              variant={isActive('/investments') ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <TrendingUp className="w-4 h-4 mr-3" />
+              Investimentos
+            </Button>
+          </Link>
+          
+          <Link to="/categories">
+            <Button 
+              className={`w-full justify-start ${isActive('/categories') || isActive('/categories-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : 'hover:bg-emerald-50'}`}
+              variant={isActive('/categories') || isActive('/categories-di') ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <FolderOpen className="w-4 h-4 mr-3" />
+              Categorias
+            </Button>
+          </Link>
+          
+          <Link to="/goals">
+            <Button 
+              className={`w-full justify-start ${isActive('/goals') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : 'hover:bg-emerald-50'}`}
+              variant={isActive('/goals') ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <Target className="w-4 h-4 mr-3" />
+              Objetivos
+            </Button>
+          </Link>
+          
+          <Link to="/budgets">
+            <Button 
+              className={`w-full justify-start ${isActive('/budgets') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : 'hover:bg-emerald-50'}`}
+              variant={isActive('/budgets') ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <PiggyBank className="w-4 h-4 mr-3" />
+              Orçamentos
+            </Button>
+          </Link>
+          
+          <Link to="/reports">
+            <Button 
+              className={`w-full justify-start ${isActive('/reports') || isActive('/reports-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : 'hover:bg-emerald-50'}`}
+              variant={isActive('/reports') || isActive('/reports-di') ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <FileText className="w-4 h-4 mr-3" />
+              Relatórios
+            </Button>
+          </Link>
+          
+          <Link to="/settings">
+            <Button 
+              className={`w-full justify-start ${isActive('/settings') || isActive('/settings-di') ? 'bg-emerald-800 hover:bg-emerald-700 text-white' : 'hover:bg-emerald-50'}`}
+              variant={isActive('/settings') || isActive('/settings-di') ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <Settings className="w-4 h-4 mr-3" />
+              Configurações
+            </Button>
+          </Link>
+        </nav>
+        
+        {/* Botão de Logout na parte inferior */}
+        <div className="p-4 border-t border-emerald-100">
+          <Button 
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut className="w-4 h-4 mr-3" />
+            {isLoggingOut ? 'Saindo...' : 'Sair'}
+          </Button>
+        </div>
+      </aside>
       
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      {/* Conteúdo Principal */}
+      <main className="flex-1 p-8">
         {children}
       </main>
     </div>
   );
-}; 
+};

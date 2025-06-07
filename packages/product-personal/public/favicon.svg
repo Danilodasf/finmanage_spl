@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="personalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" fill="url(#personalGradient)" stroke="#1E40AF" stroke-width="1"/>
+  
+  <!-- Wallet/Card icon -->
+  <rect x="7" y="12" width="18" height="11" rx="2" fill="white" opacity="0.9"/>
+  <rect x="7" y="12" width="18" height="3" rx="2" fill="#10B981"/>
+  
+  <!-- Dollar symbol -->
+  <text x="16" y="21" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#1E40AF" text-anchor="middle">$</text>
+  
+  <!-- Small chart lines -->
+  <polyline points="9,26 11,24 13,25 15,23" stroke="#10B981" stroke-width="1.5" fill="none"/>
+  <polyline points="17,26 19,24 21,25 23,23" stroke="#10B981" stroke-width="1.5" fill="none"/>
+</svg>
