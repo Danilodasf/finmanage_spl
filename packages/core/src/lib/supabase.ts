@@ -8,20 +8,41 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIU
 // Criar cliente do Supabase
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
+// TODO: Remover quando o Supabase estiver configurado
+// Versões mock para desenvolvimento sem banco de dados
+const mockUser = {
+  id: 'mock-user-id',
+  email: 'user@example.com',
+  user_metadata: { name: 'Usuário Teste' },
+  created_at: new Date().toISOString()
+};
+
 // Função auxiliar para verificar se o usuário está autenticado
 export const isAuthenticated = async (): Promise<boolean> => {
-  const { data, error } = await supabase.auth.getSession();
-  return !error && data?.session !== null;
+  // Mock: sempre retorna true para desenvolvimento
+  return true;
+  
+  // Versão original (descomentada quando o Supabase estiver configurado):
+  // const { data, error } = await supabase.auth.getSession();
+  // return !error && data?.session !== null;
 };
 
 // Função para obter o usuário atual
 export const getCurrentUser = async () => {
-  const { data } = await supabase.auth.getUser();
-  return data?.user || null;
+  // Mock: retorna usuário fictício para desenvolvimento
+  return mockUser;
+  
+  // Versão original (descomentada quando o Supabase estiver configurado):
+  // const { data } = await supabase.auth.getUser();
+  // return data?.user || null;
 };
 
 // Função para obter o ID do usuário atual
 export const getCurrentUserId = async (): Promise<string | null> => {
-  const user = await getCurrentUser();
-  return user?.id || null;
-}; 
+  // Mock: retorna ID fictício para desenvolvimento
+  return 'mock-user-id';
+  
+  // Versão original (descomentada quando o Supabase estiver configurado):
+  // const user = await getCurrentUser();
+  // return user?.id || null;
+};

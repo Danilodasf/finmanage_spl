@@ -39,8 +39,8 @@ const Transactions: React.FC = () => {
     setTransactions(data);
   };
 
-  const loadCategories = () => {
-    const data = CategoryController.getCategories();
+  const loadCategories = async () => {
+    const data = await CategoryController.getCategories();
     setCategories(data);
   };
 

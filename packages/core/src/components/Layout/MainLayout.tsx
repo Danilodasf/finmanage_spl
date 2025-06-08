@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, BarChart3, CreditCard, Tag, FileText } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AuthController } from '@/controllers/AuthController';
 
@@ -47,6 +47,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   variant={isActive('/dashboard') ? 'default' : 'ghost'}
                   size="sm"
                 >
+                  <BarChart3 className="w-4 h-4 mr-1" />
                   Dashboard
                 </Button>
               </Link>
@@ -56,6 +57,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   variant={isActive('/transactions') ? 'default' : 'ghost'}
                   size="sm"
                 >
+                  <CreditCard className="w-4 h-4 mr-1" />
                   Transações
                 </Button>
               </Link>
@@ -65,6 +67,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   variant={isActive('/categories') ? 'default' : 'ghost'}
                   size="sm"
                 >
+                  <Tag className="w-4 h-4 mr-1" />
                   Categorias
                 </Button>
               </Link>
@@ -74,6 +77,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   variant={isActive('/reports') ? 'default' : 'ghost'}
                   size="sm"
                 >
+                  <FileText className="w-4 h-4 mr-1" />
                   Relatórios
                 </Button>
               </Link>

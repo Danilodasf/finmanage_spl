@@ -2,6 +2,47 @@ import { BaseEntityService } from './base';
 import { supabase } from '../supabase';
 import { getCurrentUserId } from '../supabase';
 
+// Mock data para desenvolvimento (remover quando o Supabase estiver configurado)
+let mockTransactionIdCounter = 1;
+const mockTransactions: Transaction[] = [
+  {
+    id: '1',
+    user_id: 'mock-user-id',
+    type: 'receita',
+    category_id: '1',
+    description: 'Venda de produto',
+    value: 1500.00,
+    date: '2024-01-15',
+    payment_method: 'PIX',
+    created_at: '2024-01-15T10:00:00Z',
+    updated_at: '2024-01-15T10:00:00Z'
+  },
+  {
+    id: '2',
+    user_id: 'mock-user-id',
+    type: 'despesa',
+    category_id: '4',
+    description: 'Aluguel do escritório',
+    value: 800.00,
+    date: '2024-01-10',
+    payment_method: 'Transferência',
+    created_at: '2024-01-10T09:00:00Z',
+    updated_at: '2024-01-10T09:00:00Z'
+  },
+  {
+    id: '3',
+    user_id: 'mock-user-id',
+    type: 'receita',
+    category_id: '2',
+    description: 'Prestação de serviço',
+    value: 2000.00,
+    date: '2024-01-20',
+    payment_method: 'Cartão',
+    created_at: '2024-01-20T14:30:00Z',
+    updated_at: '2024-01-20T14:30:00Z'
+  }
+];
+
 /**
  * Interface para representar uma transação
  */
@@ -85,6 +126,14 @@ export class TransactionService {
    */
   static async getAll(): Promise<Transaction[]> {
     try {
+      // Mock: retornar transações fictícias
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      return mockTransactions
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -103,6 +152,7 @@ export class TransactionService {
       }
       
       return data as Transaction[];
+      */
     } catch (error) {
       console.error('Erro ao buscar transações:', error);
       return [];
@@ -115,6 +165,14 @@ export class TransactionService {
    */
   static async getById(id: string): Promise<Transaction | null> {
     try {
+      // Mock: buscar transação fictícia por ID
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const transaction = mockTransactions.find(t => t.id === id);
+      return transaction || null;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -134,6 +192,7 @@ export class TransactionService {
       }
       
       return data as Transaction;
+      */
     } catch (error) {
       console.error('Erro ao buscar transação:', error);
       return null;
@@ -146,6 +205,23 @@ export class TransactionService {
    */
   static async create(transaction: CreateTransactionDTO): Promise<Transaction | null> {
     try {
+      // Mock: criar transação fictícia
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      mockTransactionIdCounter++;
+      const newTransaction: Transaction = {
+        id: mockTransactionIdCounter.toString(),
+        user_id: 'mock-user-id',
+        ...transaction,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      mockTransactions.push(newTransaction);
+      return newTransaction;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -167,6 +243,7 @@ export class TransactionService {
       }
       
       return data as Transaction;
+      */
     } catch (error) {
       console.error('Erro ao criar transação:', error);
       return null;
@@ -180,6 +257,25 @@ export class TransactionService {
    */
   static async update(id: string, transaction: UpdateTransactionDTO): Promise<Transaction | null> {
     try {
+      // Mock: atualizar transação fictícia
+      await new Promise(resolve => setTimeout(resolve, 250));
+      
+      const transactionIndex = mockTransactions.findIndex(t => t.id === id);
+      if (transactionIndex === -1) {
+        return null;
+      }
+      
+      const updatedTransaction = {
+        ...mockTransactions[transactionIndex],
+        ...transaction,
+        updated_at: new Date().toISOString()
+      };
+      
+      mockTransactions[transactionIndex] = updatedTransaction;
+      return updatedTransaction;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -200,6 +296,7 @@ export class TransactionService {
       }
       
       return data as Transaction;
+      */
     } catch (error) {
       console.error('Erro ao atualizar transação:', error);
       return null;
@@ -212,6 +309,19 @@ export class TransactionService {
    */
   static async delete(id: string): Promise<boolean> {
     try {
+      // Mock: remover transação fictícia
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const transactionIndex = mockTransactions.findIndex(t => t.id === id);
+      if (transactionIndex === -1) {
+        return false;
+      }
+      
+      mockTransactions.splice(transactionIndex, 1);
+      return true;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -230,6 +340,7 @@ export class TransactionService {
       }
       
       return true;
+      */
     } catch (error) {
       console.error('Erro ao excluir transação:', error);
       return false;
@@ -348,4 +459,4 @@ export class TransactionService {
       return 0;
     }
   }
-} 
+}

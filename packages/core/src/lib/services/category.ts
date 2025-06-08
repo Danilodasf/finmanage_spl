@@ -1,6 +1,67 @@
 import { supabase } from '../supabase';
 import { getCurrentUserId } from '../supabase';
 
+// TODO: Remover quando o Supabase estiver configurado
+// Dados mock para desenvolvimento sem banco de dados
+const mockCategories: Category[] = [
+  {
+    id: 'cat-1',
+    user_id: 'mock-user-id',
+    name: 'Alimentação',
+    type: 'despesa',
+    color: '#FF6B6B',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'cat-2',
+    user_id: 'mock-user-id',
+    name: 'Transporte',
+    type: 'despesa',
+    color: '#4ECDC4',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'cat-3',
+    user_id: 'mock-user-id',
+    name: 'Salário',
+    type: 'receita',
+    color: '#45B7D1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'cat-4',
+    user_id: 'mock-user-id',
+    name: 'Freelance',
+    type: 'receita',
+    color: '#96CEB4',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'cat-5',
+    user_id: 'mock-user-id',
+    name: 'Moradia',
+    type: 'despesa',
+    color: '#FFEAA7',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    id: 'cat-6',
+    user_id: 'mock-user-id',
+    name: 'Saúde',
+    type: 'despesa',
+    color: '#DDA0DD',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+];
+
+let mockCategoryIdCounter = 7;
+
 /**
  * Interface para representar uma categoria
  */
@@ -41,6 +102,12 @@ export class CategoryService {
    */
   static async getAll(): Promise<Category[]> {
     try {
+      // Mock: retorna categorias fictícias para desenvolvimento
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simula delay
+      return [...mockCategories].sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -59,6 +126,7 @@ export class CategoryService {
       }
       
       return data as Category[];
+      */
     } catch (error) {
       console.error('Erro ao buscar categorias:', error);
       return [];
@@ -71,6 +139,12 @@ export class CategoryService {
    */
   static async getById(id: string): Promise<Category | null> {
     try {
+      // Mock: busca categoria fictícia por ID
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return mockCategories.find(cat => cat.id === id) || null;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -90,6 +164,7 @@ export class CategoryService {
       }
       
       return data as Category;
+      */
     } catch (error) {
       console.error('Erro ao buscar categoria:', error);
       return null;
@@ -102,6 +177,24 @@ export class CategoryService {
    */
   static async create(category: CreateCategoryDTO): Promise<Category | null> {
     try {
+      // Mock: cria categoria fictícia
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const newCategory: Category = {
+        id: `cat-${mockCategoryIdCounter++}`,
+        user_id: 'mock-user-id',
+        name: category.name,
+        type: category.type,
+        color: category.color || '#6B7280',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      mockCategories.push(newCategory);
+      return newCategory;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -123,6 +216,7 @@ export class CategoryService {
       }
       
       return data as Category;
+      */
     } catch (error) {
       console.error('Erro ao criar categoria:', error);
       return null;
@@ -136,6 +230,25 @@ export class CategoryService {
    */
   static async update(id: string, category: UpdateCategoryDTO): Promise<Category | null> {
     try {
+      // Mock: atualiza categoria fictícia
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const categoryIndex = mockCategories.findIndex(cat => cat.id === id);
+      if (categoryIndex === -1) {
+        return null;
+      }
+      
+      const updatedCategory = {
+        ...mockCategories[categoryIndex],
+        ...category,
+        updated_at: new Date().toISOString()
+      };
+      
+      mockCategories[categoryIndex] = updatedCategory;
+      return updatedCategory;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -156,6 +269,7 @@ export class CategoryService {
       }
       
       return data as Category;
+      */
     } catch (error) {
       console.error('Erro ao atualizar categoria:', error);
       return null;
@@ -168,6 +282,19 @@ export class CategoryService {
    */
   static async delete(id: string): Promise<boolean> {
     try {
+      // Mock: remove categoria fictícia
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const categoryIndex = mockCategories.findIndex(cat => cat.id === id);
+      if (categoryIndex === -1) {
+        return false;
+      }
+      
+      mockCategories.splice(categoryIndex, 1);
+      return true;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -186,6 +313,7 @@ export class CategoryService {
       }
       
       return true;
+      */
     } catch (error) {
       console.error('Erro ao excluir categoria:', error);
       return false;
@@ -228,6 +356,15 @@ export class CategoryService {
    */
   static async getIncomeCategories(): Promise<Category[]> {
     try {
+      // Mock: filtrar categorias de receita
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      return mockCategories
+        .filter(cat => cat.type === 'receita' || cat.type === 'ambos')
+        .sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -247,6 +384,7 @@ export class CategoryService {
       }
       
       return data as Category[];
+      */
     } catch (error) {
       console.error('Erro ao buscar categorias de receita:', error);
       return [];
@@ -258,6 +396,15 @@ export class CategoryService {
    */
   static async getExpenseCategories(): Promise<Category[]> {
     try {
+      // Mock: filtrar categorias de despesa
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      return mockCategories
+        .filter(cat => cat.type === 'despesa' || cat.type === 'ambos')
+        .sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -277,6 +424,7 @@ export class CategoryService {
       }
       
       return data as Category[];
+      */
     } catch (error) {
       console.error('Erro ao buscar categorias de despesa:', error);
       return [];
@@ -288,6 +436,13 @@ export class CategoryService {
    */
   static async ensureDefaultCategories(): Promise<void> {
     try {
+      // Mock: categorias padrão já estão definidas no mockCategories
+      // Não precisa fazer nada para desenvolvimento
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return;
+      
+      // Versão original (descomentada quando o Supabase estiver configurado):
+      /*
       const userId = await getCurrentUserId();
       
       if (!userId) {
@@ -340,8 +495,9 @@ export class CategoryService {
       if (insertError) {
         console.error('Erro ao criar categorias padrão:', insertError);
       }
+      */
     } catch (error) {
       console.error('Erro ao garantir categorias padrão:', error);
     }
   }
-} 
+}

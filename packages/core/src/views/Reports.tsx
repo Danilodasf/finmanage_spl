@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/Layout/MainLayout';
 import { ReportController, ReportData, ReportFilters } from '@/controllers/ReportController';
 import { CategoryController } from '@/controllers/CategoryController';
+import { Category } from '@/lib/types/category';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,13 +18,26 @@ import { cn } from "@/lib/utils";
 
 const Reports: React.FC = () => {
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [filters, setFilters] = useState<ReportFilters>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     endDate: new Date(),
     type: 'ambos'
   });
 
-  const categories = CategoryController.getCategories();
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoriesData = await CategoryController.getCategories();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Erro ao carregar categorias:', error);
+        setCategories([]);
+      }
+    };
+
+    loadCategories();
+  }, []);
 
   const handleGenerateReport = () => {
     const data = ReportController.generateReport(filters);
@@ -37,6 +51,9 @@ const Reports: React.FC = () => {
   };
 
   const getCategoryName = (categoryId: string) => {
+    if (!categories || categories.length === 0) {
+      return 'Carregando...';
+    }
     const category = categories.find(c => c.id === categoryId);
     return category?.name || 'Categoria não encontrada';
   };
@@ -171,7 +188,7 @@ const Reports: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
-                  {categories.map((category) => (
+                  {categories && categories.length > 0 && categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
                     </SelectItem>
