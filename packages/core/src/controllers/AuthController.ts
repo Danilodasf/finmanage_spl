@@ -1,9 +1,67 @@
 import { LoginCredentials, RegisterData, UserModel } from '@/models/User';
 import { toast } from '@/hooks/use-toast';
-import { SupabaseAuthService } from '@/lib/services/auth';
+import { SupabaseAuthService, AuthService, AuthResult } from '@/lib/services/auth';
 
-// Instanciar o serviço de autenticação do Supabase
-const authService = new SupabaseAuthService();
+/**
+ * Mock AuthService para desenvolvimento sem banco de dados
+ * Remove quando o Supabase estiver configurado
+ */
+class MockAuthService implements AuthService {
+  private mockUser = {
+    id: 'mock-user-id',
+    email: 'user@example.com',
+    name: 'Usuário Teste',
+    createdAt: new Date()
+  };
+
+  async login(credentials: LoginCredentials): Promise<AuthResult> {
+    // Simula um pequeno delay para parecer real
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      user: this.mockUser
+    };
+  }
+
+  async register(data: RegisterData): Promise<AuthResult> {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      success: true,
+      user: {
+        ...this.mockUser,
+        email: data.email,
+        name: data.name
+      }
+    };
+  }
+
+  async logout(): Promise<AuthResult> {
+    return { success: true };
+  }
+
+  async getCurrentUser() {
+    return this.mockUser;
+  }
+
+  async updateProfile(name: string): Promise<AuthResult> {
+    this.mockUser.name = name;
+    return { success: true, user: this.mockUser };
+  }
+
+  async updatePassword(currentPassword: string, newPassword: string): Promise<AuthResult> {
+    return { success: true };
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    return true;
+  }
+}
+
+// TODO: Substituir por SupabaseAuthService quando o banco estiver configurado
+// const authService = new SupabaseAuthService();
+const authService = new MockAuthService();
 
 export class AuthController {
   static async login(credentials: LoginCredentials): Promise<boolean> {

@@ -18,7 +18,8 @@ export default defineConfig(({ mode }) => ({
     componentTagger(),
     // Gerar arquivos .d.ts para a biblioteca
     dts({
-      include: ['src/lib/**/*.ts', 'src/lib/**/*.tsx'],
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.stories.ts', 'src/**/*.stories.tsx'],
       outDir: 'dist',
     }),
     // Nota: O Stagewise Toolbar é inicializado no arquivo main.tsx apenas em desenvolvimento
@@ -30,7 +31,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/lib/index.ts'),
+      entry: resolve(__dirname, 'src/index.ts'),
       name: 'FinmanageCore',
       fileName: (format) => `finmanage-core.${format}.js`,
       formats: ['es', 'cjs'],

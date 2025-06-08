@@ -3,8 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/finmanage-core.es.js",
+  "module": "dist/finmanage-core.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/finmanage-core.es.js",
+      "require": "./dist/finmanage-core.cjs.js"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
