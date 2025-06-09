@@ -5,7 +5,7 @@
 
 import { CategoryService, Category, CreateCategoryDTO, UpdateCategoryDTO } from '../lib/core/services';
 import { databaseAdapter } from '../lib/database/DatabaseAdapter';
-import { CategoriaDiarista, CreateCategoriaDiaristaDTO, UpdateCategoriaDiaristaDTO, TipoServicoDiarista } from '../models/DiaristaModels';
+import { CategoriaDiarista, CategoryType } from '../models/DiaristaModels';
 
 export class DiaristaCategoryService implements CategoryService {
   private readonly tableName = 'categories';
@@ -162,9 +162,9 @@ export class DiaristaCategoryService implements CategoryService {
   // Métodos específicos para diaristas
   
   /**
-   * Busca categorias por tipo (receita/despesa)
+   * Busca categorias por tipo (receita/despesa/ambos/investimento)
    */
-  async getByType(type: 'receita' | 'despesa'): Promise<{ data: CategoriaDiarista[] | null; error: Error | null }> {
+  async getByType(type: CategoryType): Promise<{ data: CategoriaDiarista[] | null; error: Error | null }> {
     try {
       const result = await databaseAdapter.findWhere<CategoriaDiarista>(this.tableName, {
         type: type
@@ -178,114 +178,89 @@ export class DiaristaCategoryService implements CategoryService {
   }
 
   /**
-   * Busca categorias de serviços específicos para diaristas
+   * Busca categorias de receita (mantido para compatibilidade)
    */
-  async getCategoriasPorTipoServico(tipoServico: TipoServicoDiarista): Promise<{ data: CategoriaDiarista[] | null; error: Error | null }> {
+  async getCategoriasPorTipoServico(): Promise<{ data: CategoriaDiarista[] | null; error: Error | null }> {
     try {
       const result = await databaseAdapter.findWhere<CategoriaDiarista>(this.tableName, {
-        tipo_servico: tipoServico,
         type: 'receita'
       });
       
       return { data: result.data, error: result.error };
     } catch (error) {
-      console.error(`Erro ao buscar categorias para ${tipoServico}:`, error);
+      console.error('Erro ao buscar categorias de receita:', error);
       return { data: null, error: error as Error };
     }
   }
 
   /**
-   * Cria categorias padrão para diaristas
+   * Cria categorias padrão do MEI (mesmas do product-mei)
    */
   async createDefaultCategories(userId: string): Promise<{ data: boolean; error: Error | null }> {
     try {
+      // Verifica se já existem categorias para este usuário
+      const existingResult = await databaseAdapter.findWhere<CategoriaDiarista>(this.tableName, {
+        user_id: userId
+      });
+      
+      if (existingResult.data && existingResult.data.length > 0) {
+        return { data: true, error: null }; // Já existem categorias
+      }
+
       const defaultCategories: Omit<CategoriaDiarista, 'id' | 'created_at' | 'updated_at'>[] = [
-        // Categorias de receita
         {
           user_id: userId,
-          name: 'Limpeza Residencial',
-          description: 'Serviços de limpeza em residências',
-          color: '#4CAF50',
-          icon: 'home',
+          name: 'Vendas',
           type: 'receita',
-          tipo_servico: 'limpeza_residencial'
+          color: '#4CAF50'
         },
         {
           user_id: userId,
-          name: 'Limpeza Comercial',
-          description: 'Serviços de limpeza em estabelecimentos comerciais',
-          color: '#2196F3',
-          icon: 'business',
+          name: 'Serviços',
           type: 'receita',
-          tipo_servico: 'limpeza_comercial'
+          color: '#2196F3'
         },
         {
           user_id: userId,
-          name: 'Limpeza Pós-Obra',
-          description: 'Limpeza especializada após construção/reforma',
-          color: '#FF9800',
-          icon: 'construction',
-          type: 'receita',
-          tipo_servico: 'limpeza_pos_obra'
+          name: 'Materiais',
+          type: 'despesa',
+          color: '#FF9800'
         },
         {
           user_id: userId,
-          name: 'Organização',
-          description: 'Serviços de organização de ambientes',
-          color: '#9C27B0',
-          icon: 'organize',
-          type: 'receita',
-          tipo_servico: 'organizacao'
+          name: 'Aluguel',
+          type: 'despesa',
+          color: '#F44336'
         },
         {
           user_id: userId,
-          name: 'Cuidados Especiais',
-          description: 'Serviços especializados (idosos, crianças, etc.)',
-          color: '#E91E63',
-          icon: 'favorite',
-          type: 'receita',
-          tipo_servico: 'cuidados_especiais'
-        },
-        // Categorias de despesa
-        {
-          user_id: userId,
-          name: 'Produtos de Limpeza',
-          description: 'Compra de materiais e produtos de limpeza',
-          color: '#607D8B',
-          icon: 'cleaning_services',
-          type: 'despesa'
+          name: 'Impostos',
+          type: 'despesa',
+          color: '#9C27B0'
         },
         {
           user_id: userId,
-          name: 'Equipamentos',
-          description: 'Compra e manutenção de equipamentos',
-          color: '#795548',
-          icon: 'build',
-          type: 'despesa'
+          name: 'Água/Luz/Internet',
+          type: 'despesa',
+          color: '#795548'
         },
         {
           user_id: userId,
           name: 'Transporte',
-          description: 'Gastos com transporte para atendimentos',
-          color: '#FF5722',
-          icon: 'directions_car',
-          type: 'despesa'
+          type: 'despesa',
+          color: '#607D8B'
         },
         {
           user_id: userId,
-          name: 'Uniformes',
-          description: 'Compra de uniformes e EPIs',
-          color: '#3F51B5',
-          icon: 'person',
-          type: 'despesa'
+          name: 'Alimentação',
+          type: 'despesa',
+          color: '#FFC107'
         },
         {
           user_id: userId,
-          name: 'Marketing',
-          description: 'Gastos com divulgação e marketing',
-          color: '#009688',
-          icon: 'campaign',
-          type: 'despesa'
+          name: 'Pró-labore',
+          type: 'ambos',
+          color: '#9E9E9E'
         }
       ];
 

@@ -13,7 +13,7 @@ import {
   Briefcase,
   TrendingUp
 } from 'lucide-react';
-import { DIAuthController } from '../controllers/DIAuthController';
+import { useAuthContext } from '../hooks/useAuth';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,6 +22,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuthContext();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -33,9 +34,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsLoggingOut(true);
     
     try {
-      // Chamar o método de logout do DIAuthController
-      const authController = new DIAuthController();
-      await authController.logout();
+      // Chamar o método de logout do hook useAuth
+      await logout();
     } catch (error) {
       console.error('Erro no logout:', error);
     } finally {

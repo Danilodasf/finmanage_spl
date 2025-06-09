@@ -61,7 +61,7 @@ export function useAuth(): UseAuthReturn {
     profileStats: null
   });
 
-  const [controller] = useState(() => new DIAuthController());
+  // Removido controller - agora usando métodos estáticos
 
   // Função para atualizar estado
   const updateState = useCallback((updates: Partial<UseAuthState>) => {
@@ -73,7 +73,7 @@ export function useAuth(): UseAuthReturn {
     updateState({ loading: true, error: null });
     
     try {
-      const result = await controller.isAuthenticated();
+      const result = await DIAuthController.isAuthenticated();
       
       updateState({
         user: result.user,
@@ -94,14 +94,14 @@ export function useAuth(): UseAuthReturn {
         error: 'Erro ao verificar autenticação'
       });
     }
-  }, [controller]);
+  }, []);
 
   // Login
   const login = useCallback(async (email: string, password: string) => {
     updateState({ loading: true, error: null });
     
     try {
-      const result = await controller.login(email, password);
+      const result = await DIAuthController.login(email, password);
       
       if (result.success && result.user) {
         updateState({
@@ -139,14 +139,14 @@ export function useAuth(): UseAuthReturn {
       
       return { success: false, error: errorMessage };
     }
-  }, [controller]);
+  }, []);
 
   // Registro
   const register = useCallback(async (email: string, password: string, name: string, createDefaultCategories = true) => {
     updateState({ loading: true, error: null });
     
     try {
-      const result = await controller.register(email, password, name, createDefaultCategories);
+      const result = await DIAuthController.register(email, password, name, createDefaultCategories);
       
       if (result.success && result.user) {
         updateState({
@@ -184,14 +184,18 @@ export function useAuth(): UseAuthReturn {
       
       return { success: false, error: errorMessage };
     }
-  }, [controller]);
+  }, []);
 
   // Logout
   const logout = useCallback(async () => {
     updateState({ loading: true, error: null });
     
     try {
-      const result = await controller.logout();
+      const result = await DIAuthController.logout();
+      
+      // Limpa o localStorage
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
       
       updateState({
         user: null,
@@ -204,6 +208,11 @@ export function useAuth(): UseAuthReturn {
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
       const errorMessage = 'Erro interno ao fazer logout';
+      
+      // Limpa o localStorage mesmo em caso de erro
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      
       updateState({
         user: null,
         isAuthenticated: false,
@@ -214,7 +223,7 @@ export function useAuth(): UseAuthReturn {
       
       return { success: false, error: errorMessage };
     }
-  }, [controller]);
+  }, []);
 
   // Atualizar perfil
   const updateProfile = useCallback(async (profileData: {
@@ -262,7 +271,7 @@ export function useAuth(): UseAuthReturn {
       
       return { success: false, error: errorMessage };
     }
-  }, [controller]);
+  }, []);
 
   // Atualizar avaliação
   const updateRating = useCallback(async (newRating: number) => {
@@ -302,14 +311,14 @@ export function useAuth(): UseAuthReturn {
       
       return { success: false, error: errorMessage };
     }
-  }, [controller]);
+  }, []);
 
   // Recarregar dados do usuário
   const refreshUser = useCallback(async () => {
     if (!state.isAuthenticated) return;
     
     try {
-      const result = await controller.getCurrentUser();
+      const result = await DIAuthController.getCurrentUser();
       
       if (result.success && result.user) {
         updateState({ user: result.user });
@@ -318,14 +327,14 @@ export function useAuth(): UseAuthReturn {
       console.error('Erro ao recarregar usuário:', error);
       updateState({ error: 'Erro ao recarregar dados do usuário' });
     }
-  }, [controller, state.isAuthenticated]);
+  }, [state.isAuthenticated]);
 
   // Carrega estatísticas do perfil
   const refreshProfileStats = useCallback(async () => {
     if (!state.isAuthenticated) return;
     
     try {
-      const result = await controller.getProfileStats();
+      const result = await DIAuthController.getProfileStats();
       
       if (result.success) {
         updateState({ profileStats: result.stats });
@@ -335,7 +344,7 @@ export function useAuth(): UseAuthReturn {
     } catch (error) {
       console.error('Erro ao carregar estatísticas do perfil:', error);
     }
-  }, [controller, state.isAuthenticated]);
+  }, [state.isAuthenticated]);
 
   // Recarregar estatísticas do perfil
   const clearError = useCallback(() => {
@@ -392,7 +401,7 @@ export function useAuthContext(): AuthContextType {
 
 // Hook para validação de dados de perfil
 export function useProfileValidation() {
-  const [controller] = useState(() => new DIAuthController());
+  // Removido controller - agora usando métodos estáticos
   
   const validateProfile = useCallback((profileData: {
     name?: string;
@@ -402,8 +411,8 @@ export function useProfileValidation() {
     hourly_rate?: number;
     availability?: string[];
   }) => {
-    return controller.validateProfileData(profileData);
-  }, [controller]);
+    return DIAuthController.validateProfileData(profileData);
+  }, []);
   
   return { validateProfile };
 }

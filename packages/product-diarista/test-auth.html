@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Autenticação</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #059669;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #047857;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+        .error {
+            background-color: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teste de Autenticação - Produto Diarista</h1>
+    
+    <h2>Dados de Teste</h2>
+    <p><strong>Email:</strong> diarista@teste.com</p>
+    <p><strong>Senha:</strong> 123456</p>
+    
+    <h2>Teste de Login</h2>
+    <form id="loginForm">
+        <div class="form-group">
+            <label for="loginEmail">Email:</label>
+            <input type="email" id="loginEmail" value="diarista@teste.com" required>
+        </div>
+        <div class="form-group">
+            <label for="loginPassword">Senha:</label>
+            <input type="password" id="loginPassword" value="123456" required>
+        </div>
+        <button type="submit">Fazer Login</button>
+    </form>
+    
+    <h2>Teste de Registro</h2>
+    <form id="registerForm">
+        <div class="form-group">
+            <label for="registerName">Nome:</label>
+            <input type="text" id="registerName" value="João Silva" required>
+        </div>
+        <div class="form-group">
+            <label for="registerEmail">Email:</label>
+            <input type="email" id="registerEmail" value="joao@teste.com" required>
+        </div>
+        <div class="form-group">
+            <label for="registerPassword">Senha:</label>
+            <input type="password" id="registerPassword" value="123456" required>
+        </div>
+        <button type="submit">Registrar</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        // Simular as classes e métodos do sistema
+        class MockDIAuthController {
+            static async login(email, password) {
+                console.log('[Teste] Simulando login com:', { email, password: '***' });
+                
+                // Simular dados do usuário de teste
+                if (email === 'diarista@teste.com' && password === '123456') {
+                    return {
+                        success: true,
+                        user: {
+                            id: 'test-user-1',
+                            email: 'diarista@teste.com',
+                            name: 'Maria Silva'
+                        },
+                        error: null
+                    };
+                }
+                
+                return {
+                    success: false,
+                    user: null,
+                    error: 'Email ou senha incorretos'
+                };
+            }
+            
+            static async register(email, password, name) {
+                console.log('[Teste] Simulando registro com:', { email, name, password: '***' });
+                
+                // Simular verificação de email existente
+                if (email === 'diarista@teste.com') {
+                    return {
+                        success: false,
+                        user: null,
+                        error: 'Email já está em uso'
+                    };
+                }
+                
+                return {
+                    success: true,
+                    user: {
+                        id: 'new-user-' + Date.now(),
+                        email: email,
+                        name: name
+                    },
+                    error: null
+                };
+            }
+        }
+        
+        function showResult(message, isSuccess) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = message;
+            resultDiv.className = 'result ' + (isSuccess ? 'success' : 'error');
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            console.log('[Teste] Iniciando teste de login...');
+            
+            try {
+                const result = await MockDIAuthController.login(email, password);
+                
+                if (result.success) {
+                    showResult(`Login bem-sucedido! Usuário: ${result.user.name} (${result.user.email})`, true);
+                } else {
+                    showResult(`Erro no login: ${result.error}`, false);
+                }
+            } catch (error) {
+                console.error('[Teste] Erro durante o login:', error);
+                showResult(`Erro interno: ${error.message}`, false);
+            }
+        });
+        
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            
+            console.log('[Teste] Iniciando teste de registro...');
+            
+            try {
+                const result = await MockDIAuthController.register(email, password, name);
+                
+                if (result.success) {
+                    showResult(`Registro bem-sucedido! Usuário: ${result.user.name} (${result.user.email})`, true);
+                } else {
+                    showResult(`Erro no registro: ${result.error}`, false);
+                }
+            } catch (error) {
+                console.error('[Teste] Erro durante o registro:', error);
+                showResult(`Erro interno: ${error.message}`, false);
+            }
+        });
+        
+        console.log('[Teste] Página de teste carregada. Abra o console para ver os logs detalhados.');
+    </script>
+</body>
+</html>

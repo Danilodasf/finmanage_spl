@@ -6,24 +6,15 @@
 import { Transaction, Category } from '../lib/core/services';
 
 /**
- * Tipos de serviços específicos para diaristas
+ * Tipos de categorias para MEI (mesma estrutura do product-mei)
  */
-export type TipoServicoDiarista = 
-  | 'limpeza_residencial'
-  | 'limpeza_comercial'
-  | 'limpeza_pos_obra'
-  | 'organizacao'
-  | 'passadoria'
-  | 'outros';
+export type CategoryType = 'receita' | 'despesa' | 'ambos' | 'investimento';
 
 /**
- * Extensão da categoria para incluir tipos específicos de diarista
+ * Categoria adaptada para usar a mesma estrutura do MEI
  */
 export interface CategoriaDiarista extends Omit<Category, 'type'> {
-  type: 'receita' | 'despesa';
-  tipo_servico?: TipoServicoDiarista;
-  valor_padrao?: number; // Valor padrão para este tipo de serviço
-  duracao_estimada?: number; // Duração estimada em horas
+  type: CategoryType;
 }
 
 /**
@@ -79,9 +70,7 @@ export interface CreateTransacaoDiaristaDTO extends Omit<TransacaoDiarista, 'id'
 
 export interface UpdateTransacaoDiaristaDTO extends Partial<CreateTransacaoDiaristaDTO> {}
 
-export interface CreateCategoriaDiaristaDTO extends Omit<CategoriaDiarista, 'id' | 'user_id' | 'created_at' | 'updated_at'> {}
-
-export interface UpdateCategoriaDiaristaDTO extends Partial<CreateCategoriaDiaristaDTO> {}
+// DTOs removidos - usando interfaces padrão do core
 
 export interface CreateClienteDTO extends Omit<Cliente, 'id' | 'created_at' | 'updated_at'> {}
 

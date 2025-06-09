@@ -32,164 +32,147 @@ export interface DatabaseAdapter {
   getCurrentUserId(): Promise<string | null>;
 }
 
-/**
- * Implementação mock para desenvolvimento
- * Simula operações de banco de dados em memória
- */
-export class MockDatabaseAdapter implements DatabaseAdapter {
-  private data: Map<string, Map<string, any>> = new Map();
-  private currentUserId: string = 'mock-user-id';
+
+
+// Configuração do Supabase
+import { getSupabaseClient } from '../supabase';
+
+// Implementação real do Supabase
+class SupabaseDatabaseAdapter implements DatabaseAdapter {
+  private supabase: any;
+  private currentUserId: string | null = null;
 
   constructor() {
-    // Inicializar tabelas vazias
-    this.data.set('transactions', new Map());
-    this.data.set('categories', new Map());
-    this.data.set('clientes', new Map());
-    this.data.set('agendamentos', new Map());
-    this.data.set('users', new Map());
-    this.data.set('sessions', new Map());
-    
-    // Criar usuário de teste padrão
-    this.createTestUser();
-  }
-  
-  private createTestUser() {
-    const usersTable = this.getTable('users');
-    // Hash da senha 'senha123' usando o mesmo método do DiaristaAuthService
-    const hashedPassword = btoa('senha123' + 'salt_diarista');
-    
-    const testUser = {
-      id: this.currentUserId,
-      email: 'teste@diarista.com',
-      password: hashedPassword, // Senha hasheada
-      name: 'Usuário Teste',
-      phone: '(11) 99999-9999',
-      address: 'Rua Teste, 123',
-      specialties: ['Limpeza Residencial', 'Limpeza Comercial'],
-      hourly_rate: 25.0,
-      availability: ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'],
-      rating: 4.8,
-      total_services: 150,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    usersTable.set(this.currentUserId, testUser);
-    console.log('👤 Usuário de teste criado:', testUser.email, 'senha: senha123');
+    this.supabase = getSupabaseClient();
+    console.log('[SupabaseDatabaseAdapter] Usando instância centralizada do Supabase');
   }
 
   async getCurrentUserId(): Promise<string | null> {
-    return this.currentUserId;
-  }
-
-  private generateId(): string {
-    return `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private getTable(tableName: string): Map<string, any> {
-    if (!this.data.has(tableName)) {
-      this.data.set(tableName, new Map());
+    if (this.currentUserId) {
+      return this.currentUserId;
     }
-    return this.data.get(tableName)!;
+    
+    const { data: { user } } = await this.supabase.auth.getUser();
+    this.currentUserId = user?.id || null;
+    return this.currentUserId;
   }
 
   async create<T>(table: string, data: any): Promise<DatabaseResult<T>> {
     try {
-      const tableData = this.getTable(table);
-      const id = this.generateId();
-      const now = new Date().toISOString();
+      console.log(`[SupabaseDatabaseAdapter] Criando registro na tabela ${table}:`, data);
       
-      const newRecord = {
-        ...data,
-        id,
-        user_id: this.currentUserId,
-        created_at: now,
-        updated_at: now
-      };
+      // Adicionar user_id automaticamente para certas tabelas
+      if (['transactions', 'categories', 'agendamentos'].includes(table)) {
+        const userId = await this.getCurrentUserId();
+        if (userId) {
+          data.user_id = userId;
+        }
+      }
+
+      // Para a tabela profiles, usar uma abordagem especial para contornar RLS durante registro
+      let query = this.supabase.from(table);
       
-      tableData.set(id, newRecord);
-      return { data: newRecord as T, error: null };
+      if (table === 'profiles') {
+        // Gerar um UUID para o novo usuário se não fornecido
+        if (!data.id) {
+          data.id = crypto.randomUUID();
+        }
+      }
+
+      const { data: result, error } = await query
+        .insert(data)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(`[SupabaseDatabaseAdapter] Erro ao criar em ${table}:`, error);
+        return { data: null, error: new Error(error.message) };
+      }
+
+      console.log(`[SupabaseDatabaseAdapter] Registro criado com sucesso em ${table}:`, result);
+      return { data: result as T, error: null };
     } catch (error) {
+      console.error(`[SupabaseDatabaseAdapter] Erro ao criar registro:`, error);
       return { data: null, error: error as Error };
     }
   }
 
   async getById<T>(table: string, id: string): Promise<DatabaseResult<T>> {
     try {
-      const tableData = this.getTable(table);
-      const record = tableData.get(id);
-      
-      if (!record) {
-        return { data: null, error: new Error(`Registro com ID ${id} não encontrado`) };
+      const { data, error } = await this.supabase
+        .from(table)
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+        return { data: null, error: new Error(error.message) };
       }
-      
-      return { data: record as T, error: null };
+
+      return { data: data as T || null, error: null };
     } catch (error) {
+      console.error(`[SupabaseDatabaseAdapter] Erro ao buscar por ID:`, error);
       return { data: null, error: error as Error };
     }
   }
 
   async getAll<T>(table: string, filters?: Record<string, any>): Promise<DatabaseListResult<T>> {
     try {
-      const tableData = this.getTable(table);
-      let records = Array.from(tableData.values());
-      
-      // Filtrar por user_id se não especificado
-      if (!filters?.user_id) {
-        records = records.filter(record => record.user_id === this.currentUserId);
-      }
-      
-      // Aplicar filtros adicionais
+      let query = this.supabase.from(table).select('*');
+
       if (filters) {
-        records = records.filter(record => {
-          return Object.entries(filters).every(([key, value]) => {
-            return record[key] === value;
-          });
+        Object.entries(filters).forEach(([key, value]) => {
+          query = query.eq(key, value);
         });
       }
-      
-      // Ordenar por data de criação (mais recente primeiro)
-      records.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      return { data: records as T[], error: null };
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        return { data: null, error: new Error(error.message) };
+      }
+
+      return { data: data as T[] || [], error: null };
     } catch (error) {
+      console.error(`[SupabaseDatabaseAdapter] Erro ao buscar todos:`, error);
       return { data: null, error: error as Error };
     }
   }
 
   async update<T>(table: string, id: string, data: Partial<T>): Promise<DatabaseResult<T>> {
     try {
-      const tableData = this.getTable(table);
-      const existingRecord = tableData.get(id);
-      
-      if (!existingRecord) {
-        return { data: null, error: new Error(`Registro com ID ${id} não encontrado`) };
+      const { data: result, error } = await this.supabase
+        .from(table)
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        return { data: null, error: new Error(error.message) };
       }
-      
-      const updatedRecord = {
-        ...existingRecord,
-        ...data,
-        updated_at: new Date().toISOString()
-      };
-      
-      tableData.set(id, updatedRecord);
-      return { data: updatedRecord as T, error: null };
+
+      return { data: result as T, error: null };
     } catch (error) {
+      console.error(`[SupabaseDatabaseAdapter] Erro ao atualizar:`, error);
       return { data: null, error: error as Error };
     }
   }
 
   async delete(table: string, id: string): Promise<DatabaseResult<boolean>> {
     try {
-      const tableData = this.getTable(table);
-      const deleted = tableData.delete(id);
-      
-      if (!deleted) {
-        return { data: false, error: new Error(`Registro com ID ${id} não encontrado`) };
+      const { error } = await this.supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        return { data: false, error: new Error(error.message) };
       }
-      
+
       return { data: true, error: null };
     } catch (error) {
+      console.error(`[SupabaseDatabaseAdapter] Erro ao deletar:`, error);
       return { data: false, error: error as Error };
     }
   }
@@ -200,19 +183,28 @@ export class MockDatabaseAdapter implements DatabaseAdapter {
 
   async findOne<T>(table: string, filters: Record<string, any>): Promise<DatabaseResult<T>> {
     try {
-      const result = await this.findWhere<T>(table, filters);
-      
-      if (result.error) {
-        return { data: null, error: result.error };
+      let query = this.supabase.from(table).select('*');
+
+      Object.entries(filters).forEach(([key, value]) => {
+        query = query.eq(key, value);
+      });
+
+      const { data, error } = await query.single();
+
+      if (error && error.code !== 'PGRST116') {
+        return { data: null, error: new Error(error.message) };
       }
-      
-      const records = result.data || [];
-      return { data: records.length > 0 ? records[0] : null, error: null };
+
+      return { data: data as T || null, error: null };
     } catch (error) {
+      console.error(`[SupabaseDatabaseAdapter] Erro ao buscar um:`, error);
       return { data: null, error: error as Error };
     }
   }
 }
 
-// Instância global do adaptador (será substituída por Supabase no futuro)
-export const databaseAdapter: DatabaseAdapter = new MockDatabaseAdapter();
+// Instância global do adaptador de banco de dados
+// Usando apenas SupabaseDatabaseAdapter
+export const databaseAdapter: DatabaseAdapter = new SupabaseDatabaseAdapter();
+
+console.log('[DatabaseAdapter] Usando SupabaseDatabaseAdapter');

@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { AuthProvider } from './hooks/useAuth'
 
 // Importa e inicializa a injeção de dependências
 import { bootstrapDiaristaDI, defaultDiaristaConfig, validateDiaristaDI } from './lib/di/bootstrap'
@@ -25,7 +26,9 @@ async function initializeApp() {
     // Renderiza a aplicação
     createRoot(document.getElementById('root')!).render(
       <StrictMode>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </StrictMode>,
     );
     

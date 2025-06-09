@@ -135,25 +135,7 @@ class SimpleHttpClient {
 async function initializeMockData(): Promise<void> {
   try {
     console.log('[Bootstrap] Inicializando dados mock...');
-    
-    // Cria usuário de teste se não existir
-    const testUser = {
-      id: 'test-user-1',
-      email: 'diarista@teste.com',
-      password: btoa('123456' + 'salt_diarista'), // Hash simples
-      name: 'Maria Silva',
-      phone: '(11) 99999-9999',
-      address: 'São Paulo, SP',
-      specialties: ['limpeza_residencial', 'organizacao'],
-      hourly_rate: 25.00,
-      availability: ['segunda', 'terca', 'quarta', 'quinta', 'sexta'],
-      rating: 4.8,
-      total_services: 150
-    };
-
-    await databaseAdapter.create('users', testUser);
-    console.log('[Bootstrap] Usuário de teste criado');
-
+    console.log('[Bootstrap] MockDatabase inicializado sem dados pré-criados');
   } catch (error) {
     console.error('[Bootstrap] Erro ao inicializar dados mock:', error);
   }
@@ -178,7 +160,7 @@ async function createDefaultCategories(userId: string): Promise<void> {
  * Configura logging para desenvolvimento
  */
 function setupLogging(): void {
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.MODE === 'development') {
     console.log('[Bootstrap] Logging habilitado para desenvolvimento');
     
     // Intercepta erros globais
@@ -296,8 +278,8 @@ export function validateDiaristaDI(): boolean {
  * Exporta configurações padrão
  */
 export const defaultDiaristaConfig: DiaristaBootstrapConfig = {
-  enableMockData: process.env.NODE_ENV === 'development',
-  enableLogging: process.env.NODE_ENV === 'development',
+  enableMockData: import.meta.env.MODE === 'development',
+    enableLogging: import.meta.env.MODE === 'development',
   autoCreateDefaultCategories: true
 };
 

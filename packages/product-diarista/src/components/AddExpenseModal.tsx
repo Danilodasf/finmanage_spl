@@ -49,7 +49,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   // Filtrar apenas categorias de despesa
-  const expenseCategories = categories.filter(cat => cat.type === 'despesa');
+  const expenseCategories = categories.filter(cat => cat.type === 'expense');
 
   const resetForms = () => {
     setExpenseFormData({

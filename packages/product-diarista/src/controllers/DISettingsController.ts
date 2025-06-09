@@ -6,6 +6,7 @@
 import { DIContainer } from '../lib/core/di';
 import { StorageService, ServiceResult } from '../lib/core/services';
 import { STORAGE_SERVICE } from '../lib/di/bootstrap';
+import { DIAuthController } from './DIAuthController';
 
 export interface ProfileData {
   name: string;
@@ -55,7 +56,7 @@ export class DISettingsController {
         };
       }
 
-      if (!this.isValidEmail(profileData.email)) {
+      if (!profileData.email.includes('@')) {
         return {
           success: false,
           error: 'Email inválido'
@@ -193,25 +194,25 @@ export class DISettingsController {
     error: string | null;
   }> {
     try {
-      const { data, error } = await this.storageService.getItem('user_profile');
+      // Obter usuário autenticado
+      const { user, error } = await DIAuthController.getCurrentUser();
       
-      if (error) {
+      if (error || !user) {
         return {
           success: false,
           data: null,
-          error: error.message
+          error: error || 'Usuário não autenticado'
         };
       }
 
-      // Se não há dados salvos, retorna dados padrão
-      const profileData = data || {
-        name: 'Usuário Diarista',
-        email: 'usuario@exemplo.com'
+      const profileData: ProfileData = {
+        name: user.name || '',
+        email: user.email || ''
       };
 
       return {
         success: true,
-        data: profileData as ProfileData,
+        data: profileData,
         error: null
       };
     } catch (error) {
@@ -264,14 +265,6 @@ export class DISettingsController {
         error: 'Erro interno do servidor'
       };
     }
-  }
-
-  /**
-   * Valida se o email é válido
-   */
-  private isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
   }
 
   /**
