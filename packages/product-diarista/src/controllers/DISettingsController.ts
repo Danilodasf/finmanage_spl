@@ -5,7 +5,7 @@
 
 import { DIContainer } from '../lib/core/di';
 import { StorageService, ServiceResult } from '../lib/core/services';
-import { STORAGE_SERVICE } from '../lib/di/bootstrap';
+import { STORAGE_SERVICE, AUTH_SERVICE } from '../lib/di/bootstrap';
 import { DIAuthController } from './DIAuthController';
 
 export interface ProfileData {
@@ -63,17 +63,47 @@ export class DISettingsController {
         };
       }
 
-      // Simular atualização do perfil
-      await this.delay(1000);
+      // Obter usuário atual para verificar autenticação
+      const { user, error: userError } = await DIAuthController.getCurrentUser();
       
-      // Salvar no storage
-      try {
-        this.storageService.setItem('user_profile', JSON.stringify(profileData));
-      } catch (error) {
+      if (userError || !user) {
         return {
           success: false,
-          error: 'Erro ao salvar perfil'
+          error: userError || 'Usuário não autenticado'
         };
+      }
+
+      // Atualizar perfil no Supabase através do AuthService
+       const container = DIContainer.getInstance();
+       const authService = container.get(AUTH_SERVICE) as any;
+       if (authService && typeof authService.updateProfile === 'function') {
+         const updateResult = await authService.updateProfile({
+           name: profileData.name
+         });
+         
+         if (!updateResult.success) {
+           return {
+             success: false,
+             error: updateResult.error || 'Erro ao atualizar perfil no servidor'
+           };
+         }
+       }
+      
+      // Salvar no storage local como backup
+      try {
+        this.storageService.setItem('user_profile', JSON.stringify(profileData));
+        
+        // Atualizar também o cache do usuário no localStorage
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const updatedUser = {
+          ...currentUser,
+          name: profileData.name,
+          email: profileData.email
+        };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      } catch (error) {
+        console.warn('Erro ao salvar no storage local:', error);
+        // Não falha a operação se o storage local falhar
       }
 
       return {
@@ -119,16 +149,35 @@ export class DISettingsController {
         };
       }
 
-      // Simular verificação da senha atual
-      if (passwordData.currentPassword !== 'senha123') {
+      // Verificar se o usuário está autenticado
+      const { user, error: userError } = await DIAuthController.getCurrentUser();
+      
+      if (userError || !user) {
         return {
           success: false,
-          error: 'Senha atual incorreta'
+          error: userError || 'Usuário não autenticado'
         };
       }
 
-      // Simular atualização da senha
-      await this.delay(1000);
+      // Atualizar senha através do AuthService
+      const container = DIContainer.getInstance();
+      const authService = container.get(AUTH_SERVICE) as any;
+      
+      if (authService && typeof authService.updatePassword === 'function') {
+        const updateResult = await authService.updatePassword(passwordData.newPassword);
+        
+        if (!updateResult.success) {
+          return {
+            success: false,
+            error: updateResult.error || 'Erro ao atualizar senha no servidor'
+          };
+        }
+      } else {
+        return {
+          success: false,
+          error: 'Serviço de autenticação não disponível'
+        };
+      }
 
       return {
         success: true,

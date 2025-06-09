@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, DollarSign, User, MapPin, Plus, Edit, Trash2, Receipt } from 'lucide-react';
+import { Calendar, DollarSign, User, MapPin, Plus, Edit, Trash2, Receipt, History } from 'lucide-react';
 import { Cliente, Servico, CreateClienteDTO, CreateServicoDTO, GastoServico, CreateGastoServicoDTO, CategoriaDiarista } from '../models/DiaristaModels';
 import { DICategoryController } from '../controllers/DICategoryController';
 import { Button } from '../components/ui/button';
@@ -7,11 +7,13 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import AddExpenseModal from '../components/AddExpenseModal';
+import ExpenseHistoryModal from '../components/ExpenseHistoryModal';
 import { useFormValidation, useCurrencyInput, usePhoneInput } from '../hooks/useFormValidation';
 import { validateEmail, validatePhone, validateCurrency, errorMessages } from '../utils/validations';
 import { DIClienteController } from '../controllers/DIClienteController';
 import { DIServicoController } from '../controllers/DIServicoController';
 import { DITransactionController } from '../controllers/DITransactionController';
+import { DIGastoController } from '../controllers/DIGastoController';
 import { useAuthContext } from '../hooks/useAuth';
 
 // Interfaces removidas - agora usando as importadas de DiaristaModels.ts
@@ -20,7 +22,7 @@ interface ServiceFormData {
   data: string;
   valor: string;
   cliente_id: string;
-  status: 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
+  status: 'em_andamento' | 'concluido' | 'cancelado';
   descricao: string;
   localizacao: string;
 }
@@ -46,18 +48,21 @@ const Services: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Cliente | null>(null);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [selectedServiceForExpense, setSelectedServiceForExpense] = useState<string | null>(null);
+  const [showExpenseHistoryModal, setShowExpenseHistoryModal] = useState(false);
+  const [selectedServiceForHistory, setSelectedServiceForHistory] = useState<{ id: string; name: string } | null>(null);
 
   // Instanciar controladores DI
   const clienteController = new DIClienteController();
   const transactionController = new DITransactionController();
   const servicoController = new DIServicoController();
   const categoryController = new DICategoryController();
+  const gastoController = new DIGastoController();
   
   const [serviceFormData, setServiceFormData] = useState<ServiceFormData>({
     data: new Date().toISOString().split('T')[0],
     valor: '',
     cliente_id: '',
-    status: 'AGENDADO',
+    status: 'em_andamento',
     descricao: '',
     localizacao: ''
   });
@@ -84,9 +89,10 @@ const Services: React.FC = () => {
     setIsLoading(true);
     try {
       // Carregar dados usando controladores DI
-      const [servicosResult, clientesResult] = await Promise.all([
+      const [servicosResult, clientesResult, gastosResult] = await Promise.all([
         servicoController.getAllServicos(),
-        clienteController.getAllClientes()
+        clienteController.getAllClientes(),
+        gastoController.getAllGastos()
       ]);
 
       if (servicosResult.error) {
@@ -101,13 +107,19 @@ const Services: React.FC = () => {
         setClients(clientesResult.data);
       }
 
+      if (gastosResult.error) {
+        console.error('Erro ao carregar gastos:', gastosResult.error);
+        setExpenses([]);
+      } else {
+        setExpenses(gastosResult.data || []);
+      }
+
       // Carregar categorias
      const categoryController = new DICategoryController();
      const categoriesResult = await categoryController.getAllCategories();
      if (categoriesResult.data) {
        setCategories(categoriesResult.data);
      }
-        setExpenses([]);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       setError('Erro ao carregar dados');
@@ -128,7 +140,7 @@ const Services: React.FC = () => {
       }
 
       const serviceData: CreateServicoDTO = {
-        data: new Date(serviceFormData.data),
+        data: new Date(serviceFormData.data).toISOString().split('T')[0],
         valor: parseFloat(serviceFormData.valor),
         cliente_id: serviceFormData.cliente_id,
         status: serviceFormData.status,
@@ -139,8 +151,8 @@ const Services: React.FC = () => {
 
       if (editingService) {
         // Verificar se o status mudou para concluído
-        const wasCompleted = editingService.status === 'CONCLUIDO';
-        const isNowCompleted = serviceData.status === 'CONCLUIDO';
+        const wasCompleted = editingService.status === 'concluido';
+        const isNowCompleted = serviceData.status === 'concluido';
         
         // Atualizar serviço existente
         const result = await servicoController.updateServico(editingService.id, serviceData);
@@ -178,7 +190,7 @@ const Services: React.FC = () => {
         }
 
         // Criar transação se o serviço foi criado como concluído
-        if (serviceData.status === 'CONCLUIDO') {
+        if (serviceData.status === 'concluido') {
           await createTransactionForService(result.data!);
         }
 
@@ -190,13 +202,13 @@ const Services: React.FC = () => {
 
       // Resetar formulário
       setServiceFormData({
-        data: new Date().toISOString().split('T')[0],
-        valor: '',
-        cliente_id: '',
-        status: 'AGENDADO',
-        descricao: '',
-        localizacao: ''
-      });
+          data: new Date().toISOString().split('T')[0],
+          valor: '',
+          cliente_id: '',
+          status: 'em_andamento',
+          descricao: '',
+          localizacao: ''
+        });
     } catch (error) {
       console.error('Erro ao salvar serviço:', error);
       setError('Erro ao salvar serviço');
@@ -266,6 +278,7 @@ const Services: React.FC = () => {
 
   const handleEditService = (service: Servico) => {
     setEditingService(service);
+    const valorFormatado = service.valor.toString().replace('.', ',');
     setServiceFormData({
       data: service.data,
       valor: service.valor.toString(),
@@ -274,6 +287,7 @@ const Services: React.FC = () => {
       descricao: service.descricao,
       localizacao: service.localizacao
     });
+    setServiceValue(valorFormatado);
   };
 
   const handleEditClient = (client: Cliente) => {
@@ -337,34 +351,49 @@ const Services: React.FC = () => {
     setSelectedServiceForExpense(null);
   };
 
+  const handleOpenExpenseHistoryModal = (serviceId: string, serviceName: string) => {
+    setSelectedServiceForHistory({ id: serviceId, name: serviceName });
+    setShowExpenseHistoryModal(true);
+  };
+
+  const handleCloseExpenseHistoryModal = () => {
+    setShowExpenseHistoryModal(false);
+    setSelectedServiceForHistory(null);
+  };
+
+  const handleExpenseUpdated = () => {
+    // Recarregar dados se necessário
+    loadData();
+  };
+
   const handleAddExpense = async (expenseData: CreateGastoServicoDTO) => {
     try {
-      // Aqui você faria a chamada para a API para salvar o gasto
-      // const newExpense = await api.createExpense(expenseData);
+      const result = await gastoController.createGasto(expenseData);
       
-      // Por enquanto, vamos simular a criação do gasto
-      const newExpense: GastoServico = {
-        id: Date.now().toString(),
-        servico_id: expenseData.servico_id,
-        user_id: expenseData.user_id,
-        descricao: expenseData.descricao,
-        valor: expenseData.valor,
-        categoria_id: expenseData.categoria_id,
-        data: expenseData.data,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
+      if (result.error) {
+        setError(`Erro ao adicionar gasto: ${result.error}`);
+        return;
+      }
       
-      setExpenses(prev => [...prev, newExpense]);
-      
-      // Criar transação de despesa
-      // await api.createTransaction({
-      //   tipo: 'despesa',
-      //   valor: expenseData.valor,
-      //   descricao: expenseData.descricao,
-      //   categoria_id: expenseData.categoria_id,
-      //   data: expenseData.data
-      // });
+      if (result.data) {
+        setExpenses(prev => [...prev, result.data!]);
+        console.log('Gasto adicionado com sucesso:', result.data);
+        
+        // Criar transação de despesa
+        const transactionData = {
+          user_id: user!.id,
+          tipo: 'expense' as const,
+          valor: expenseData.valor,
+          descricao: expenseData.descricao,
+          category_id: expenseData.categoria_id,
+          data: expenseData.data
+        };
+        
+        const transactionResult = await transactionController.createTransaction(transactionData);
+        if (transactionResult.error) {
+          console.error('Erro ao criar transação de despesa:', transactionResult.error);
+        }
+      }
       
       handleCloseExpenseModal();
     } catch (error) {
@@ -644,13 +673,13 @@ const Services: React.FC = () => {
                 </label>
                 <select
                   value={serviceFormData.status}
-                  onChange={(e) => setServiceFormData(prev => ({ ...prev, status: e.target.value as 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO' }))}
+                  onChange={(e) => setServiceFormData(prev => ({ ...prev, status: e.target.value as 'em_andamento' | 'concluido' | 'cancelado' }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="AGENDADO">Agendado</option>
-                  <option value="EM_ANDAMENTO">Em Andamento</option>
-                  <option value="CONCLUIDO">Concluído</option>
-                  <option value="CANCELADO">Cancelado</option>
+
+                  <option value="em_andamento">Em Andamento</option>
+                  <option value="concluido">Concluído</option>
+                  <option value="cancelado">Cancelado</option>
                 </select>
               </div>
 
@@ -686,7 +715,7 @@ const Services: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  className="flex items-center space-x-2 bg-emerald-800 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   <span>{editingService ? 'Atualizar' : 'Criar'} Serviço</span>
@@ -700,7 +729,7 @@ const Services: React.FC = () => {
                         data: new Date().toISOString().split('T')[0],
                         valor: '',
                         cliente_id: '',
-                        status: 'AGENDADO',
+                        status: 'em_andamento',
                         descricao: '',
                         localizacao: ''
                       });
@@ -766,6 +795,13 @@ const Services: React.FC = () => {
                           title="Adicionar gastos adicionais"
                         >
                           <Receipt className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenExpenseHistoryModal(service.id, service.descricao || 'Serviço')}
+                          className="p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="Histórico de gastos adicionais"
+                        >
+                          <History className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleEditService(service)}
@@ -890,7 +926,7 @@ const Services: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  className="flex items-center space-x-2 bg-emerald-800 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   <span>{editingClient ? 'Atualizar' : 'Criar'} Cliente</span>
@@ -967,7 +1003,7 @@ const Services: React.FC = () => {
       )}
       
       {/* Modal de Gastos */}
-      {showExpenseModal && selectedServiceForExpense && (
+      {showExpenseModal && selectedServiceForExpense && user && (
         <AddExpenseModal
           isOpen={showExpenseModal}
           onClose={handleCloseExpenseModal}
@@ -975,6 +1011,18 @@ const Services: React.FC = () => {
           serviceId={selectedServiceForExpense}
           categories={categories}
           onAddCategory={(category) => setCategories(prev => [...prev, category])}
+          userId={user.id}
+        />
+      )}
+
+      {/* Modal de Histórico de Gastos */}
+      {showExpenseHistoryModal && selectedServiceForHistory && (
+        <ExpenseHistoryModal
+          isOpen={showExpenseHistoryModal}
+          onClose={handleCloseExpenseHistoryModal}
+          serviceId={selectedServiceForHistory.id}
+          serviceName={selectedServiceForHistory.name}
+          onExpenseUpdated={handleExpenseUpdated}
         />
       )}
     </div>

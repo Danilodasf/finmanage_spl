@@ -19,7 +19,7 @@ describe('ServicoRepository', () => {
       horasTotais: 8,
       valorTotal: 200.0,
       descricao: 'Limpeza completa da casa',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     }
 
     const servico = servicoRepository.create(servicoData)
@@ -42,7 +42,7 @@ describe('ServicoRepository', () => {
       horasTotais: 4,
       valorTotal: 80,
       descricao: 'Serviço 1',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     })
 
     const servico2 = servicoRepository.create({
@@ -96,7 +96,7 @@ describe('ServicoRepository', () => {
       horasTotais: 3,
       valorTotal: 60,
       descricao: 'Teste',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     })
 
     const servicoAtualizado = servicoRepository.update(servico.id, {

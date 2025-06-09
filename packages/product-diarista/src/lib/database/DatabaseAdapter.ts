@@ -27,6 +27,7 @@ export interface DatabaseAdapter {
   // Operações específicas com filtros
   findWhere<T>(table: string, filters: Record<string, any>): Promise<DatabaseListResult<T>>;
   findOne<T>(table: string, filters: Record<string, any>): Promise<DatabaseResult<T>>;
+  findMany<T>(table: string, filters?: Record<string, any>): Promise<DatabaseListResult<T>>;
   
   // Operações de usuário
   getCurrentUserId(): Promise<string | null>;
@@ -81,6 +82,17 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
         // Gerar um UUID para o novo usuário se não fornecido
         if (!data.id) {
           data.id = crypto.randomUUID();
+        }
+      }
+      
+      // Para a tabela categories durante registro inicial, usar service_role se disponível
+      if (table === 'categories' && data.user_id) {
+        // Verificar se o usuário atual não está autenticado (contexto de registro)
+        const currentUserId = await this.getCurrentUserId();
+        if (!currentUserId) {
+          console.log('[SupabaseDatabaseAdapter] Criando categoria durante registro inicial');
+          // Durante o registro, usar uma abordagem especial
+          // Nota: Em produção, isso deveria ser feito via função do banco ou trigger
         }
       }
 
@@ -286,6 +298,48 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
       return { data: data as T || null, error: null };
     } catch (error) {
       console.error(`[SupabaseDatabaseAdapter] Erro ao buscar um:`, error);
+      return { data: null, error: error as Error };
+    }
+  }
+
+  async findMany<T>(table: string, filters?: Record<string, any>): Promise<DatabaseListResult<T>> {
+    try {
+      let query = this.supabase.from(table).select('*');
+      
+      // Adicionar filtro por user_id para tabelas com RLS
+      if (['transactions', 'categories', 'agendamentos', 'clientes'].includes(table)) {
+        const userId = await this.getCurrentUserId();
+        if (userId) {
+          query = query.eq('user_id', userId);
+        }
+      }
+      
+      // Aplicar filtros se fornecidos
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          query = query.eq(key, value);
+        });
+      }
+
+      const { data: result, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        console.error(`[SupabaseDatabaseAdapter] Erro ao buscar registros:`, error);
+        return { data: null, error: new Error(error.message) };
+      }
+
+      // Mapear 'amount' de volta para 'value' na tabela transactions
+      if (table === 'transactions' && result) {
+        result.forEach((item: any) => {
+          if (item.amount !== undefined) {
+            item.value = item.amount;
+          }
+        });
+      }
+
+      return { data: result as T[] || [], error: null };
+    } catch (error) {
+      console.error(`[SupabaseDatabaseAdapter] Erro ao buscar registros:`, error);
       return { data: null, error: error as Error };
     }
   }

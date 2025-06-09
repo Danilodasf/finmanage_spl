@@ -24,7 +24,10 @@ export class DiaristaTransactionService implements TransactionService {
       date: transacao.date,
       payment_method: transacao.payment_method,
       created_at: transacao.created_at,
-      updated_at: transacao.updated_at
+      updated_at: transacao.updated_at,
+      servico_id: transacao.servico_id,
+      gasto_servico_id: transacao.gasto_servico_id,
+      is_auto_generated: transacao.is_auto_generated
     };
   }
 
@@ -99,6 +102,23 @@ export class DiaristaTransactionService implements TransactionService {
         return { data: null, error: new Error('Valor deve ser maior que zero') };
       }
       
+      // Verificar se a transação está relacionada a um serviço concluído
+      const existingTransaction = await databaseAdapter.getById<TransacaoDiarista>(this.tableName, id);
+      if (existingTransaction.error) {
+        return { data: null, error: existingTransaction.error };
+      }
+      
+      if (existingTransaction.data?.servico_id) {
+        // Verificar se o serviço está concluído
+        const servicoResult = await databaseAdapter.getById('servicos', existingTransaction.data.servico_id);
+        if (servicoResult.data && servicoResult.data.status === 'concluido') {
+          return { 
+            data: null, 
+            error: new Error('A edição de transações relacionadas a serviços concluídos só é permitida na tela "Serviços"') 
+          };
+        }
+      }
+      
       const result = await databaseAdapter.update<TransacaoDiarista>(this.tableName, id, transactionData);
       
       if (result.error) {
@@ -115,6 +135,23 @@ export class DiaristaTransactionService implements TransactionService {
 
   async delete(id: string): Promise<{ data: boolean; error: Error | null }> {
     try {
+      // Verificar se a transação está relacionada a um serviço concluído
+      const existingTransaction = await databaseAdapter.getById<TransacaoDiarista>(this.tableName, id);
+      if (existingTransaction.error) {
+        return { data: false, error: existingTransaction.error };
+      }
+      
+      if (existingTransaction.data?.servico_id) {
+        // Verificar se o serviço está concluído
+        const servicoResult = await databaseAdapter.getById('servicos', existingTransaction.data.servico_id);
+        if (servicoResult.data && servicoResult.data.status === 'concluido') {
+          return { 
+            data: false, 
+            error: new Error('A deleção de transações relacionadas a serviços concluídos só é permitida na tela "Serviços"') 
+          };
+        }
+      }
+      
       const result = await databaseAdapter.delete(this.tableName, id);
       return { data: result.data || false, error: result.error };
     } catch (error) {

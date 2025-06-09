@@ -562,6 +562,51 @@ export class DiaristaAuthService implements AuthService {
   }
 
   /**
+   * Atualiza a senha do usuário
+   */
+  async updatePassword(newPassword: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      if (!this.currentUser) {
+        return {
+          success: false,
+          error: 'Usuário não autenticado'
+        };
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        return {
+          success: false,
+          error: 'A nova senha deve ter pelo menos 6 caracteres'
+        };
+      }
+
+      // Atualizar senha no Supabase Auth
+      const { error } = await this.supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        console.error('[DiaristaAuthService] Erro ao atualizar senha:', error);
+        return {
+          success: false,
+          error: error.message || 'Erro ao atualizar senha'
+        };
+      }
+
+      return {
+        success: true,
+        error: null
+      };
+    } catch (error) {
+      console.error('Erro ao atualizar senha:', error);
+      return {
+        success: false,
+        error: 'Erro interno do servidor'
+      };
+    }
+  }
+
+  /**
    * Atualiza a avaliação do diarista
    */
   async updateRating(newRating: number): Promise<{ success: boolean; error: string | null }> {

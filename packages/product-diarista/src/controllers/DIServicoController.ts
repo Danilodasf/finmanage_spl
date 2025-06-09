@@ -39,31 +39,49 @@ export class DIServicoController {
    */
   async createServico(servicoData: CreateServicoDTO): Promise<ServicoResult<Servico>> {
     try {
-      // Validações
-      if (!servicoData.data) {
-        return { error: 'Data é obrigatória' };
-      }
-
-      if (!servicoData.valor || parseFloat(servicoData.valor.toString()) <= 0) {
-        return { error: 'Valor deve ser maior que zero' };
+      // Validar dados obrigatórios
+      if (!servicoData.user_id) {
+        return { error: 'ID do usuário é obrigatório' };
       }
 
       if (!servicoData.cliente_id) {
-        return { error: 'Cliente é obrigatório' };
+        return { error: 'ID do cliente é obrigatório' };
       }
 
-      // Preparar dados para criação
-      const servicoToCreate = {
-        ...servicoData,
-        valor: parseFloat(servicoData.valor.toString()),
-        status: servicoData.status || 'AGENDADO'
-      };
+      if (!servicoData.valor || servicoData.valor <= 0) {
+        return { error: 'Valor deve ser maior que zero' };
+      }
 
-      const result = await databaseAdapter.create<Servico>(this.tableName, servicoToCreate);
+      // Se o serviço está sendo criado como CONCLUIDO, buscar categoria "Serviços Realizados"
+      let finalServiceData = { 
+        ...servicoData,
+        // Manter status em minúsculas para compatibilidade com o enum do banco
+        status: servicoData.status?.toLowerCase() as any
+      };
+      
+      if (servicoData.status === 'CONCLUIDO') {
+        const categoryController = new (await import('./DICategoryController')).DICategoryController();
+        const categoriesResult = await categoryController.getCategoriesByType('income');
+        
+        if (categoriesResult.data) {
+          const servicosRealizadosCategory = categoriesResult.data.find(
+            cat => cat.name === 'Serviços Realizados'
+          );
+          
+          if (servicosRealizadosCategory) {
+            finalServiceData.categoria_id = servicosRealizadosCategory.id;
+          }
+        }
+      }
+
+      // Criar o serviço
+      const result = await databaseAdapter.create<Servico>(this.tableName, finalServiceData);
       
       if (result.error) {
         return { error: result.error };
       }
+
+      // Transação será criada automaticamente pelo trigger do banco de dados
 
       return { data: result.data };
     } catch (error) {
@@ -92,7 +110,8 @@ export class DIServicoController {
       // Preparar dados para atualização
       const updateData = {
         ...servicoData,
-        ...(servicoData.valor && { valor: parseFloat(servicoData.valor.toString()) })
+        ...(servicoData.valor && { valor: parseFloat(servicoData.valor.toString()) }),
+        ...(servicoData.status && { status: servicoData.status.toLowerCase() as any })
       };
 
       const result = await databaseAdapter.update<Servico>(this.tableName, id, updateData);
@@ -173,6 +192,7 @@ export class DIServicoController {
    */
   async getServicosByStatus(status: string): Promise<ServicoResult<Servico[]>> {
     try {
+      // Usar status como fornecido para busca no banco
       const result = await databaseAdapter.findWhere<Servico>(this.tableName, {
         status: status
       });
@@ -187,4 +207,6 @@ export class DIServicoController {
       return { error: 'Erro ao buscar serviços por status' };
     }
   }
+
+  // Método removido - transações são criadas automaticamente pelos triggers do banco de dados
 }

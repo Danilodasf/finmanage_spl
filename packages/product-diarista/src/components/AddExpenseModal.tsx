@@ -14,6 +14,7 @@ interface AddExpenseModalProps {
   serviceId: string;
   categories: CategoriaDiarista[];
   onCreateCategory?: (categoryName: string) => Promise<CategoriaDiarista | null>;
+  userId: string;
 }
 
 interface ExpenseFormData {
@@ -34,7 +35,8 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   onAddExpense,
   serviceId,
   categories,
-  onCreateCategory
+  onCreateCategory,
+  userId
 }) => {
   const [expenseFormData, setExpenseFormData] = useState<ExpenseFormData>({
     descricao: '',
@@ -88,7 +90,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     try {
       const newExpense: CreateGastoServicoDTO = {
         servico_id: serviceId,
-        user_id: 'temp-user-id', // TODO: Obter do contexto de autenticação
+        user_id: userId,
         categoria_id: expenseFormData.categoria_id,
         descricao: expenseFormData.descricao,
         valor: parseFloat(expenseFormData.valor),
@@ -239,7 +241,7 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400"
+                className="flex-1 bg-emerald-800 hover:bg-emerald-700 disabled:bg-emerald-400"
               >
                 {isLoading ? 'Adicionando...' : 'Adicionar'}
               </Button>

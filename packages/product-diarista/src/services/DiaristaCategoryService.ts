@@ -242,7 +242,7 @@ export class DiaristaCategoryService implements CategoryService {
   }
 
   /**
-   * Cria categorias padrão do MEI (mesmas do product-mei)
+   * Cria categorias padrão do MEI usando função do banco de dados
    */
   async createDefaultCategories(userId: string): Promise<{ data: boolean; error: Error | null }> {
     try {
@@ -255,107 +255,45 @@ export class DiaristaCategoryService implements CategoryService {
         return { data: true, error: null }; // Já existem categorias
       }
 
-      const defaultCategories: Omit<Category, 'id' | 'created_at' | 'updated_at'>[] = [
-        {
-          user_id: userId,
-          name: 'Serviços de Limpeza',
-          type: 'income' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Serviços Domésticos',
-          type: 'income' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Transporte',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Material de Limpeza',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Equipamentos',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Uniformes',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Combustível',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Manutenção',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Telefone',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Internet',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Marketing',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Capacitação',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Impostos',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Trabalho',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Alimentação',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Salário',
-          type: 'income' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Outros',
-          type: 'expense' as CategoryType
-        },
-        {
-          user_id: userId,
-          name: 'Pró-labore',
-          type: 'both' as CategoryType
-        }
-      ];
-
-      for (const categoryData of defaultCategories) {
-        await this.create(categoryData);
+      // Usar função do banco de dados para criar categorias padrão
+      // Isso contorna as políticas RLS durante o registro
+      const result = await this.createDefaultCategoriesViaFunction(userId);
+      
+      if (result.error) {
+        console.error('Erro ao criar categorias via função:', result.error);
+        return { data: false, error: result.error };
       }
 
       return { data: true, error: null };
     } catch (error) {
       console.error('Erro ao criar categorias padrão:', error);
       return { data: false, error: error as Error };
+    }
+  }
+
+  /**
+   * Chama a função do banco de dados para criar categorias padrão
+   */
+  private async createDefaultCategoriesViaFunction(userId: string): Promise<{ data: any; error: Error | null }> {
+    try {
+      // Importar o cliente Supabase diretamente
+      const { getSupabaseClient } = await import('../lib/supabase');
+      const supabase = getSupabaseClient();
+      
+      const { data, error } = await supabase.rpc('create_default_categories_for_user', {
+        target_user_id: userId
+      });
+
+      if (error) {
+        console.error('Erro ao chamar função create_default_categories_for_user:', error);
+        return { data: null, error: new Error(error.message) };
+      }
+
+      console.log('Categorias padrão criadas via função do banco:', data);
+      return { data, error: null };
+    } catch (error) {
+      console.error('Erro ao executar função do banco:', error);
+      return { data: null, error: error as Error };
     }
   }
 
