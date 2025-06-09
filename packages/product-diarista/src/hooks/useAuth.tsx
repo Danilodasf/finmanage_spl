@@ -148,15 +148,14 @@ export function useAuth(): UseAuthReturn {
     try {
       const result = await DIAuthController.register(email, password, name, createDefaultCategories);
       
-      if (result.success && result.user) {
+      if (result.success) {
+        // NÃO definir como autenticado após registro
+        // O usuário deve fazer login separadamente
         updateState({
-          user: result.user,
-          isAuthenticated: true,
+          user: null,
+          isAuthenticated: false,
           loading: false
         });
-        
-        // Carrega estatísticas do perfil após registro
-        await refreshProfileStats();
         
         return { success: true };
       } else {
@@ -193,9 +192,10 @@ export function useAuth(): UseAuthReturn {
     try {
       const result = await DIAuthController.logout();
       
-      // Limpa o localStorage
+      // Limpa TODOS os dados do localStorage relacionados à autenticação
       localStorage.removeItem('user');
       localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('auth_token');
       
       updateState({
         user: null,
@@ -212,6 +212,7 @@ export function useAuth(): UseAuthReturn {
       // Limpa o localStorage mesmo em caso de erro
       localStorage.removeItem('user');
       localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('auth_token');
       
       updateState({
         user: null,
@@ -351,10 +352,22 @@ export function useAuth(): UseAuthReturn {
     updateState({ error: null });
   }, []);
 
-  // Verifica autenticação na inicialização
+  // Verifica autenticação na inicialização APENAS uma vez
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    let mounted = true;
+    
+    const initAuth = async () => {
+      if (mounted) {
+        await checkAuth();
+      }
+    };
+    
+    initAuth();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []); // Array vazio para executar apenas uma vez
 
   return {
     // Estado

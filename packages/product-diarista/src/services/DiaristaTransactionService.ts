@@ -43,7 +43,7 @@ export class DiaristaTransactionService implements TransactionService {
         return { data: null, error: result.error };
       }
       
-      const transactions = result.data?.map(this.mapToTransaction) || [];
+      const transactions = result.data?.map(transaction => this.mapToTransaction(transaction)) || [];
       return { data: transactions, error: null };
     } catch (error) {
       console.error('Erro ao buscar transações:', error);

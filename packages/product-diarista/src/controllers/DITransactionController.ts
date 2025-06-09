@@ -29,21 +29,22 @@ export class DITransactionController {
     if (!this.authService) {
       throw new Error('AuthService não encontrado no container DI');
     }
-
-    this.initializeUser();
   }
 
   /**
-   * Inicializa o usuário atual
+   * Verifica e obtém o usuário atual
    */
-  private async initializeUser(): Promise<void> {
+  private async ensureUserAuthenticated(): Promise<{ user: any | null; error: string | null }> {
     try {
       const result = await this.authService.getCurrentUser();
       if (result.user) {
         this.currentUser = result.user;
+        return { user: result.user, error: null };
       }
+      return { user: null, error: result.error || 'Usuário não autenticado' };
     } catch (error) {
-      console.error('Erro ao inicializar usuário:', error);
+      console.error('Erro ao verificar autenticação:', error);
+      return { user: null, error: 'Erro ao verificar autenticação' };
     }
   }
 
@@ -52,8 +53,10 @@ export class DITransactionController {
    */
   async getAllTransactions(): Promise<{ data: Transaction[] | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const result = await this.transactionService.getAll();
@@ -79,8 +82,10 @@ export class DITransactionController {
    */
   async getTransactionById(id: string): Promise<{ data: Transaction | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const result = await this.transactionService.getById(id);
@@ -106,8 +111,10 @@ export class DITransactionController {
    */
   async createTransaction(transactionData: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<{ data: Transaction | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       // Adiciona o user_id à transação
@@ -134,8 +141,10 @@ export class DITransactionController {
    */
   async updateTransaction(id: string, transactionData: Partial<Transaction>): Promise<{ data: Transaction | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       // Verifica se a transação pertence ao usuário
@@ -162,8 +171,10 @@ export class DITransactionController {
    */
   async deleteTransaction(id: string): Promise<{ success: boolean; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { success: false, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { success: false, error: authResult.error || 'Usuário não autenticado' };
       }
 
       // Verifica se a transação pertence ao usuário
@@ -192,8 +203,10 @@ export class DITransactionController {
    */
   async getTransactionsByDateRange(startDate: string, endDate: string): Promise<{ data: TransacaoDiarista[] | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const result = await this.transactionService.getByDateRange(startDate, endDate);
@@ -219,8 +232,10 @@ export class DITransactionController {
    */
   async getTransactionsByPaymentStatus(status: 'pendente' | 'pago' | 'atrasado'): Promise<{ data: TransacaoDiarista[] | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const result = await this.transactionService.getByPaymentStatus(status);
@@ -254,8 +269,10 @@ export class DITransactionController {
     error: string | null;
   }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const [receitasResult, despesasResult] = await Promise.all([

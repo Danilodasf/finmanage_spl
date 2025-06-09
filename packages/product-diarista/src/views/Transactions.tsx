@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { DITransactionController } from '../controllers/DITransactionController';
 import { DICategoryController } from '../controllers/DICategoryController';
 import { Transaction, TransactionType, Category } from '../lib/core/services';
+import { useCurrencyInput } from '../hooks/useFormValidation';
+import { validateCurrency, errorMessages } from '../utils/validations';
 
 interface TransactionFormData {
   type: TransactionType;
@@ -17,6 +19,7 @@ const Transactions: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [formData, setFormData] = useState<TransactionFormData>({
     type: TransactionType.EXPENSE,
     date: new Date().toISOString().split('T')[0],
@@ -24,6 +27,9 @@ const Transactions: React.FC = () => {
     description: '',
     categoryId: ''
   });
+  
+  const [transactionValue, setTransactionValue] = useCurrencyInput('');
+  const [valueError, setValueError] = useState<string>('');
 
   // Instâncias dos controladores
   const [transactionController] = useState(() => new DITransactionController());
@@ -89,7 +95,14 @@ const Transactions: React.FC = () => {
         category_id: formData.categoryId
       };
 
-      const result = await transactionController.createTransaction(transactionData);
+      let result;
+      if (editingTransactionId) {
+        // Editando transação existente
+        result = await transactionController.updateTransaction(editingTransactionId, transactionData);
+      } else {
+        // Criando nova transação
+        result = await transactionController.createTransaction(transactionData);
+      }
       
       if (result.data && !result.error) {
         // Resetar formulário
@@ -100,11 +113,14 @@ const Transactions: React.FC = () => {
           description: '',
           categoryId: ''
         });
+        setTransactionValue('');
+        setValueError('');
+        setEditingTransactionId(null);
         
         // Recarregar transações
         await loadData();
       } else {
-        setError(result.error || 'Erro ao criar transação');
+        setError(result.error || (editingTransactionId ? 'Erro ao atualizar transação' : 'Erro ao criar transação'));
       }
     } catch (err) {
       setError('Erro inesperado. Tente novamente.');
@@ -131,13 +147,15 @@ const Transactions: React.FC = () => {
   };
 
   const handleEdit = (transaction: Transaction) => {
+    setEditingTransactionId(transaction.id);
     setFormData({
-      type: transaction.type,
+      type: transaction.type as TransactionType,
       date: new Date(transaction.date).toISOString().split('T')[0],
       amount: transaction.value.toString(),
       description: transaction.description,
       categoryId: transaction.category_id
     });
+    setTransactionValue(transaction.value.toString());
   };
 
   const formatCurrency = (value: number): string => {
@@ -173,11 +191,35 @@ const Transactions: React.FC = () => {
 
         {/* Formulário de Nova Transação */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Nova Transação</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              {editingTransactionId ? 'Editar Transação' : 'Nova Transação'}
+            </h2>
+            {editingTransactionId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingTransactionId(null);
+                  setFormData({
+                    type: TransactionType.EXPENSE,
+                    date: new Date().toISOString().split('T')[0],
+                    amount: '',
+                    description: '',
+                    categoryId: ''
+                  });
+                  setTransactionValue('');
+                  setValueError('');
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Cancelar Edição
+              </button>
+            )}
+          </div>
           
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+              {typeof error === 'string' ? error : 'Erro inesperado'}
             </div>
           )}
           
@@ -215,15 +257,33 @@ const Transactions: React.FC = () => {
                 Valor (R$) *
               </label>
               <input
-                type="number"
-                name="amount"
-                value={formData.amount}
-                onChange={handleInputChange}
-                step="0.01"
-                min="0"
+                type="text"
+                value={transactionValue}
+                onChange={(e) => {
+                  setTransactionValue(e.target.value);
+                  setFormData(prev => ({ ...prev, amount: e.target.value.replace(',', '.') }));
+                  // Limpa erro quando usuário digita
+                  if (valueError) {
+                    setValueError('');
+                  }
+                }}
+                onBlur={() => {
+                  const cleanValue = transactionValue.replace(',', '.');
+                  if (cleanValue && !validateCurrency(cleanValue)) {
+                    setValueError(errorMessages.currency);
+                  } else if (!cleanValue) {
+                    setValueError(errorMessages.required);
+                  }
+                }}
+                className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
+                  valueError ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="0,00"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                required
               />
+              {valueError && (
+                <p className="text-red-500 text-sm mt-1">{valueError}</p>
+              )}
             </div>
 
             <div>
@@ -254,7 +314,7 @@ const Transactions: React.FC = () => {
                 disabled={isSubmitting}
                 className="w-full bg-emerald-800 text-white py-2 px-4 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Salvando...' : 'Adicionar'}
+                {isSubmitting ? 'Salvando...' : (editingTransactionId ? 'Atualizar' : 'Adicionar')}
               </button>
             </div>
 
@@ -320,7 +380,7 @@ const Transactions: React.FC = () => {
                         {transaction.description}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getCategoryName(transaction.categoryId)}
+                        {getCategoryName(transaction.category_id)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -334,7 +394,7 @@ const Transactions: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <span className={transaction.type === TransactionType.INCOME ? 'text-blue-600' : 'text-red-600'}>
                           {transaction.type === TransactionType.INCOME ? '+' : '-'}
-                          {formatCurrency(transaction.amount)}
+                          {formatCurrency(transaction.value)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

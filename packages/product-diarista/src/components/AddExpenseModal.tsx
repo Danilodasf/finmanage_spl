@@ -3,6 +3,9 @@ import { Plus, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { CategoriaDiarista, GastoServico, CreateGastoServicoDTO } from '../models/DiaristaModels';
+import { useDI } from '../hooks/useDI';
+import { useCurrencyInput } from '../hooks/useFormValidation';
+import { validateCurrency, errorMessages } from '../utils/validations';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -39,6 +42,9 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
     categoria_id: '',
     data: new Date().toISOString().split('T')[0]
   });
+  
+  const [expenseValue, setExpenseValue] = useCurrencyInput('');
+  const [valueError, setValueError] = useState<string>('');
 
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState<CategoryFormData>({
@@ -58,6 +64,8 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       categoria_id: '',
       data: new Date().toISOString().split('T')[0]
     });
+    setExpenseValue('');
+    setValueError('');
     setCategoryFormData({
       nome: '',
       descricao: ''
@@ -154,15 +162,34 @@ const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Valor (R$)
               </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={expenseFormData.valor}
-                onChange={(e) => setExpenseFormData(prev => ({ ...prev, valor: e.target.value }))}
+              <input
+                type="text"
+                value={expenseValue}
+                onChange={(e) => {
+                  setExpenseValue(e.target.value);
+                  setExpenseFormData(prev => ({ ...prev, valor: e.target.value.replace(',', '.') }));
+                  // Limpa erro quando usuário digita
+                  if (valueError) {
+                    setValueError('');
+                  }
+                }}
+                onBlur={() => {
+                  const cleanValue = expenseValue.replace(',', '.');
+                  if (cleanValue && !validateCurrency(cleanValue)) {
+                    setValueError(errorMessages.currency);
+                  } else if (!cleanValue) {
+                    setValueError(errorMessages.required);
+                  }
+                }}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  valueError ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="0,00"
                 required
               />
+              {valueError && (
+                <p className="text-red-500 text-sm mt-1">{valueError}</p>
+              )}
             </div>
 
             <div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DISettingsController, ProfileData, PasswordData, PreferencesData } from '../controllers/DISettingsController';
+import { validateEmail, validateRequired, errorMessages } from '../utils/validations';
 
 interface ProfileData {
   name: string;
@@ -21,6 +22,9 @@ const Settings: React.FC = () => {
     name: '',
     email: ''
   });
+  
+  const [emailError, setEmailError] = useState<string>('');
+  const [nameError, setNameError] = useState<string>('');
   
   const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: '',
@@ -218,10 +222,26 @@ const Settings: React.FC = () => {
                       type="text"
                       name="name"
                       value={profileData.name}
-                      onChange={handleProfileChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      onChange={(e) => {
+                        handleProfileChange(e);
+                        // Limpa erro quando usuário digita
+                        if (nameError) {
+                          setNameError('');
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!validateRequired(profileData.name)) {
+                          setNameError(errorMessages.required);
+                        }
+                      }}
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
+                        nameError ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       required
                     />
+                    {nameError && (
+                      <p className="text-red-500 text-sm mt-1">{nameError}</p>
+                    )}
                   </div>
                   
                   <div>
@@ -233,9 +253,14 @@ const Settings: React.FC = () => {
                       name="email"
                       value={profileData.email}
                       readOnly
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-gray-500 cursor-not-allowed"
+                      className={`w-full border rounded-md px-3 py-2 bg-gray-50 text-gray-500 cursor-not-allowed ${
+                        emailError ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       required
                     />
+                    {emailError && (
+                      <p className="text-red-500 text-sm mt-1">{emailError}</p>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">O email não pode ser alterado</p>
                   </div>
                   

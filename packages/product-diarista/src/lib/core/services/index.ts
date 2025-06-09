@@ -43,31 +43,21 @@ export interface AuthService {
 
 export interface Category {
   id: string;
-  name: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-  type: 'income' | 'expense';
   user_id: string;
-  created_at: Date;
-  updated_at: Date;
+  name: string;
+  type: CategoryType;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CreateCategoryDTO {
   name: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-  type: 'income' | 'expense';
-  user_id: string;
+  type: CategoryType;
 }
 
 export interface UpdateCategoryDTO {
   name?: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-  type?: 'income' | 'expense';
+  type?: CategoryType;
 }
 
 export interface CategoryService {

@@ -67,12 +67,12 @@ export class DISettingsController {
       await this.delay(1000);
       
       // Salvar no storage
-      const { error } = await this.storageService.setItem('user_profile', profileData);
-      
-      if (error) {
+      try {
+        this.storageService.setItem('user_profile', JSON.stringify(profileData));
+      } catch (error) {
         return {
           success: false,
-          error: error.message
+          error: 'Erro ao salvar perfil'
         };
       }
 
@@ -163,12 +163,12 @@ export class DISettingsController {
       await this.delay(1000);
       
       // Salvar no storage
-      const { error } = await this.storageService.setItem('user_preferences', preferences);
-      
-      if (error) {
+      try {
+        this.storageService.setItem('user_preferences', JSON.stringify(preferences));
+      } catch (error) {
         return {
           success: false,
-          error: error.message
+          error: 'Erro ao salvar preferências'
         };
       }
 
