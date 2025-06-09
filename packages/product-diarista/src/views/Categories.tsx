@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DICategoryController } from '../controllers/DICategoryController';
+import { DITransactionController } from '../controllers/DITransactionController';
 import { Category, CategoryType } from '../lib/core/services';
 import { validateRequired, errorMessages } from '../utils/validations';
 
@@ -89,6 +90,13 @@ const Categories: React.FC = () => {
   };
 
   const handleEdit = (category: Category) => {
+    // Verificar se é uma categoria protegida
+    const protectedCategories = ['Serviços Realizados', 'Gastos Adicionais'];
+    if (protectedCategories.includes(category.name)) {
+      setError('Esta categoria não pode ser editada pois é essencial para o funcionamento do sistema.');
+      return;
+    }
+
     setFormData({
       name: category.name,
       type: category.type
@@ -98,11 +106,40 @@ const Categories: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta categoria?')) {
-      return;
-    }
-
     try {
+      // Encontrar a categoria que está sendo deletada
+      const categoryToDelete = categories.find(cat => cat.id === id);
+      if (!categoryToDelete) {
+        setError('Categoria não encontrada');
+        return;
+      }
+  
+      // Verificar se é uma categoria protegida
+      const protectedCategories = ['Serviços Realizados', 'Gastos Adicionais'];
+      if (protectedCategories.includes(categoryToDelete.name)) {
+        setError('Esta categoria não pode ser excluída pois é essencial para o funcionamento do sistema.');
+        return;
+      }
+  
+      // Verificar se a categoria tem transações associadas
+      const transactionController = new DITransactionController();
+      const allTransactionsResult = await transactionController.getAllTransactions();
+      
+      if (allTransactionsResult.data) {
+        const hasTransactions = allTransactionsResult.data.some(
+          transaction => transaction.category_id === id
+        );
+        
+        if (hasTransactions) {
+          setError('Esta categoria não pode ser excluída pois possui transações associadas. Remova ou altere a categoria das transações primeiro.');
+          return;
+        }
+      }
+
+      if (!confirm('Tem certeza que deseja excluir esta categoria?')) {
+        return;
+      }
+
       const result = await categoryController.deleteCategory(id);
       if (result.success && !result.error) {
         await loadCategories();
@@ -261,37 +298,58 @@ const Categories: React.FC = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {categories.map((category) => (
-                <div key={category.id} className="p-6 flex items-center justify-between hover:bg-gray-50">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
-                    <div className="mt-1">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        getTypeColor(category.type)
-                      }`}>
-                        {getTypeLabel(category.type)}
-                      </span>
+              {categories.map((category) => {
+                const isProtected = ['Serviços Realizados', 'Gastos Adicionais'].includes(category.name);
+                
+                return (
+                  <div key={category.id} className="p-6 flex items-center justify-between hover:bg-gray-50">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
+                        {isProtected && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Protegida
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          getTypeColor(category.type)
+                        }`}>
+                          {getTypeLabel(category.type)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => handleEdit(category)}
+                        disabled={isSubmitting || isProtected}
+                        className={`font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isProtected 
+                            ? "text-gray-400 cursor-not-allowed" 
+                            : "text-emerald-600 hover:text-emerald-900"
+                        }`}
+                        title={isProtected ? "Categoria protegida não pode ser editada" : "Editar categoria"}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(category.id)}
+                        disabled={isSubmitting || isProtected}
+                        className={`font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isProtected 
+                            ? "text-gray-400 cursor-not-allowed" 
+                            : "text-red-600 hover:text-red-900"
+                        }`}
+                        title={isProtected ? "Categoria protegida não pode ser excluída" : "Excluir categoria"}
+                      >
+                        Excluir
+                      </button>
                     </div>
                   </div>
-                  
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => handleEdit(category)}
-                      disabled={isSubmitting}
-                      className="text-emerald-600 hover:text-emerald-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category.id)}
-                      disabled={isSubmitting}
-                      className="text-red-600 hover:text-red-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -4,6 +4,8 @@ import jsPDF from 'jspdf';
 import { Servico, Cliente, GastoServico, CreateGastoServicoDTO, CategoriaDiarista } from '../models/DiaristaModels';
 import { DICategoryController } from '../controllers/DICategoryController';
 import { DIServicoController } from '../controllers/DIServicoController';
+import { DIClienteController } from '../controllers/DIClienteController';
+import { DIGastoController } from '../controllers/DIGastoController';
 import AddExpenseModal from '../components/AddExpenseModal';
 
 // Interface removida - agora usando CreateGastoServicoDTO
@@ -22,6 +24,8 @@ const ServiceProfits: React.FC = () => {
 
   const [categoryController] = useState(() => new DICategoryController());
   const [servicoController] = useState(() => new DIServicoController());
+  const [clienteController] = useState(() => new DIClienteController());
+  const [gastoController] = useState(() => new DIGastoController());
 
   useEffect(() => {
     loadData();
@@ -31,7 +35,7 @@ const ServiceProfits: React.FC = () => {
     setIsLoading(true);
     try {
       // Carregar serviços concluídos
-      const servicesResult = await servicoController.getServicosByStatus('CONCLUIDO');
+      const servicesResult = await servicoController.getServicosByStatus('concluido');
       if (servicesResult.error) {
         setError(`Erro ao carregar serviços: ${servicesResult.error}`);
         setCompletedServices([]);
@@ -39,9 +43,23 @@ const ServiceProfits: React.FC = () => {
         setCompletedServices(servicesResult.data || []);
       }
       
-      // TODO: Carregar clientes e gastos reais
-      setClients([]);
-      setExpenses([]);
+      // Carregar clientes
+      const clientsResult = await clienteController.getAllClientes();
+      if (clientsResult.error) {
+        setError(`Erro ao carregar clientes: ${clientsResult.error}`);
+        setClients([]);
+      } else {
+        setClients(clientsResult.data || []);
+      }
+      
+      // Carregar gastos
+      const expensesResult = await gastoController.getAllGastos();
+      if (expensesResult.error) {
+        setError(`Erro ao carregar gastos: ${expensesResult.error}`);
+        setExpenses([]);
+      } else {
+        setExpenses(expensesResult.data || []);
+      }
       
       // Carregar categorias
       const categoriesResult = await categoryController.getAllCategories();
@@ -69,32 +87,17 @@ const ServiceProfits: React.FC = () => {
 
   const handleAddExpense = async (expenseData: CreateGastoServicoDTO) => {
     try {
-      // Aqui você faria a chamada para a API para salvar o gasto
-      // const newExpense = await api.createExpense(expenseData);
+      const result = await gastoController.createGasto(expenseData);
       
-      // Por enquanto, vamos simular a criação do gasto
-      const newExpense: GastoServico = {
-        id: Date.now().toString(),
-        servico_id: expenseData.servico_id,
-        user_id: expenseData.user_id,
-        descricao: expenseData.descricao,
-        valor: expenseData.valor,
-        categoria_id: expenseData.categoria_id,
-        data: expenseData.data,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
+      if (result.error) {
+        setError(`Erro ao adicionar gasto: ${result.error}`);
+        return;
+      }
       
-      setExpenses(prev => [...prev, newExpense]);
-      
-      // Criar transação de despesa
-      // await api.createTransaction({
-      //   tipo: 'despesa',
-      //   valor: expenseData.valor,
-      //   descricao: expenseData.descricao,
-      //   categoria_id: expenseData.categoria_id,
-      //   data: expenseData.data
-      // });
+      if (result.data) {
+        setExpenses(prev => [...prev, result.data!]);
+        console.log('Gasto adicionado com sucesso:', result.data);
+      }
       
       handleCloseExpenseModal();
     } catch (error) {
@@ -142,32 +145,104 @@ const ServiceProfits: React.FC = () => {
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
-  const generatePDFReport = () => {
+  const generatePDF = () => {
     const doc = new jsPDF();
     
-    // Título
-    doc.setFontSize(20);
-    doc.text('Relatório de Lucros por Serviço', 20, 30);
+    // Configurações de cores e fontes
+    const primaryColor = [34, 197, 94]; // emerald-500
+    const secondaryColor = [75, 85, 99]; // gray-600
+    const accentColor = [239, 68, 68]; // red-500
+    
+    // Cabeçalho com design melhorado
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(0, 0, 210, 25, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RELATÓRIO DE LUCROS POR SERVIÇOS', 105, 15, { align: 'center' });
     
     // Data do relatório
-    doc.setFontSize(12);
-    doc.text(`Gerado em: ${formatDate(new Date())}`, 20, 45);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 15, 35);
     
-    // Resumo financeiro
+    // Linha separadora
+    doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setLineWidth(0.5);
+    doc.line(15, 40, 195, 40);
+    
+    let yPosition = 50;
+    
+    // Resumo financeiro com caixas coloridas
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setFontSize(14);
-    doc.text('Resumo Financeiro', 20, 65);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMO FINANCEIRO', 15, yPosition);
+    yPosition += 15;
     
+    // Caixa de receitas
+    doc.setFillColor(220, 252, 231); // green-50
+    doc.setDrawColor(...primaryColor);
+    doc.rect(15, yPosition - 5, 85, 20, 'FD');
+    doc.setTextColor(...primaryColor);
     doc.setFontSize(12);
-    doc.text(`Receita Total: ${formatCurrency(calculateTotalRevenue())}`, 20, 80);
-    doc.text(`Gastos Totais: ${formatCurrency(calculateTotalExpenses())}`, 20, 95);
-    doc.text(`Lucro Total: ${formatCurrency(calculateTotalProfit())}`, 20, 110);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total de Receitas:', 20, yPosition + 3);
+    doc.text(`R$ ${calculateTotalRevenue().toFixed(2)}`, 20, yPosition + 10);
+    
+    // Caixa de despesas
+    doc.setFillColor(254, 242, 242); // red-50
+    doc.setDrawColor(...accentColor);
+    doc.rect(110, yPosition - 5, 85, 20, 'FD');
+    doc.setTextColor(...accentColor);
+    doc.text('Total de Despesas:', 115, yPosition + 3);
+    doc.text(`R$ ${calculateTotalExpenses().toFixed(2)}`, 115, yPosition + 10);
+    
+    yPosition += 30;
+    
+    // Lucro líquido com destaque
+    const lucroLiquido = calculateTotalRevenue() - calculateTotalExpenses();
+    const lucroColor = lucroLiquido >= 0 ? primaryColor : accentColor;
+    const lucroBackground = lucroLiquido >= 0 ? [220, 252, 231] : [254, 242, 242];
+    
+    doc.setFillColor(lucroBackground[0], lucroBackground[1], lucroBackground[2]);
+    doc.setDrawColor(lucroColor[0], lucroColor[1], lucroColor[2]);
+    doc.rect(15, yPosition - 5, 180, 20, 'FD');
+    doc.setTextColor(lucroColor[0], lucroColor[1], lucroColor[2]);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LUCRO LÍQUIDO:', 20, yPosition + 3);
+    doc.text(`R$ ${lucroLiquido.toFixed(2)}`, 20, yPosition + 10);
+    
+    yPosition += 35;
     
     // Detalhes por serviço
+    doc.setTextColor(...secondaryColor);
     doc.setFontSize(14);
-    doc.text('Detalhes por Serviço', 20, 130);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALHES POR SERVIÇO', 15, yPosition);
+    yPosition += 15;
     
-    let yPosition = 145;
+    // Cabeçalho da tabela
+    doc.setFillColor(243, 244, 246); // gray-100
+    doc.setDrawColor(...secondaryColor);
+    doc.rect(15, yPosition - 5, 180, 12, 'FD');
+    
+    doc.setTextColor(...secondaryColor);
     doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SERVIÇO', 20, yPosition + 2);
+    doc.text('CLIENTE', 70, yPosition + 2);
+    doc.text('RECEITA', 120, yPosition + 2);
+    doc.text('DESPESAS', 145, yPosition + 2);
+    doc.text('LUCRO', 175, yPosition + 2);
+    
+    yPosition += 15;
+    
+    // Dados dos serviços
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
     
     completedServices.forEach((service, index) => {
       if (yPosition > 270) {
@@ -175,21 +250,50 @@ const ServiceProfits: React.FC = () => {
         yPosition = 20;
       }
       
-      const profit = calculateServiceProfit(service);
-      const serviceExpenses = getServiceExpenses(service.id);
-      const totalServiceExpenses = serviceExpenses.reduce((sum, exp) => sum + exp.valor, 0);
+      const serviceExpensesArray = getServiceExpenses(service.id);
+      const serviceExpenses = serviceExpensesArray.reduce((sum, expense) => sum + expense.valor, 0);
+      const serviceProfit = calculateServiceProfit(service.id);
       
-      doc.text(`${index + 1}. ${service.descricao}`, 20, yPosition);
-      doc.text(`Cliente: ${getClientName(service.cliente_id)}`, 25, yPosition + 10);
-      doc.text(`Data: ${formatDate(new Date(service.data))}`, 25, yPosition + 20);
-      doc.text(`Receita: ${formatCurrency(service.valor)}`, 25, yPosition + 30);
-      doc.text(`Gastos: ${formatCurrency(totalServiceExpenses)}`, 25, yPosition + 40);
-      doc.text(`Lucro: ${formatCurrency(profit)}`, 25, yPosition + 50);
+      // Linha alternada
+      if (index % 2 === 0) {
+        doc.setFillColor(249, 250, 251); // gray-50
+        doc.rect(15, yPosition - 3, 180, 10, 'F');
+      }
       
-      yPosition += 65;
+      doc.setTextColor(31, 41, 55); // gray-800
+      doc.text(service.descricao.substring(0, 25), 20, yPosition + 2);
+      
+      const cliente = clients.find(c => c.id === service.cliente_id);
+      doc.text(cliente ? cliente.nome.substring(0, 20) : 'N/A', 70, yPosition + 2);
+      
+      doc.setTextColor(...primaryColor);
+      doc.text(`R$ ${service.valor.toFixed(2)}`, 120, yPosition + 2);
+      
+      doc.setTextColor(...accentColor);
+      doc.text(`R$ ${serviceExpenses.toFixed(2)}`, 145, yPosition + 2);
+      
+      const profitColor = serviceProfit >= 0 ? primaryColor : accentColor;
+      doc.setTextColor(...profitColor);
+      doc.text(`R$ ${serviceProfit.toFixed(2)}`, 175, yPosition + 2);
+      
+      yPosition += 12;
     });
     
-    doc.save('relatorio-lucros-servicos.pdf');
+    // Rodapé
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(0, 285, 210, 12, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('FinManage Diarista - Sistema de Gestão Financeira', 15, 292);
+      doc.text(`Página ${i} de ${pageCount}`, 195, 292, { align: 'right' });
+    }
+    
+    doc.save(`relatorio-lucros-servicos-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   if (isLoading && completedServices.length === 0) {
@@ -209,9 +313,9 @@ const ServiceProfits: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-emerald-800">Lucro por Serviço</h1>
         <button
-          onClick={generatePDFReport}
+          onClick={generatePDF}
           disabled={completedServices.length === 0}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          className="flex items-center space-x-2 bg-emerald-800 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
           <FileText className="h-4 w-4" />
           <span>Gerar Relatório PDF</span>
@@ -319,13 +423,6 @@ const ServiceProfits: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center space-x-2 ml-4">
-                      <button
-                        onClick={() => handleOpenExpenseModal(service)}
-                        className="flex items-center space-x-1 px-3 py-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>Gasto</span>
-                      </button>
                       <button
                         onClick={() => {
                           setSelectedService(service);

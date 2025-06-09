@@ -1,5 +1,4 @@
 export enum StatusServico {
-  AGENDADO = 'agendado',
   EM_ANDAMENTO = 'em_andamento',
   CONCLUIDO = 'concluido',
   CANCELADO = 'cancelado'
@@ -65,4 +64,4 @@ class ServicoRepository {
   }
 }
 
-export const servicoRepository = new ServicoRepository(); 
+export const servicoRepository = new ServicoRepository();

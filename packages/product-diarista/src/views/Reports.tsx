@@ -165,49 +165,204 @@ const Reports: React.FC = () => {
   const generatePDF = () => {
     const doc = new jsPDF();
     
-    // Título do relatório
-    doc.setFontSize(20);
-    doc.text('Relatório Financeiro', 20, 20);
+    // Definir datas do filtro
+    const startDate = filters.startDate;
+    const endDate = filters.endDate;
     
-    // Período
-    doc.setFontSize(12);
-    doc.text(`Período: ${formatDate(filters.startDate)} a ${formatDate(filters.endDate)}`, 20, 35);
+    // Calcular totais para o PDF
+    const totalReceitas = filteredTransactions
+      .filter(t => t.type === TransactionType.INCOME)
+      .reduce((sum, t) => sum + t.value, 0);
     
-    // Resumo financeiro
-    doc.setFontSize(14);
-    doc.text('Resumo Financeiro:', 20, 50);
+    const totalDespesas = filteredTransactions
+      .filter(t => t.type === TransactionType.EXPENSE)
+      .reduce((sum, t) => sum + t.value, 0);
     
+    // Configurações de cores e fontes
+    const primaryColor = [34, 197, 94]; // emerald-500
+    const secondaryColor = [75, 85, 99]; // gray-600
+    const accentColor = [239, 68, 68]; // red-500
+    const blueColor = [59, 130, 246]; // blue-500
+    
+    // Cabeçalho com design melhorado
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(0, 0, 210, 25, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RELATÓRIO FINANCEIRO DETALHADO', 105, 15, { align: 'center' });
+    
+    // Data do relatório
     doc.setFontSize(10);
-    doc.text(`Total de Receitas: ${formatCurrency(summary.totalIncome)}`, 20, 60);
-    doc.text(`Total de Despesas: ${formatCurrency(summary.totalExpenses)}`, 20, 70);
-    doc.text(`Saldo: ${formatCurrency(summary.balance)}`, 20, 80);
-    doc.text(`Total de Transações: ${summary.transactionCount}`, 20, 90);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Período: ${startDate} a ${endDate}`, 15, 35);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 15, 42);
     
-    // Lista de transações
+    // Linha separadora
+    doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setLineWidth(0.5);
+    doc.line(15, 47, 195, 47);
+    
+    let yPosition = 57;
+    
+    // Resumo financeiro com caixas coloridas
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setFontSize(14);
-    doc.text('Transações:', 20, 110);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMO FINANCEIRO', 15, yPosition);
+    yPosition += 15;
     
-    let yPosition = 120;
+    // Grid de 2x2 para métricas
+    const boxWidth = 85;
+    const boxHeight = 25;
+    const spacing = 10;
+    
+    // Receitas
+    doc.setFillColor(220, 252, 231); // green-50
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(15, yPosition, boxWidth, boxHeight, 'FD');
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECEITAS TOTAIS', 20, yPosition + 8);
+    doc.setFontSize(12);
+    doc.text(`R$ ${totalReceitas.toFixed(2)}`, 20, yPosition + 18);
+    
+    // Despesas
+    doc.setFillColor(254, 242, 242); // red-50
+    doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.rect(15 + boxWidth + spacing, yPosition, boxWidth, boxHeight, 'FD');
+    doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESPESAS TOTAIS', 20 + boxWidth + spacing, yPosition + 8);
+    doc.setFontSize(12);
+    doc.text(`R$ ${totalDespesas.toFixed(2)}`, 20 + boxWidth + spacing, yPosition + 18);
+    
+    yPosition += boxHeight + spacing;
+    
+    // Saldo
+    const saldo = totalReceitas - totalDespesas;
+    const saldoColor = saldo >= 0 ? primaryColor : accentColor;
+    const saldoBackground = saldo >= 0 ? [220, 252, 231] : [254, 242, 242];
+    
+    doc.setFillColor(...saldoBackground);
+    doc.setDrawColor(...saldoColor);
+    doc.rect(15, yPosition, boxWidth, boxHeight, 'FD');
+    doc.setTextColor(...saldoColor);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SALDO FINAL', 20, yPosition + 8);
+    doc.setFontSize(12);
+    doc.text(`R$ ${saldo.toFixed(2)}`, 20, yPosition + 18);
+    
+    // Total de transações
+    doc.setFillColor(239, 246, 255); // blue-50
+    doc.setDrawColor(blueColor[0], blueColor[1], blueColor[2]);
+    doc.rect(15 + boxWidth + spacing, yPosition, boxWidth, boxHeight, 'FD');
+    doc.setTextColor(blueColor[0], blueColor[1], blueColor[2]);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL TRANSAÇÕES', 20 + boxWidth + spacing, yPosition + 8);
+    doc.setFontSize(12);
+    doc.text(`${filteredTransactions.length}`, 20 + boxWidth + spacing, yPosition + 18);
+    
+    yPosition += boxHeight + 20;
+    
+    // Detalhes das transações
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALHES DAS TRANSAÇÕES', 15, yPosition);
+    yPosition += 15;
+    
+    // Cabeçalho da tabela
+    doc.setFillColor(243, 244, 246); // gray-100
+    doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.rect(15, yPosition - 5, 180, 12, 'FD');
+    
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATA', 20, yPosition + 2);
+    doc.text('DESCRIÇÃO', 45, yPosition + 2);
+    doc.text('CATEGORIA', 100, yPosition + 2);
+    doc.text('TIPO', 140, yPosition + 2);
+    doc.text('VALOR', 170, yPosition + 2);
+    
+    yPosition += 15;
+    
+    // Dados das transações
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     
     filteredTransactions.forEach((transaction, index) => {
       if (yPosition > 270) {
         doc.addPage();
         yPosition = 20;
+        
+        // Repetir cabeçalho na nova página
+        doc.setFillColor(243, 244, 246);
+        doc.setDrawColor(...secondaryColor);
+        doc.rect(15, yPosition - 5, 180, 12, 'FD');
+        
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DATA', 20, yPosition + 2);
+        doc.text('DESCRIÇÃO', 45, yPosition + 2);
+        doc.text('CATEGORIA', 100, yPosition + 2);
+        doc.text('TIPO', 140, yPosition + 2);
+        doc.text('VALOR', 170, yPosition + 2);
+        
+        yPosition += 15;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
       }
       
-      const category = categories.find(c => c.id === transaction.category_id);
-      const typeText = transaction.type === TransactionType.INCOME ? 'Receita' : 'Despesa';
+      // Linha alternada
+      if (index % 2 === 0) {
+        doc.setFillColor(249, 250, 251); // gray-50
+        doc.rect(15, yPosition - 3, 180, 10, 'F');
+      }
       
-      doc.text(`${index + 1}. ${transaction.description}`, 20, yPosition);
-      doc.text(`${typeText} - ${category?.name || 'Sem categoria'}`, 20, yPosition + 8);
-      doc.text(`${formatCurrency(transaction.value)} - ${formatDate(transaction.date)}`, 20, yPosition + 16);
+      doc.setTextColor(31, 41, 55); // gray-800
+      doc.text(new Date(transaction.date).toLocaleDateString('pt-BR'), 20, yPosition + 2);
+      doc.text(transaction.description.substring(0, 20), 45, yPosition + 2);
       
-      yPosition += 25;
+      const categoria = categories.find(c => c.id === transaction.category_id);
+      doc.text(categoria ? categoria.name.substring(0, 15) : 'N/A', 100, yPosition + 2);
+      
+      // Tipo com cor
+      const tipoColor = transaction.type === TransactionType.INCOME ? primaryColor : accentColor;
+      doc.setTextColor(tipoColor[0], tipoColor[1], tipoColor[2]);
+      doc.text(transaction.type === TransactionType.INCOME ? 'RECEITA' : 'DESPESA', 140, yPosition + 2);
+      
+      // Valor com cor
+      const valorColor = transaction.type === TransactionType.INCOME ? primaryColor : accentColor;
+      doc.setTextColor(valorColor[0], valorColor[1], valorColor[2]);
+      const valorText = `${transaction.type === TransactionType.INCOME ? '+' : '-'} R$ ${transaction.value.toFixed(2)}`;
+      doc.text(valorText, 170, yPosition + 2);
+      
+      yPosition += 12;
     });
     
-    // Salvar o PDF
-    doc.save(`relatorio-financeiro-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Rodapé
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(0, 285, 210, 12, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('FinManage Diarista - Sistema de Gestão Financeira', 15, 292);
+      doc.text(`Página ${i} de ${pageCount}`, 195, 292, { align: 'right' });
+    }
+    
+    doc.save(`relatorio-financeiro-${startDate}-${endDate}.pdf`);
   };
 
   const getCategoryName = (categoryId: string): string => {
@@ -306,7 +461,7 @@ const Reports: React.FC = () => {
             <Button 
               onClick={generatePDF}
               disabled={filteredTransactions.length === 0}
-              className="bg-emerald-800 hover:bg-emerald-700"
+              className="bg-emerald-800 hover:bg-emerald-700 text-white"
             >
               <FileText className="mr-2 h-4 w-4" />
               Gerar PDF

@@ -20,7 +20,7 @@ describe('ServicoController', () => {
       horasTotais: 8,
       valorTotal: 0, // Será calculado automaticamente
       descricao: 'Limpeza completa e organização',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     }
 
     const servico = servicoController.createServico(servicoData)
@@ -28,7 +28,7 @@ describe('ServicoController', () => {
     expect(servico.valorTotal).toBe(240.0) // 30 * 8 = 240
     expect(servico.diaristaId).toBe('diarista-123')
     expect(servico.clienteId).toBe('cliente-456')
-    expect(servico.status).toBe(StatusServico.AGENDADO)
+    expect(servico.status).toBe(StatusServico.EM_ANDAMENTO)
   })
 
   it('deve retornar todos os serviços', () => {
@@ -42,7 +42,7 @@ describe('ServicoController', () => {
       horasTotais: 4,
       valorTotal: 0,
       descricao: 'Serviço 1',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     })
 
     const servico2 = servicoController.createServico({
@@ -78,7 +78,7 @@ describe('ServicoController', () => {
       horasTotais: 3,
       valorTotal: 0,
       descricao: 'Limpeza casa 1',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     })
 
     servicoController.createServico({
@@ -127,7 +127,7 @@ describe('ServicoController', () => {
       horasTotais: 6,
       valorTotal: 0,
       descricao: 'Limpeza casa',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     })
 
     const servicosDoCliente = servicoController.getServicosByClienteId(clienteId)
@@ -148,7 +148,7 @@ describe('ServicoController', () => {
       horasTotais: 4,
       valorTotal: 0,
       descricao: 'Serviço para atualizar',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     })
 
     const servicoAtualizado = servicoController.updateServico(servico.id, {
@@ -202,7 +202,7 @@ describe('ServicoController', () => {
       horasTotais: 3,
       valorTotal: 0,
       descricao: 'Serviço 3',
-      status: StatusServico.AGENDADO
+      status: StatusServico.EM_ANDAMENTO
     })
 
     const dataInicio = new Date('2024-01-01')

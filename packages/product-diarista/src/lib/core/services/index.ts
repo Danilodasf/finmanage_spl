@@ -81,6 +81,9 @@ export interface Transaction {
   payment_method?: string;
   created_at: Date;
   updated_at: Date;
+  servico_id?: string;
+  gasto_servico_id?: string;
+  is_auto_generated?: boolean;
 }
 
 export interface CreateTransactionDTO {

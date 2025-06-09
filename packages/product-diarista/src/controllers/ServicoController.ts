@@ -1,4 +1,7 @@
-import { Servico, servicoRepository, StatusServico } from '../models/Servico';
+import { Servico, StatusServico } from '../models/Servico';
+import { servicoRepository } from '../models/Servico';
+import { DITransactionController } from './DITransactionController';
+import { DICategoryController } from './DICategoryController';
 
 class ServicoController {
   /**
@@ -82,10 +85,6 @@ class ServicoController {
     const servico = this.getServicoById(id);
     if (!servico) return undefined;
     
-    if (servico.status !== StatusServico.AGENDADO) {
-      throw new Error('Apenas serviços agendados podem ser iniciados');
-    }
-    
     return this.updateServico(id, { 
       status: StatusServico.EM_ANDAMENTO,
       dataHoraInicio: new Date()
@@ -95,7 +94,7 @@ class ServicoController {
   /**
    * Conclui um serviço (muda o status para CONCLUIDO)
    */
-  public concluirServico(id: string): Servico | undefined {
+  public async concluirServico(id: string): Promise<Servico | undefined> {
     const servico = this.getServicoById(id);
     if (!servico) return undefined;
     
@@ -103,10 +102,62 @@ class ServicoController {
       throw new Error('Apenas serviços em andamento podem ser concluídos');
     }
     
-    return this.updateServico(id, { 
+    const servicoAtualizado = this.updateServico(id, { 
       status: StatusServico.CONCLUIDO,
       dataHoraFim: new Date()
     });
+
+    // Criar transação de receita automaticamente
+    if (servicoAtualizado) {
+      await this.criarTransacaoReceita(servicoAtualizado);
+    }
+    
+    return servicoAtualizado;
+  }
+
+  /**
+   * Cria uma transação de receita para um serviço concluído
+   */
+  private async criarTransacaoReceita(servico: Servico): Promise<void> {
+    try {
+      const transactionController = new DITransactionController();
+      const categoryController = new DICategoryController();
+      
+      // Buscar a categoria "Serviços Realizados"
+      const categoriesResult = await categoryController.getCategoriesByType('income');
+      let servicosRealizadosCategory = null;
+      
+      if (categoriesResult.data) {
+        servicosRealizadosCategory = categoriesResult.data.find(
+          cat => cat.name === 'Serviços Realizados'
+        );
+      }
+      
+      // Se não encontrar a categoria, criar as categorias padrão
+      if (!servicosRealizadosCategory) {
+        await categoryController.createDefaultCategories();
+        const newCategoriesResult = await categoryController.getCategoriesByType('income');
+        if (newCategoriesResult.data) {
+          servicosRealizadosCategory = newCategoriesResult.data.find(
+            cat => cat.name === 'Serviços Realizados'
+          );
+        }
+      }
+      
+      if (servicosRealizadosCategory) {
+        await transactionController.createTransaction({
+          categoria_id: servicosRealizadosCategory.id,
+          tipo: 'receita',
+          valor: servico.valorTotal,
+          descricao: `Receita do serviço: ${servico.descricao}`,
+          data: servico.dataHoraFim || new Date(),
+          servico_id: servico.id // Referência ao serviço
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao criar transação de receita:', error);
+      // Não interrompe o fluxo se houver erro na criação da transação
+    }
   }
 
   /**
@@ -142,4 +193,4 @@ class ServicoController {
   }
 }
 
-export const servicoController = new ServicoController(); 
+export const servicoController = new ServicoController();

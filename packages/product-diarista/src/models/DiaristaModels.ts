@@ -29,10 +29,10 @@ export interface TransacaoDiarista extends Transaction {
   cliente_nome?: string;
   cliente_telefone?: string;
   endereco_servico?: string;
-  horas_trabalhadas?: number;
-  observacoes?: string;
   status_pagamento?: 'pendente' | 'pago' | 'atrasado';
-  data_vencimento?: string;
+  servico_id?: string; // Referência ao serviço que gerou esta transação
+  gasto_servico_id?: string; // Referência ao gasto adicional que gerou esta transação
+  is_auto_generated?: boolean; // Indica se a transação foi gerada automaticamente
 }
 
 /**
@@ -60,9 +60,8 @@ export interface Agendamento {
   data_agendada: string;
   hora_inicio: string;
   hora_fim?: string;
-  status: 'agendado' | 'em_andamento' | 'concluido' | 'cancelado';
+  status: 'em_andamento' | 'concluido' | 'cancelado';
   valor_acordado: number;
-  observacoes?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -106,7 +105,7 @@ export interface Servico {
   categoria_id?: string;
   data: string;
   valor: number;
-  status: 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
+  status: 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
   descricao?: string;
   localizacao?: string;
   created_at: string;

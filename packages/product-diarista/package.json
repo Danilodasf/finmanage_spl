@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "setup-triggers": "tsx src/lib/migrations/setupTriggers.ts",
+    "remove-triggers": "tsx src/lib/migrations/setupTriggers.ts --remove"
   },
   "dependencies": {
     "@finmanage/core": "file:../core",

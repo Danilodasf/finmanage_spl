@@ -449,6 +449,14 @@ const TransactionActions: React.FC<TransactionActionsProps> = ({
 
   useEffect(() => {
     const checkServiceStatus = async () => {
+      // Verificar se é uma transação gerada automaticamente por gasto adicional
+      const transacaoDiarista = transaction as any; // Cast para acessar campos específicos
+      if (transacaoDiarista.gasto_servico_id && transacaoDiarista.is_auto_generated) {
+        setIsFromCompletedService(true);
+        setIsChecking(false);
+        return;
+      }
+
       if (!transaction.servico_id) {
         setIsFromCompletedService(false);
         setIsChecking(false);
@@ -477,22 +485,31 @@ const TransactionActions: React.FC<TransactionActionsProps> = ({
   }
 
   if (isFromCompletedService) {
+    const transacaoDiarista = transaction as any;
+    const isFromGasto = transacaoDiarista.gasto_servico_id && transacaoDiarista.is_auto_generated;
+    
+    const editTooltip = isFromGasto 
+      ? "Transações de gastos adicionais só podem ser editadas na tela 'Gastos Adicionais'"
+      : "Transações de serviços concluídos só podem ser editadas na tela 'Serviços'";
+    
+    const deleteTooltip = isFromGasto 
+      ? "Transações de gastos adicionais só podem ser excluídas na tela 'Gastos Adicionais'"
+      : "Transações de serviços concluídos só podem ser excluídas na tela 'Serviços'";
+    
     return (
       <div className="flex gap-2">
-        <button
-          disabled
+        <span
           className="text-gray-400 cursor-not-allowed font-medium"
-          title="Transações de serviços concluídos só podem ser editadas na tela 'Serviços'"
+          title={editTooltip}
         >
           Editar
-        </button>
-        <button
-          disabled
+        </span>
+        <span
           className="text-gray-400 cursor-not-allowed font-medium"
-          title="Transações de serviços concluídos só podem ser excluídas na tela 'Serviços'"
+          title={deleteTooltip}
         >
           Excluir
-        </button>
+        </span>
       </div>
     );
   }
