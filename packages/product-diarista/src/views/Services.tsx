@@ -6,6 +6,10 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import AddExpenseModal from '../components/AddExpenseModal';
+import { useFormValidation, useCurrencyInput, usePhoneInput } from '../hooks/useFormValidation';
+import { validateEmail, validatePhone, validateCurrency, errorMessages } from '../utils/validations';
+import { DIClienteController } from '../controllers/DIClienteController';
+import { DIServicoController } from '../controllers/DIServicoController';
 
 // Interfaces removidas - agora usando as importadas de DiaristaModels.ts
 
@@ -13,7 +17,7 @@ interface ServiceFormData {
   data: string;
   valor: string;
   cliente_id: string;
-  status: 'pendente' | 'pago' | 'cancelado';
+  status: 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
   descricao: string;
   localizacao: string;
 }
@@ -38,15 +42,21 @@ const Services: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Cliente | null>(null);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [selectedServiceForExpense, setSelectedServiceForExpense] = useState<string | null>(null);
+
+  // Instanciar controladores DI
+  const clienteController = new DIClienteController();
+  const servicoController = new DIServicoController();
   
   const [serviceFormData, setServiceFormData] = useState<ServiceFormData>({
     data: new Date().toISOString().split('T')[0],
     valor: '',
     cliente_id: '',
-    status: 'pendente',
+    status: 'AGENDADO',
     descricao: '',
     localizacao: ''
   });
+  
+  const [serviceValue, setServiceValue] = useCurrencyInput('');
 
   const [clientFormData, setClientFormData] = useState<ClientFormData>({
     nome: '',
@@ -55,6 +65,9 @@ const Services: React.FC = () => {
     endereco: '',
     localizacao: ''
   });
+  
+  const [clientPhone, setClientPhone] = usePhoneInput('');
+  const [clientFormErrors, setClientFormErrors] = useState<{[key: string]: string}>({});
 
   // Mock data - será substituído pela integração com Supabase
   useEffect(() => {
@@ -64,10 +77,29 @@ const Services: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Simular carregamento de dados
-      setServices([]);
-      setClients([]);
-    } catch (err) {
+      // Carregar dados usando controladores DI
+      const [servicosResult, clientesResult] = await Promise.all([
+        servicoController.getAllServicos(),
+        clienteController.getAllClientes()
+      ]);
+
+      if (servicosResult.error) {
+        console.error('Erro ao carregar serviços:', servicosResult.error);
+      } else {
+        setServices(servicosResult.data);
+      }
+
+      if (clientesResult.error) {
+        console.error('Erro ao carregar clientes:', clientesResult.error);
+      } else {
+        setClients(clientesResult.data);
+      }
+
+      // TODO: Implementar carregamento de gastos e categorias
+      setExpenses([]);
+      setCategories([]);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
       setError('Erro ao carregar dados');
     } finally {
       setIsLoading(false);
@@ -91,67 +123,40 @@ const Services: React.FC = () => {
       };
 
       if (editingService) {
-        // Verificar mudança de status para gerenciar transações
-        const oldStatus = editingService.status;
-        const newStatus = serviceFormData.status;
-        
         // Atualizar serviço existente
-        const updatedService: Servico = {
-          ...editingService,
-          ...serviceData,
-          updated_at: new Date()
-        };
-        setServices(prev => prev.map(s => s.id === editingService.id ? updatedService : s));
+        const result = await servicoController.updateServico(editingService.id, serviceData);
         
-        // Gerenciar transações baseado na mudança de status
-        if (oldStatus !== 'pago' && newStatus === 'pago') {
-          // Criar transação de receita
-          // await api.createTransaction({
-          //   tipo: 'receita',
-          //   valor: serviceData.valor,
-          //   descricao: `Pagamento do serviço: ${serviceData.descricao}`,
-          //   categoria_id: 'servicos', // categoria padrão para serviços
-          //   data: serviceData.data,
-          //   servico_id: editingService.id
-          // });
-          console.log('Transação de receita criada para o serviço:', editingService.id);
-        } else if (oldStatus === 'pago' && newStatus === 'cancelado') {
-          // Deletar transação de receita
-          // await api.deleteTransactionByServiceId(editingService.id);
-          console.log('Transação de receita deletada para o serviço:', editingService.id);
+        if (result.error) {
+          setError(result.error);
+          return;
         }
-        
+
+        // Atualizar lista local
+        setServices(prev => prev.map(s => s.id === editingService.id ? result.data! : s));
         setEditingService(null);
+        
+        console.log('Serviço atualizado com sucesso:', result.data);
       } else {
         // Criar novo serviço
-        const newService: Servico = {
-          id: Date.now().toString(),
-          ...serviceData,
-          created_at: new Date(),
-          updated_at: new Date()
-        };
-        setServices(prev => [...prev, newService]);
+        const result = await servicoController.createServico(serviceData);
         
-        // Se o serviço já for criado como pago, criar transação de receita
-        if (serviceData.status === 'pago') {
-          // await api.createTransaction({
-          //   tipo: 'receita',
-          //   valor: serviceData.valor,
-          //   descricao: `Pagamento do serviço: ${serviceData.descricao}`,
-          //   categoria_id: 'servicos', // categoria padrão para serviços
-          //   data: serviceData.data,
-          //   servico_id: newService.id
-          // });
-          console.log('Transação de receita criada para o novo serviço:', newService.id);
+        if (result.error) {
+          setError(result.error);
+          return;
         }
+
+        // Adicionar à lista local
+        setServices(prev => [...prev, result.data!]);
+        
+        console.log('Serviço criado com sucesso:', result.data);
       }
 
       // Resetar formulário
       setServiceFormData({
-        data: '',
+        data: new Date().toISOString().split('T')[0],
         valor: '',
         cliente_id: '',
-        status: 'pendente',
+        status: 'AGENDADO',
         descricao: '',
         localizacao: ''
       });
@@ -169,23 +174,41 @@ const Services: React.FC = () => {
     setError(null);
 
     try {
-      const newClient: Cliente = {
-        id: editingClient?.id || Date.now().toString(),
-        user_id: 'current_user_id', // TODO: Obter do contexto de autenticação
+      const clienteData: CreateClienteDTO = {
         nome: clientFormData.nome,
         email: clientFormData.email,
         telefone: clientFormData.telefone,
         endereco: clientFormData.endereco,
-        localizacao: clientFormData.localizacao,
-        created_at: editingClient?.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        localizacao: clientFormData.localizacao
       };
       
       if (editingClient) {
-        setClients(prev => prev.map(c => c.id === editingClient.id ? newClient : c));
+        // Atualizar cliente existente
+        const result = await clienteController.updateCliente(editingClient.id, clienteData);
+        
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+
+        // Atualizar lista local
+        setClients(prev => prev.map(c => c.id === editingClient.id ? result.data! : c));
         setEditingClient(null);
+        
+        console.log('Cliente atualizado com sucesso:', result.data);
       } else {
-        setClients(prev => [...prev, newClient]);
+        // Criar novo cliente
+        const result = await clienteController.createCliente(clienteData);
+        
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+
+        // Adicionar à lista local
+        setClients(prev => [...prev, result.data!]);
+        
+        console.log('Cliente criado com sucesso:', result.data);
       }
 
       // Reset form
@@ -196,7 +219,8 @@ const Services: React.FC = () => {
         endereco: '',
         localizacao: ''
       });
-    } catch (err) {
+    } catch (error) {
+      console.error('Erro ao salvar cliente:', error);
       setError('Erro ao salvar cliente');
     } finally {
       setIsLoading(false);
@@ -226,15 +250,43 @@ const Services: React.FC = () => {
     });
   };
 
-  const handleDeleteService = (id: string) => {
+  const handleDeleteService = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este serviço?')) {
-      setServices(prev => prev.filter(s => s.id !== id));
+      try {
+        const result = await servicoController.deleteServico(id);
+        
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+
+        // Remover da lista local
+        setServices(prev => prev.filter(s => s.id !== id));
+        console.log('Serviço excluído com sucesso');
+      } catch (error) {
+        console.error('Erro ao excluir serviço:', error);
+        setError('Erro ao excluir serviço');
+      }
     }
   };
 
-  const handleDeleteClient = (id: string) => {
+  const handleDeleteClient = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este cliente?')) {
-      setClients(prev => prev.filter(c => c.id !== id));
+      try {
+        const result = await clienteController.deleteCliente(id);
+        
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+
+        // Remover da lista local
+        setClients(prev => prev.filter(c => c.id !== id));
+        console.log('Cliente excluído com sucesso');
+      } catch (error) {
+        console.error('Erro ao excluir cliente:', error);
+        setError('Erro ao excluir cliente');
+      }
     }
   };
 
@@ -364,7 +416,7 @@ const Services: React.FC = () => {
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
+          {typeof error === 'string' ? error : 'Erro inesperado'}
         </div>
       )}
 
@@ -395,10 +447,17 @@ const Services: React.FC = () => {
                   Valor
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={serviceFormData.valor}
-                  onChange={(e) => setServiceFormData(prev => ({ ...prev, valor: e.target.value }))}
+                  type="text"
+                  value={serviceValue}
+                  onChange={(e) => {
+                    setServiceValue(e.target.value);
+                    setServiceFormData(prev => ({ ...prev, valor: e.target.value.replace(',', '.') }));
+                  }}
+                  onBlur={() => {
+                    if (serviceValue && !validateCurrency(serviceValue.replace(',', '.'))) {
+                      // Mostrar erro se necessário
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="0,00"
                   required
@@ -430,12 +489,13 @@ const Services: React.FC = () => {
                 </label>
                 <select
                   value={serviceFormData.status}
-                  onChange={(e) => setServiceFormData(prev => ({ ...prev, status: e.target.value as any }))}
+                  onChange={(e) => setServiceFormData(prev => ({ ...prev, status: e.target.value as 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO' }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="pendente">Pendente</option>
-                  <option value="pago">Pago</option>
-                  <option value="cancelado">Cancelado</option>
+                  <option value="AGENDADO">Agendado</option>
+                  <option value="EM_ANDAMENTO">Em Andamento</option>
+                  <option value="CONCLUIDO">Concluído</option>
+                  <option value="CANCELADO">Cancelado</option>
                 </select>
               </div>
 
@@ -482,13 +542,14 @@ const Services: React.FC = () => {
                     onClick={() => {
                       setEditingService(null);
                       setServiceFormData({
-                        date: new Date().toISOString().split('T')[0],
-                        value: '',
-                        clientId: '',
-                        status: 'pending',
-                        description: '',
-                        serviceLocation: ''
+                        data: new Date().toISOString().split('T')[0],
+                        valor: '',
+                        cliente_id: '',
+                        status: 'AGENDADO',
+                        descricao: '',
+                        localizacao: ''
                       });
+                      setServiceValue('');
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                   >
@@ -602,10 +663,26 @@ const Services: React.FC = () => {
                 <input
                   type="email"
                   value={clientFormData.email}
-                  onChange={(e) => setClientFormData(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  onChange={(e) => {
+                    setClientFormData(prev => ({ ...prev, email: e.target.value }));
+                    // Limpa erro quando usuário digita
+                    if (clientFormErrors.email) {
+                      setClientFormErrors(prev => ({ ...prev, email: '' }));
+                    }
+                  }}
+                  onBlur={() => {
+                    if (clientFormData.email && !validateEmail(clientFormData.email)) {
+                      setClientFormErrors(prev => ({ ...prev, email: errorMessages.email }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                    clientFormErrors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   required
                 />
+                {clientFormErrors.email && (
+                  <p className="text-red-500 text-sm mt-1">{clientFormErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -614,11 +691,31 @@ const Services: React.FC = () => {
                 </label>
                 <input
                   type="tel"
-                  value={clientFormData.telefone}
-                  onChange={(e) => setClientFormData(prev => ({ ...prev, telefone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  value={clientPhone}
+                  onChange={(e) => {
+                    setClientPhone(e.target.value);
+                    setClientFormData(prev => ({ ...prev, telefone: e.target.value.replace(/\D/g, '') }));
+                    // Limpa erro quando usuário digita
+                    if (clientFormErrors.telefone) {
+                      setClientFormErrors(prev => ({ ...prev, telefone: '' }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const cleanPhone = clientPhone.replace(/\D/g, '');
+                    if (cleanPhone && !validatePhone(cleanPhone)) {
+                      setClientFormErrors(prev => ({ ...prev, telefone: errorMessages.phone }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                    clientFormErrors.telefone ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="(11) 99999-9999"
+                  maxLength={15}
                   required
                 />
+                {clientFormErrors.telefone && (
+                  <p className="text-red-500 text-sm mt-1">{clientFormErrors.telefone}</p>
+                )}
               </div>
 
               <div>
@@ -649,11 +746,14 @@ const Services: React.FC = () => {
                     onClick={() => {
                       setEditingClient(null);
                       setClientFormData({
-                        name: '',
+                        nome: '',
                         email: '',
-                        phone: '',
-                        address: ''
+                        telefone: '',
+                        endereco: '',
+                        localizacao: ''
                       });
+                      setClientPhone('');
+                      setClientFormErrors({});
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                   >

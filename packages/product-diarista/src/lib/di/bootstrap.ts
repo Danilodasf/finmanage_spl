@@ -33,26 +33,25 @@ interface DiaristaBootstrapConfig {
 /**
  * Serviço simples de armazenamento local
  */
-class LocalStorageService {
-  set(key: string, value: any): void {
+class LocalStorageService implements StorageService {
+  getItem(key: string): string | null {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error('Erro ao salvar no localStorage:', error);
-    }
-  }
-
-  get<T>(key: string): T | null {
-    try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : null;
+      return localStorage.getItem(key);
     } catch (error) {
       console.error('Erro ao ler do localStorage:', error);
       return null;
     }
   }
 
-  remove(key: string): void {
+  setItem(key: string, value: string): void {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.error('Erro ao salvar no localStorage:', error);
+    }
+  }
+
+  removeItem(key: string): void {
     try {
       localStorage.removeItem(key);
     } catch (error) {
@@ -66,6 +65,25 @@ class LocalStorageService {
     } catch (error) {
       console.error('Erro ao limpar localStorage:', error);
     }
+  }
+
+  // Métodos auxiliares para compatibilidade
+  set(key: string, value: any): void {
+    this.setItem(key, JSON.stringify(value));
+  }
+
+  get<T>(key: string): T | null {
+    try {
+      const item = this.getItem(key);
+      return item ? JSON.parse(item) : null;
+    } catch (error) {
+      console.error('Erro ao fazer parse do localStorage:', error);
+      return null;
+    }
+  }
+
+  remove(key: string): void {
+    this.removeItem(key);
   }
 }
 

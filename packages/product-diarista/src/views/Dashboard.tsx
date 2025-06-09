@@ -8,6 +8,7 @@ import { Transaction, TransactionType } from '../lib/core/services';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TrendingUp, TrendingDown, DollarSign, CreditCard, Filter } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface FinancialSummary {
   receitas: number;
@@ -27,7 +28,7 @@ const Dashboard: React.FC = () => {
   });
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
+  const [lineData, setLineData] = useState<any[]>([]);
 
   // Dados para gráficos - apenas dados reais
   const pieData = [
@@ -46,12 +47,60 @@ const Dashboard: React.FC = () => {
   // Verifica se há dados para exibir no gráfico
   const hasFinancialData = summary.receitas > 0 || summary.despesas > 0;
 
-  // Dados do gráfico de linha serão calculados dinamicamente baseados nas transações reais
-  const lineData: any[] = [];
-
   useEffect(() => {
     loadDashboardData();
   }, [period]);
+
+  const filterTransactionsByPeriod = (transactions: Transaction[]) => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentQuarter = Math.floor(currentMonth / 3);
+
+    return transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      const transactionYear = transactionDate.getFullYear();
+      const transactionMonth = transactionDate.getMonth();
+      const transactionQuarter = Math.floor(transactionMonth / 3);
+
+      switch (period) {
+        case 'month':
+          return transactionYear === currentYear && transactionMonth === currentMonth;
+        case 'quarter':
+          return transactionYear === currentYear && transactionQuarter === currentQuarter;
+        case 'year':
+          return transactionYear === currentYear;
+        case 'all':
+        default:
+          return true;
+      }
+    });
+  };
+
+  const generateMonthlyData = (transactions: Transaction[]) => {
+    const monthlyData: { [key: string]: { receitas: number; despesas: number; name: string } } = {};
+    
+    transactions.forEach(transaction => {
+      const date = new Date(transaction.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = format(date, 'MMM yyyy', { locale: ptBR });
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { receitas: 0, despesas: 0, name: monthName };
+      }
+      
+      if (transaction.type === TransactionType.INCOME) {
+        monthlyData[monthKey].receitas += transaction.value;
+      } else {
+        monthlyData[monthKey].despesas += transaction.value;
+      }
+    });
+    
+    return Object.keys(monthlyData)
+      .sort()
+      .slice(-6) // Últimos 6 meses
+      .map(key => monthlyData[key]);
+  };
 
   const loadDashboardData = async () => {
     setIsLoading(true);
@@ -60,31 +109,36 @@ const Dashboard: React.FC = () => {
       const transactionController = new DITransactionController();
       const transactionsResult = await transactionController.getAllTransactions();
       
-      if (transactionsResult.success && transactionsResult.data) {
-        const transactions = transactionsResult.data;
+      if (!transactionsResult.error && transactionsResult.data) {
+        const allTransactions = transactionsResult.data;
+        const filteredTransactions = filterTransactionsByPeriod(allTransactions);
         
-        // Calcular resumo financeiro
-        const receitas = transactions
+        // Calcular resumo financeiro com transações filtradas
+        const receitas = filteredTransactions
           .filter(t => t.type === TransactionType.INCOME)
-          .reduce((sum, t) => sum + t.amount, 0);
+          .reduce((sum, t) => sum + t.value, 0);
         
-        const despesas = transactions
+        const despesas = filteredTransactions
           .filter(t => t.type === TransactionType.EXPENSE)
-          .reduce((sum, t) => sum + t.amount, 0);
+          .reduce((sum, t) => sum + t.value, 0);
         
         setSummary({
           receitas,
           despesas,
           saldo: receitas - despesas,
-          totalTransactions: transactions.length
+          totalTransactions: filteredTransactions.length
         });
         
-        // Pegar as 5 transações mais recentes
-        const recent = transactions
+        // Pegar as 5 transações mais recentes das transações filtradas
+        const recent = filteredTransactions
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .slice(0, 5);
         
         setRecentTransactions(recent);
+        
+        // Gerar dados para o gráfico de evolução mensal
+        const monthlyChartData = generateMonthlyData(allTransactions);
+        setLineData(monthlyChartData);
       }
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error);
@@ -234,17 +288,25 @@ const Dashboard: React.FC = () => {
               <CardTitle>Evolução Mensal</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={lineData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                  <Legend />
-                  <Line type="monotone" dataKey="receitas" stroke="#10b981" strokeWidth={2} name="Receitas" />
-                  <Line type="monotone" dataKey="despesas" stroke="#ef4444" strokeWidth={2} name="Despesas" />
-                </LineChart>
-              </ResponsiveContainer>
+              {lineData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={lineData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    <Legend />
+                    <Line type="monotone" dataKey="receitas" stroke="#10b981" strokeWidth={2} name="Receitas" />
+                    <Line type="monotone" dataKey="despesas" stroke="#ef4444" strokeWidth={2} name="Despesas" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[300px] text-gray-500">
+                  <div className="text-6xl mb-4">📈</div>
+                  <h3 className="text-lg font-medium mb-2">Nenhum dado de evolução</h3>
+                  <p className="text-sm text-center">Adicione transações para ver a evolução mensal</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -289,7 +351,7 @@ const Dashboard: React.FC = () => {
                         : 'text-red-600'
                     }`}>
                       {transaction.type === TransactionType.INCOME ? '+' : '-'}
-                      {formatCurrency(transaction.amount)}
+                      {formatCurrency(transaction.value)}
                     </span>
                   </div>
                 </div>
@@ -299,9 +361,12 @@ const Dashboard: React.FC = () => {
           
           {recentTransactions.length > 0 && (
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-              <button className="text-sm text-emerald-600 hover:text-emerald-500 font-medium">
+              <Link 
+                to="/transactions" 
+                className="text-sm text-emerald-600 hover:text-emerald-500 font-medium transition-colors"
+              >
                 Ver todas as transações →
-              </button>
+              </Link>
             </div>
           )}
           </CardContent>

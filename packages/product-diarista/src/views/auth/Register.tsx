@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { AuthLayout } from '../../components/Layout/AuthLayout';
 import { useAuthContext } from '../../hooks/useAuth';
+import { validateEmail, validateRequired, errorMessages } from '../../utils/validations';
 
 interface RegisterData {
   name: string;
@@ -21,6 +22,13 @@ const Register: React.FC = () => {
     email: '',
     password: '',
     confirmPassword: '',
+  });
+  
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -103,10 +111,25 @@ const Register: React.FC = () => {
             name="name"
             type="text"
             value={formData.name}
-            onChange={handleInputChange}
+            onChange={(e) => {
+              handleInputChange(e);
+              // Limpa erro quando usuário digita
+              if (errors.name) {
+                setErrors(prev => ({ ...prev, name: '' }));
+              }
+            }}
+            onBlur={() => {
+              if (!validateRequired(formData.name)) {
+                setErrors(prev => ({ ...prev, name: errorMessages.required }));
+              }
+            }}
+            className={errors.name ? 'border-red-500' : ''}
             required
             placeholder="Ex: João Silva"
           />
+          {errors.name && (
+            <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+          )}
         </div>
 
         <div>
@@ -116,10 +139,27 @@ const Register: React.FC = () => {
             name="email"
             type="email"
             value={formData.email}
-            onChange={handleInputChange}
+            onChange={(e) => {
+              handleInputChange(e);
+              // Limpa erro quando usuário digita
+              if (errors.email) {
+                setErrors(prev => ({ ...prev, email: '' }));
+              }
+            }}
+            onBlur={() => {
+              if (!validateRequired(formData.email)) {
+                setErrors(prev => ({ ...prev, email: errorMessages.required }));
+              } else if (!validateEmail(formData.email)) {
+                setErrors(prev => ({ ...prev, email: errorMessages.email }));
+              }
+            }}
+            className={errors.email ? 'border-red-500' : ''}
             required
             placeholder="Ex: joao.silva@email.com"
           />
+          {errors.email && (
+            <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+          )}
         </div>
 
         <div>

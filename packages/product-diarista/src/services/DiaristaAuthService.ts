@@ -33,6 +33,23 @@ export class DiaristaAuthService implements AuthService {
 
   constructor() {
     this.supabase = getSupabaseClient();
+    
+    // Configura listener para mudanças de autenticação
+    this.supabase.auth.onAuthStateChange((event: string, session: any) => {
+      console.log('[DiaristaAuthService] Mudança de estado de autenticação:', event);
+      
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+        console.log('[DiaristaAuthService] Usuário deslogado ou sessão expirada, limpando dados locais');
+        this.currentUser = null;
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('auth_token');
+      } else if (event === 'SIGNED_IN' && session) {
+        console.log('[DiaristaAuthService] Usuário logado, sessão ativa:', session.user?.id);
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        console.log('[DiaristaAuthService] Token renovado com sucesso');
+      }
+    });
   }
 
 
@@ -186,14 +203,7 @@ export class DiaristaAuthService implements AuthService {
       const profileData = {
         id: authData.user.id, // Usar o ID do Supabase Auth
         email,
-        name,
-        phone: '',
-        address: '',
-        specialties: [],
-        hourly_rate: 0,
-        availability: [],
-        rating: 0,
-        total_services: 0
+        name
       };
 
       const userResult = await this.db.create('profiles', profileData);
@@ -254,6 +264,11 @@ export class DiaristaAuthService implements AuthService {
 
       // Limpa o estado local
       this.currentUser = null;
+      
+      // Limpa TODOS os dados do localStorage
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('auth_token');
 
       console.log('[DiaristaAuthService] Logout concluído com sucesso');
       return {
@@ -262,6 +277,13 @@ export class DiaristaAuthService implements AuthService {
       };
     } catch (error) {
       console.error('Erro no logout:', error);
+      
+      // Limpa dados locais mesmo em caso de erro
+      this.currentUser = null;
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('auth_token');
+      
       return {
         success: false,
         error: 'Erro ao fazer logout'
@@ -269,98 +291,188 @@ export class DiaristaAuthService implements AuthService {
     }
   }
 
-  async getCurrentUser(): Promise<{ user: any | null; error: string | null }> {
+  async getCurrentUser(): Promise<{ user: DiaristaUser | null; error: string | null }> {
     try {
-      // Se já temos o usuário em memória, retorna
-      if (this.currentUser) {
-        return {
-          user: {
-            id: this.currentUser.id,
-            email: this.currentUser.email,
-            name: this.currentUser.name
-          },
-          error: null
-        };
-      }
-
-      // Verifica se há dados salvos no localStorage
-      const savedUser = localStorage.getItem('user');
-      const savedAuth = localStorage.getItem('isAuthenticated');
-      
-      if (savedUser && savedAuth === 'true') {
-        try {
-          const userData = JSON.parse(savedUser);
-          console.log('[DiaristaAuthService] Usuário encontrado no localStorage:', userData.id);
-          
-          // Define o usuário atual a partir do localStorage
-          this.currentUser = userData;
-          
-          return {
-            user: {
-              id: userData.id,
-              email: userData.email,
-              name: userData.name
-            },
-            error: null
-          };
-        } catch (parseError) {
-          console.error('[DiaristaAuthService] Erro ao fazer parse dos dados do localStorage:', parseError);
-          // Remove dados corrompidos
-          localStorage.removeItem('user');
-          localStorage.removeItem('isAuthenticated');
-        }
-      }
-
       console.log('[DiaristaAuthService] Verificando usuário autenticado no Supabase...');
       
-      // Verifica se há um usuário autenticado no Supabase
-      const { data: { user }, error } = await this.supabase.auth.getUser();
+      // Primeiro, verifica se há uma sessão ativa
+      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
       
+      console.log('[DiaristaAuthService] Resultado da verificação de sessão:', {
+        hasSession: !!session,
+        sessionError: sessionError?.message,
+        userId: session?.user?.id
+      });
+      
+      if (sessionError) {
+        console.error('[DiaristaAuthService] Erro ao verificar sessão:', sessionError);
+        
+        // Limpa dados locais se há erro na verificação da sessão
+        this.currentUser = null;
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('auth_token');
+        
+        return {
+          user: null,
+          error: 'Sessão inválida ou expirada. Faça login novamente.'
+        };
+      }
+      
+      if (!session) {
+        console.log('[DiaristaAuthService] Nenhuma sessão ativa encontrada');
+        
+        // Limpa dados locais se não há sessão
+        this.currentUser = null;
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('auth_token');
+        
+        return {
+          user: null,
+          error: 'Usuário não autenticado. Faça login para continuar.'
+        };
+      }
+      
+      // Se há sessão, obtém os dados do usuário
+      const { data: userData, error } = await this.supabase.auth.getUser();
+      let user = userData?.user;
+      
+      console.log('[DiaristaAuthService] Resultado da verificação de usuário:', {
+        hasUser: !!user,
+        error: error?.message,
+        userId: user?.id
+      });
+
       if (error) {
-        console.error('[DiaristaAuthService] Erro ao verificar usuário:', error);
-        return {
-          user: null,
-          error: null
-        };
+        console.error('[DiaristaAuthService] Erro ao verificar usuário no Supabase Auth:', error);
+        
+        // Se o erro é de sessão ausente, tenta renovar a sessão
+        if (error.message.includes('Auth session missing')) {
+          console.log('[DiaristaAuthService] Tentando renovar sessão...');
+          
+          const { data: refreshData, error: refreshError } = await this.supabase.auth.refreshSession();
+          
+          if (refreshError || !refreshData.session) {
+            console.error('[DiaristaAuthService] Falha ao renovar sessão:', refreshError);
+            
+            // Limpa dados locais se não conseguiu renovar
+            this.currentUser = null;
+            localStorage.removeItem('user');
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('auth_token');
+            
+            return {
+              user: null,
+              error: 'Sessão expirada. Faça login novamente.'
+            };
+          }
+          
+          // Tenta obter o usuário novamente após renovar a sessão
+          const { data: renewedData, error: renewedError } = await this.supabase.auth.getUser();
+          const renewedUser = renewedData?.user;
+          
+          if (renewedError || !renewedUser) {
+            console.error('[DiaristaAuthService] Erro ao obter usuário após renovação:', renewedError);
+            
+            this.currentUser = null;
+            localStorage.removeItem('user');
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('auth_token');
+            
+            return {
+              user: null,
+              error: 'Falha na autenticação. Faça login novamente.'
+            };
+          }
+          
+          // Atualiza a referência do usuário
+          user = renewedUser;
+        } else {
+          // Para outros tipos de erro, limpa dados locais
+          this.currentUser = null;
+          localStorage.removeItem('user');
+          localStorage.removeItem('isAuthenticated');
+          localStorage.removeItem('auth_token');
+          
+          return {
+            user: null,
+            error: error.message
+          };
+        }
       }
-
+      
       if (!user) {
-        console.log('[DiaristaAuthService] Nenhum usuário autenticado');
+        console.log('[DiaristaAuthService] Nenhum usuário autenticado encontrado no Supabase');
+        
+        // Limpa dados locais se não há usuário autenticado no Supabase
+        this.currentUser = null;
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('auth_token');
+        
         return {
           user: null,
+          error: 'Usuário não autenticado'
+        };
+      }
+      
+      console.log('[DiaristaAuthService] Usuário autenticado encontrado no Supabase:', user.id);
+      
+      // Se já temos o usuário em cache e está válido, retorna
+      if (this.currentUser && this.currentUser.id === user.id) {
+        console.log('[DiaristaAuthService] Retornando usuário do cache:', this.currentUser.id);
+        return {
+          user: this.currentUser,
           error: null
         };
       }
-
-      console.log('[DiaristaAuthService] Usuário autenticado encontrado:', user.id);
-
-      // Busca os dados do perfil do usuário
-      const profileResult = await this.db.getById('profiles', user.id);
-
-      if (profileResult.error || !profileResult.data) {
-        console.error('[DiaristaAuthService] Erro ao buscar perfil:', profileResult.error);
+      
+      // Busca o perfil completo do usuário no banco
+      console.log('[DiaristaAuthService] Buscando perfil do usuário na tabela:', this.usersTable, 'com ID:', user.id);
+      const userProfile = await databaseAdapter.getById<DiaristaUser>(
+        this.usersTable,
+        user.id
+      );
+      
+      if (userProfile.error) {
+        console.error('[DiaristaAuthService] Erro ao buscar perfil do usuário:', userProfile.error);
+        return {
+          user: null,
+          error: `Erro ao buscar perfil: ${userProfile.error.message}`
+        };
+      }
+      
+      if (!userProfile.data) {
+        console.error('[DiaristaAuthService] Perfil do usuário não encontrado para ID:', user.id);
         return {
           user: null,
           error: 'Perfil do usuário não encontrado'
         };
       }
-
-      const userProfile = profileResult.data as DiaristaUser;
-      this.currentUser = userProfile;
-
+      
+      console.log('[DiaristaAuthService] Perfil encontrado:', userProfile.data.id, userProfile.data.email);
+      
+      // Atualiza o cache
+      this.currentUser = userProfile.data;
+      console.log('[DiaristaAuthService] Retornando usuário autenticado:', this.currentUser.id);
+      
       return {
-        user: {
-          id: userProfile.id,
-          email: userProfile.email,
-          name: userProfile.name
-        },
+        user: this.currentUser,
         error: null
       };
     } catch (error) {
-      console.error('Erro ao buscar usuário atual:', error);
+      console.error('[DiaristaAuthService] Erro ao verificar usuário:', error);
+      
+      // Limpa dados locais em caso de erro
+      this.currentUser = null;
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('auth_token');
+      
       return {
         user: null,
-        error: 'Erro interno do servidor'
+        error: 'Erro interno ao verificar usuário'
       };
     }
   }

@@ -62,11 +62,16 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
       console.log(`[SupabaseDatabaseAdapter] Criando registro na tabela ${table}:`, data);
       
       // Adicionar user_id automaticamente para certas tabelas
-      if (['transactions', 'categories', 'agendamentos'].includes(table)) {
+      if (['transactions', 'categories', 'agendamentos', 'clientes'].includes(table)) {
         const userId = await this.getCurrentUserId();
         if (userId) {
           data.user_id = userId;
         }
+      }
+
+      // Mapear 'value' para 'amount' na tabela transactions
+      if (table === 'transactions' && data.value !== undefined) {
+        data.amount = data.value;
       }
 
       // Para a tabela profiles, usar uma abordagem especial para contornar RLS durante registro
@@ -99,14 +104,25 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
 
   async getById<T>(table: string, id: string): Promise<DatabaseResult<T>> {
     try {
-      const { data, error } = await this.supabase
-        .from(table)
-        .select('*')
-        .eq('id', id)
-        .single();
+      let query = this.supabase.from(table).select('*').eq('id', id);
+      
+      // Adicionar filtro por user_id para tabelas com RLS
+      if (['transactions', 'categories', 'agendamentos', 'clientes'].includes(table)) {
+        const userId = await this.getCurrentUserId();
+        if (userId) {
+          query = query.eq('user_id', userId);
+        }
+      }
+      
+      const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = not found
         return { data: null, error: new Error(error.message) };
+      }
+
+      // Mapear 'amount' de volta para 'value' na tabela transactions
+      if (table === 'transactions' && data && data.amount !== undefined) {
+        data.value = data.amount;
       }
 
       return { data: data as T || null, error: null };
@@ -120,6 +136,14 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
     try {
       let query = this.supabase.from(table).select('*');
 
+      // Adicionar filtro por user_id para tabelas com RLS
+      if (['transactions', 'categories', 'agendamentos', 'clientes'].includes(table)) {
+        const userId = await this.getCurrentUserId();
+        if (userId) {
+          query = query.eq('user_id', userId);
+        }
+      }
+
       if (filters) {
         Object.entries(filters).forEach(([key, value]) => {
           query = query.eq(key, value);
@@ -132,6 +156,15 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
         return { data: null, error: new Error(error.message) };
       }
 
+      // Mapear 'amount' de volta para 'value' na tabela transactions
+      if (table === 'transactions' && data) {
+        data.forEach((item: any) => {
+          if (item.amount !== undefined) {
+            item.value = item.amount;
+          }
+        });
+      }
+
       return { data: data as T[] || [], error: null };
     } catch (error) {
       console.error(`[SupabaseDatabaseAdapter] Erro ao buscar todos:`, error);
@@ -141,6 +174,11 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
 
   async update<T>(table: string, id: string, data: Partial<T>): Promise<DatabaseResult<T>> {
     try {
+      // Mapear 'value' para 'amount' na tabela transactions antes de atualizar
+      if (table === 'transactions' && (data as any).value !== undefined) {
+        (data as any).amount = (data as any).value;
+      }
+
       const { data: result, error } = await this.supabase
         .from(table)
         .update(data)
@@ -149,7 +187,13 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
         .single();
 
       if (error) {
+        console.error(`[SupabaseDatabaseAdapter] Erro ao atualizar:`, error);
         return { data: null, error: new Error(error.message) };
+      }
+
+      // Mapear 'amount' de volta para 'value' na tabela transactions
+      if (table === 'transactions' && result && (result as any).amount !== undefined) {
+        (result as any).value = (result as any).amount;
       }
 
       return { data: result as T, error: null };
@@ -178,12 +222,56 @@ class SupabaseDatabaseAdapter implements DatabaseAdapter {
   }
 
   async findWhere<T>(table: string, filters: Record<string, any>): Promise<DatabaseListResult<T>> {
-    return this.getAll<T>(table, filters);
+    try {
+      let query = this.supabase.from(table).select('*');
+      
+      // Adicionar filtro por user_id para tabelas com RLS
+      if (['transactions', 'categories', 'agendamentos', 'clientes'].includes(table)) {
+        const userId = await this.getCurrentUserId();
+        if (userId) {
+          query = query.eq('user_id', userId);
+        }
+      }
+      
+      // Aplicar condições
+      Object.entries(filters).forEach(([key, value]) => {
+        query = query.eq(key, value);
+      });
+
+      const { data: result, error } = await query;
+
+      if (error) {
+        console.error(`[SupabaseDatabaseAdapter] Erro ao buscar registros:`, error);
+        return { data: null, error: new Error(error.message) };
+      }
+
+      // Mapear 'amount' de volta para 'value' na tabela transactions
+      if (table === 'transactions' && result) {
+        result.forEach((item: any) => {
+          if (item.amount !== undefined) {
+            item.value = item.amount;
+          }
+        });
+      }
+
+      return { data: result as T[], error: null };
+    } catch (error) {
+      console.error(`[SupabaseDatabaseAdapter] Erro ao buscar registros:`, error);
+      return { data: null, error: error as Error };
+    }
   }
 
   async findOne<T>(table: string, filters: Record<string, any>): Promise<DatabaseResult<T>> {
     try {
       let query = this.supabase.from(table).select('*');
+
+      // Adicionar filtro por user_id para tabelas com RLS
+      if (['transactions', 'categories', 'agendamentos', 'clientes'].includes(table)) {
+        const userId = await this.getCurrentUserId();
+        if (userId) {
+          query = query.eq('user_id', userId);
+        }
+      }
 
       Object.entries(filters).forEach(([key, value]) => {
         query = query.eq(key, value);

@@ -71,11 +71,10 @@ function AuthExample() {
     e.preventDefault();
     const result = await updateProfile({
       name: profileForm.name || undefined,
-      phone: profileForm.phone || undefined,
-      hourly_rate: profileForm.hourly_rate > 0 ? profileForm.hourly_rate : undefined
+      phone: profileForm.phone || undefined
     });
     if (result.success) {
-      setProfileForm({ name: '', phone: '', hourly_rate: 0 });
+      setProfileForm({ name: '', phone: '' });
     }
   };
 
@@ -89,7 +88,7 @@ function AuthExample() {
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+          {typeof error === 'string' ? error : 'Erro inesperado'}
           <button 
             onClick={clearError}
             className="ml-2 text-red-500 hover:text-red-700"
@@ -203,15 +202,7 @@ function AuthExample() {
               onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
               className="w-full p-2 border rounded"
             />
-            <input
-              type="number"
-              placeholder="Valor por hora"
-              value={profileForm.hourly_rate || ''}
-              onChange={(e) => setProfileForm(prev => ({ ...prev, hourly_rate: Number(e.target.value) }))}
-              className="w-full p-2 border rounded"
-              min="0"
-              step="0.01"
-            />
+
             <button 
               type="submit" 
               disabled={loading}
@@ -289,7 +280,7 @@ function TransactionsExample() {
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+          {typeof error === 'string' ? error : 'Erro inesperado'}
           <button 
             onClick={clearError}
             className="ml-2 text-red-500 hover:text-red-700"
@@ -411,26 +402,20 @@ function CategoriesExample() {
   
   const [newCategory, setNewCategory] = useState({
     name: '',
-    type: 'receita' as CategoryType,
-    color: '#3B82F6',
-    icon: 'default'
+    type: 'receita' as CategoryType
   });
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = await createCategory({
       name: newCategory.name,
-      type: newCategory.type,
-      color: newCategory.color,
-      icon: newCategory.icon
+      type: newCategory.type
     });
     
     if (result.success) {
       setNewCategory({
         name: '',
-        type: 'receita',
-        color: '#3B82F6',
-        icon: 'default'
+        type: 'receita'
       });
     }
   };
@@ -445,7 +430,7 @@ function CategoriesExample() {
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+          {typeof error === 'string' ? error : 'Erro inesperado'}
           <button 
             onClick={clearError}
             className="ml-2 text-red-500 hover:text-red-700"
@@ -494,20 +479,7 @@ function CategoriesExample() {
           <option value="ambos">Ambos</option>
           <option value="investimento">Investimento</option>
         </select>
-        <input
-          type="color"
-          value={newCategory.color}
-          onChange={(e) => setNewCategory(prev => ({ ...prev, color: e.target.value }))}
-          className="w-full p-2 border rounded h-10"
-          title="Cor da categoria"
-        />
-        <input
-          type="text"
-          placeholder="Ícone da categoria"
-          value={newCategory.icon}
-          onChange={(e) => setNewCategory(prev => ({ ...prev, icon: e.target.value }))}
-          className="w-full p-2 border rounded"
-        />
+
         <button 
           type="submit" 
           disabled={loading}
@@ -579,7 +551,7 @@ function FinancialSummaryExample() {
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+          {typeof error === 'string' ? error : 'Erro inesperado'}
         </div>
       )}
       

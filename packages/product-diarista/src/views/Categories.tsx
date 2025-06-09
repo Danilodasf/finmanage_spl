@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DICategoryController } from '../controllers/DICategoryController';
 import { Category, CategoryType } from '../lib/core/services';
+import { validateRequired, errorMessages } from '../utils/validations';
 
 interface CategoryFormData {
   name: string;
@@ -13,6 +14,8 @@ const Categories: React.FC = () => {
     name: '',
     type: CategoryType.EXPENSE
   });
+  
+  const [nameError, setNameError] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +74,7 @@ const Categories: React.FC = () => {
         result = await categoryController.createCategory(formData);
       }
 
-      if (result.success) {
+      if (result.data && !result.error) {
         setFormData({ name: '', type: CategoryType.EXPENSE });
         setEditingId(null);
         await loadCategories();
@@ -101,7 +104,7 @@ const Categories: React.FC = () => {
 
     try {
       const result = await categoryController.deleteCategory(id);
-      if (result.success) {
+      if (result.success && !result.error) {
         await loadCategories();
       } else {
         setError(result.error || 'Erro ao excluir categoria');
@@ -115,6 +118,7 @@ const Categories: React.FC = () => {
     setFormData({ name: '', type: CategoryType.EXPENSE });
     setEditingId(null);
     setError(null);
+    setNameError('');
   };
 
   const getTypeLabel = (type: CategoryType): string => {
@@ -166,7 +170,7 @@ const Categories: React.FC = () => {
           
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+              {typeof error === 'string' ? error : 'Erro inesperado'}
             </div>
           )}
           
@@ -180,12 +184,28 @@ const Categories: React.FC = () => {
                   type="text"
                   name="name"
                   value={formData.name}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    // Limpa erro quando usuário digita
+                    if (nameError) {
+                      setNameError('');
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!validateRequired(formData.name)) {
+                      setNameError(errorMessages.required);
+                    }
+                  }}
                   placeholder="Ex: Alimentação, Transporte, Salário..."
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
+                    nameError ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   disabled={isSubmitting}
                   required
                 />
+                {nameError && (
+                  <p className="text-red-500 text-sm mt-1">{nameError}</p>
+                )}
               </div>
 
               <div>

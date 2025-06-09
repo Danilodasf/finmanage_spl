@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { AuthLayout } from '../../components/Layout/AuthLayout';
 import { useAuthContext } from '../../hooks/useAuth';
+import { validateEmail, validateRequired, errorMessages } from '../../utils/validations';
 
 interface LoginCredentials {
   email: string;
@@ -17,6 +19,11 @@ const Login: React.FC = () => {
   const [formData, setFormData] = useState<LoginCredentials>({
     email: '',
     password: '',
+  });
+  
+  const [errors, setErrors] = useState({
+    email: '',
+    password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -66,10 +73,27 @@ const Login: React.FC = () => {
             name="email"
             type="email"
             value={formData.email}
-            onChange={handleInputChange}
+            onChange={(e) => {
+              handleInputChange(e);
+              // Limpa erro quando usuário digita
+              if (errors.email) {
+                setErrors(prev => ({ ...prev, email: '' }));
+              }
+            }}
+            onBlur={() => {
+              if (!validateRequired(formData.email)) {
+                setErrors(prev => ({ ...prev, email: errorMessages.required }));
+              } else if (!validateEmail(formData.email)) {
+                setErrors(prev => ({ ...prev, email: errorMessages.email }));
+              }
+            }}
+            className={errors.email ? 'border-red-500' : ''}
             required
             placeholder="exemplo@email.com"
           />
+          {errors.email && (
+            <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+          )}
         </div>
 
         <div>

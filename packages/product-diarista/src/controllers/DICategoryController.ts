@@ -29,31 +29,34 @@ export class DICategoryController {
     if (!this.authService) {
       throw new Error('AuthService não encontrado no container DI');
     }
-
-    this.initializeUser();
   }
 
   /**
-   * Inicializa o usuário atual
+   * Verifica e obtém o usuário atual
    */
-  private async initializeUser(): Promise<void> {
+  private async ensureUserAuthenticated(): Promise<{ user: any | null; error: string | null }> {
     try {
       const result = await this.authService.getCurrentUser();
       if (result.user) {
         this.currentUser = result.user;
+        return { user: result.user, error: null };
       }
+      return { user: null, error: result.error || 'Usuário não autenticado' };
     } catch (error) {
-      console.error('Erro ao inicializar usuário:', error);
+      console.error('Erro ao verificar autenticação:', error);
+      return { user: null, error: 'Erro ao verificar autenticação' };
     }
   }
 
   /**
    * Busca todas as categorias do usuário atual
    */
-  async getAllCategories(): Promise<{ data: Category[] | null; error: string | null }> {
+  async getAllCategories(): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const result = await this.categoryService.getAll();
@@ -75,12 +78,14 @@ export class DICategoryController {
   }
 
   /**
-   * Busca uma categoria específica por ID
+   * Busca categoria por ID
    */
-  async getCategoryById(id: string): Promise<{ data: Category | null; error: string | null }> {
+  async getCategoryById(id: string): Promise<{ data: CategoriaDiarista | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const result = await this.categoryService.getById(id);
@@ -102,21 +107,23 @@ export class DICategoryController {
   }
 
   /**
-   * Cria uma nova categoria
+   * Cria nova categoria
    */
-  async createCategory(categoryData: Omit<Category, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<{ data: Category | null; error: string | null }> {
+  async createCategory(categoryData: Omit<CategoriaDiarista, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<{ data: CategoriaDiarista | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
-      // Adiciona o user_id à categoria
-      const completeCategoryData = {
+      // Adiciona o ID do usuário aos dados da categoria
+      const categoryWithUser = {
         ...categoryData,
         user_id: this.currentUser.id
       };
 
-      const result = await this.categoryService.create(completeCategoryData);
+      const result = await this.categoryService.create(categoryWithUser);
       
       if (result.error) {
         return { data: null, error: result.error.message };
@@ -130,18 +137,20 @@ export class DICategoryController {
   }
 
   /**
-   * Atualiza uma categoria existente
+   * Atualiza categoria existente
    */
-  async updateCategory(id: string, categoryData: Partial<Category>): Promise<{ data: Category | null; error: string | null }> {
+  async updateCategory(id: string, categoryData: Partial<CategoriaDiarista>): Promise<{ data: CategoriaDiarista | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
-      // Verifica se a categoria pertence ao usuário
-      const existingResult = await this.getCategoryById(id);
-      if (existingResult.error || !existingResult.data) {
-        return { data: null, error: existingResult.error || 'Categoria não encontrada' };
+      // Primeiro verifica se a categoria existe e pertence ao usuário
+      const existingCategory = await this.getCategoryById(id);
+      if (existingCategory.error || !existingCategory.data) {
+        return { data: null, error: existingCategory.error || 'Categoria não encontrada' };
       }
 
       const result = await this.categoryService.update(id, categoryData);
@@ -158,18 +167,20 @@ export class DICategoryController {
   }
 
   /**
-   * Exclui uma categoria
+   * Remove categoria
    */
   async deleteCategory(id: string): Promise<{ success: boolean; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { success: false, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { success: false, error: authResult.error || 'Usuário não autenticado' };
       }
 
-      // Verifica se a categoria pertence ao usuário
-      const existingResult = await this.getCategoryById(id);
-      if (existingResult.error || !existingResult.data) {
-        return { success: false, error: existingResult.error || 'Categoria não encontrada' };
+      // Primeiro verifica se a categoria existe e pertence ao usuário
+      const existingCategory = await this.getCategoryById(id);
+      if (existingCategory.error || !existingCategory.data) {
+        return { success: false, error: existingCategory.error || 'Categoria não encontrada' };
       }
 
       const result = await this.categoryService.delete(id);
@@ -178,39 +189,39 @@ export class DICategoryController {
         return { success: false, error: result.error.message };
       }
 
-      return { success: result.data, error: null };
+      return { success: true, error: null };
     } catch (error) {
-      console.error('Erro ao excluir categoria:', error);
+      console.error('Erro ao deletar categoria:', error);
       return { success: false, error: 'Erro interno do servidor' };
     }
   }
 
-  // Métodos específicos para diaristas
-
   /**
-   * Busca categorias de receita (serviços)
+   * Busca categorias de serviços
    */
   async getServiceCategories(): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
-    return this.getCategoriesByType('receita');
+    return this.getCategoriesByType('income');
   }
 
   /**
-   * Busca categorias de despesa
+   * Busca categorias de despesas
    */
   async getExpenseCategories(): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
-    return this.getCategoriesByType('despesa');
+    return this.getCategoriesByType('expense');
   }
 
   /**
-   * Busca categorias por tipo (receita/despesa/ambos/investimento)
+   * Busca categorias por tipo
    */
   async getCategoriesByType(type: CategoryType): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
-      const result = await this.categoryService.getByType(type);
+      const result = await this.categoryService.getCategoriesByType(type);
       
       if (result.error) {
         return { data: null, error: result.error.message };
@@ -233,8 +244,10 @@ export class DICategoryController {
    */
   async createDefaultCategories(): Promise<{ success: boolean; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { success: false, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { success: false, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const result = await this.categoryService.createDefaultCategories(this.currentUser.id);
@@ -243,7 +256,7 @@ export class DICategoryController {
         return { success: false, error: result.error.message };
       }
 
-      return { success: result.data, error: null };
+      return { success: true, error: null };
     } catch (error) {
       console.error('Erro ao criar categorias padrão:', error);
       return { success: false, error: 'Erro interno do servidor' };
@@ -255,8 +268,10 @@ export class DICategoryController {
    */
   async getMostUsedCategories(limit: number = 5): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const result = await this.categoryService.getMostUsedCategories(limit);
@@ -290,14 +305,16 @@ export class DICategoryController {
     error: string | null;
   }> {
     try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
+      // Verifica autenticação antes de prosseguir
+      const authResult = await this.ensureUserAuthenticated();
+      if (!authResult.user) {
+        return { data: null, error: authResult.error || 'Usuário não autenticado' };
       }
 
       const [allResult, receitaResult, despesaResult, mostUsedResult] = await Promise.all([
         this.getAllCategories(),
         this.getCategoriesByType('income'),
-      this.getCategoriesByType('expense'),
+        this.getCategoriesByType('expense'),
         this.getMostUsedCategories(3)
       ]);
 
@@ -317,65 +334,16 @@ export class DICategoryController {
         return { data: null, error: mostUsedResult.error };
       }
 
-      return {
-        data: {
-          totalCategorias: allResult.data?.length || 0,
-          categoriasReceita: receitaResult.data?.length || 0,
-          categoriasDespesa: despesaResult.data?.length || 0,
-          categoriasMaisUsadas: mostUsedResult.data || []
-        },
-        error: null
+      const stats = {
+        totalCategorias: allResult.data?.length || 0,
+        categoriasReceita: receitaResult.data?.length || 0,
+        categoriasDespesa: despesaResult.data?.length || 0,
+        categoriasMaisUsadas: mostUsedResult.data || []
       };
+
+      return { data: stats, error: null };
     } catch (error) {
       console.error('Erro ao buscar estatísticas das categorias:', error);
-      return { data: null, error: 'Erro interno do servidor' };
-    }
-  }
-
-  /**
-   * Verifica se o usuário tem categorias configuradas
-   */
-  async hasCategories(): Promise<{ hasCategories: boolean; error: string | null }> {
-    try {
-      const result = await this.getAllCategories();
-      
-      if (result.error) {
-        return { hasCategories: false, error: result.error };
-      }
-
-      return { hasCategories: (result.data?.length || 0) > 0, error: null };
-    } catch (error) {
-      console.error('Erro ao verificar categorias:', error);
-      return { hasCategories: false, error: 'Erro interno do servidor' };
-    }
-  }
-
-  /**
-   * Busca categorias para seleção em formulários
-   */
-  async getCategoriesForSelect(type?: 'income' | 'expense'): Promise<{
-    data: Array<{ value: string; label: string; color?: string; icon?: string }> | null;
-    error: string | null;
-  }> {
-    try {
-      const result = type 
-        ? await this.getCategoriesByType(type)
-        : await this.getAllCategories();
-      
-      if (result.error) {
-        return { data: null, error: result.error };
-      }
-
-      const selectOptions = result.data?.map(category => ({
-        value: category.id,
-        label: category.name,
-        color: category.color,
-        icon: category.icon
-      })) || [];
-
-      return { data: selectOptions, error: null };
-    } catch (error) {
-      console.error('Erro ao buscar categorias para seleção:', error);
       return { data: null, error: 'Erro interno do servidor' };
     }
   }

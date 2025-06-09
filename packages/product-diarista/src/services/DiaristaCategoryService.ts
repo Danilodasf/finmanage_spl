@@ -18,10 +18,7 @@ export class DiaristaCategoryService implements CategoryService {
       id: categoria.id,
       user_id: categoria.user_id,
       name: categoria.name,
-      description: categoria.description,
-      color: categoria.color,
-      icon: categoria.icon,
-      type: categoria.type,
+      type: this.mapCategoryTypeFromDatabase(categoria.type),
       created_at: categoria.created_at,
       updated_at: categoria.updated_at
     };
@@ -42,7 +39,7 @@ export class DiaristaCategoryService implements CategoryService {
         return { data: null, error: result.error };
       }
       
-      const categories = result.data?.map(this.mapToCategory) || [];
+      const categories = result.data?.map(categoria => this.mapToCategory(categoria)) || [];
       return { data: categories, error: null };
     } catch (error) {
       console.error('Erro ao buscar categorias:', error);
@@ -66,6 +63,32 @@ export class DiaristaCategoryService implements CategoryService {
     }
   }
 
+  /**
+   * Mapeia tipos de categoria do enum inglês para português (banco de dados)
+   */
+  private mapCategoryTypeToDatabase(type: CategoryType): string {
+    const typeMapping: Record<string, string> = {
+      'income': 'receita',
+      'expense': 'despesa',
+      'both': 'ambos',
+      'investment': 'investimento'
+    };
+    return typeMapping[type] || type;
+  }
+
+  /**
+   * Mapeia tipos de categoria do português (banco de dados) para enum inglês
+   */
+  private mapCategoryTypeFromDatabase(type: string): CategoryType {
+    const typeMapping: Record<string, CategoryType> = {
+      'receita': 'income' as CategoryType,
+      'despesa': 'expense' as CategoryType,
+      'ambos': 'both' as CategoryType,
+      'investimento': 'investment' as CategoryType
+    };
+    return typeMapping[type] || type as CategoryType;
+  }
+
   async create(categoryData: Omit<Category, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Category | null; error: Error | null }> {
     try {
       // Validações específicas para diaristas
@@ -87,7 +110,13 @@ export class DiaristaCategoryService implements CategoryService {
         return { data: null, error: new Error('Já existe uma categoria com este nome') };
       }
       
-      const result = await databaseAdapter.create<CategoriaDiarista>(this.tableName, categoryData);
+      // Mapear o tipo para o formato do banco de dados
+      const mappedCategoryData = {
+        ...categoryData,
+        type: this.mapCategoryTypeToDatabase(categoryData.type)
+      };
+      
+      const result = await databaseAdapter.create<CategoriaDiarista>(this.tableName, mappedCategoryData);
       
       if (result.error) {
         return { data: null, error: result.error };
@@ -101,9 +130,9 @@ export class DiaristaCategoryService implements CategoryService {
     }
   }
 
-  async update(id: string, categoryData: Partial<Category>): Promise<{ data: Category | null; error: Error | null }> {
+  async update(id: string, categoryData: Partial<Omit<Category, 'id' | 'user_id' | 'created_at' | 'updated_at'>>): Promise<{ data: Category | null; error: Error | null }> {
     try {
-      // Validações para atualização
+      // Validações específicas para diaristas
       if (categoryData.name !== undefined) {
         if (!categoryData.name || categoryData.name.trim().length === 0) {
           return { data: null, error: new Error('Nome da categoria é obrigatório') };
@@ -112,18 +141,15 @@ export class DiaristaCategoryService implements CategoryService {
         if (categoryData.name.length > 50) {
           return { data: null, error: new Error('Nome da categoria deve ter no máximo 50 caracteres') };
         }
-        
-        // Verifica se já existe outra categoria com o mesmo nome
-        const existingResult = await databaseAdapter.findWhere<CategoriaDiarista>(this.tableName, {
-          name: categoryData.name
-        });
-        
-        if (existingResult.data && existingResult.data.some(cat => cat.id !== id)) {
-          return { data: null, error: new Error('Já existe uma categoria com este nome') };
-        }
       }
       
-      const result = await databaseAdapter.update<CategoriaDiarista>(this.tableName, id, categoryData);
+      // Mapear o tipo para o formato do banco de dados se fornecido
+      const mappedCategoryData = {
+        ...categoryData,
+        ...(categoryData.type && { type: this.mapCategoryTypeToDatabase(categoryData.type) })
+      };
+      
+      const result = await databaseAdapter.update<CategoriaDiarista>(this.tableName, id, mappedCategoryData);
       
       if (result.error) {
         return { data: null, error: result.error };
@@ -164,13 +190,21 @@ export class DiaristaCategoryService implements CategoryService {
   /**
    * Busca categorias por tipo (receita/despesa/ambos/investimento)
    */
-  async getByType(type: CategoryType): Promise<{ data: CategoriaDiarista[] | null; error: Error | null }> {
+  async getCategoriesByType(type: CategoryType): Promise<{ data: Category[] | null; error: Error | null }> {
     try {
+      // Mapear o tipo para o formato do banco de dados
+      const dbType = this.mapCategoryTypeToDatabase(type);
+      
       const result = await databaseAdapter.findWhere<CategoriaDiarista>(this.tableName, {
-        type: type
+        type: dbType
       });
       
-      return { data: result.data, error: result.error };
+      if (result.error) {
+        return { data: null, error: result.error };
+      }
+      
+      const categories = result.data?.map(cat => this.mapToCategory(cat)) || [];
+      return { data: categories, error: null };
     } catch (error) {
       console.error(`Erro ao buscar categorias do tipo ${type}:`, error);
       return { data: null, error: error as Error };
@@ -194,6 +228,20 @@ export class DiaristaCategoryService implements CategoryService {
   }
 
   /**
+   * Busca categorias de receita (serviços)
+   */
+  async getIncomeCategories(): Promise<{ data: Category[] | null; error: Error | null }> {
+    return this.getCategoriesByType('income' as CategoryType);
+  }
+
+  /**
+   * Busca categorias de despesa
+   */
+  async getExpenseCategories(): Promise<{ data: Category[] | null; error: Error | null }> {
+    return this.getCategoriesByType('expense' as CategoryType);
+  }
+
+  /**
    * Cria categorias padrão do MEI (mesmas do product-mei)
    */
   async createDefaultCategories(userId: string): Promise<{ data: boolean; error: Error | null }> {
@@ -207,60 +255,96 @@ export class DiaristaCategoryService implements CategoryService {
         return { data: true, error: null }; // Já existem categorias
       }
 
-      const defaultCategories: Omit<CategoriaDiarista, 'id' | 'created_at' | 'updated_at'>[] = [
+      const defaultCategories: Omit<Category, 'id' | 'created_at' | 'updated_at'>[] = [
         {
           user_id: userId,
-          name: 'Vendas',
-          type: 'receita',
-          color: '#4CAF50'
+          name: 'Serviços de Limpeza',
+          type: 'income' as CategoryType
         },
         {
           user_id: userId,
-          name: 'Serviços',
-          type: 'receita',
-          color: '#2196F3'
-        },
-        {
-          user_id: userId,
-          name: 'Materiais',
-          type: 'despesa',
-          color: '#FF9800'
-        },
-        {
-          user_id: userId,
-          name: 'Aluguel',
-          type: 'despesa',
-          color: '#F44336'
-        },
-        {
-          user_id: userId,
-          name: 'Impostos',
-          type: 'despesa',
-          color: '#9C27B0'
-        },
-        {
-          user_id: userId,
-          name: 'Água/Luz/Internet',
-          type: 'despesa',
-          color: '#795548'
+          name: 'Serviços Domésticos',
+          type: 'income' as CategoryType
         },
         {
           user_id: userId,
           name: 'Transporte',
-          type: 'despesa',
-          color: '#607D8B'
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Material de Limpeza',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Equipamentos',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Uniformes',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Combustível',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Manutenção',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Telefone',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Internet',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Marketing',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Capacitação',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Impostos',
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Trabalho',
+          type: 'expense' as CategoryType
         },
         {
           user_id: userId,
           name: 'Alimentação',
-          type: 'despesa',
-          color: '#FFC107'
+          type: 'expense' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Salário',
+          type: 'income' as CategoryType
+        },
+        {
+          user_id: userId,
+          name: 'Outros',
+          type: 'expense' as CategoryType
         },
         {
           user_id: userId,
           name: 'Pró-labore',
-          type: 'ambos',
-          color: '#9E9E9E'
+          type: 'both' as CategoryType
         }
       ];
 

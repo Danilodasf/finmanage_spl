@@ -77,6 +77,12 @@ export class DIAuthController {
         };
       }
 
+      // Limpar apenas dados específicos da aplicação, preservando sessão do Supabase
+      console.log('[DIAuthController] Limpando dados específicos do localStorage...');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('auth_token');
+      
       // Armazenar dados de autenticação no localStorage
       if (result.user) {
         console.log('[DIAuthController] Salvando dados no localStorage...');

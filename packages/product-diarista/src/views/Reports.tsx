@@ -114,7 +114,7 @@ const Reports: React.FC = () => {
       }
       
       // Filtro por categoria
-      if (filters.categoryId && filters.categoryId !== 'all' && transaction.categoryId !== filters.categoryId) {
+      if (filters.categoryId && filters.categoryId !== 'all' && transaction.category_id !== filters.categoryId) {
         return false;
       }
       
@@ -124,11 +124,11 @@ const Reports: React.FC = () => {
     // Calcular resumo
     const totalIncome = filtered
       .filter(t => t.type === TransactionType.INCOME)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + t.value, 0);
     
     const totalExpenses = filtered
       .filter(t => t.type === TransactionType.EXPENSE)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + t.value, 0);
     
     const balance = totalIncome - totalExpenses;
     
@@ -196,12 +196,12 @@ const Reports: React.FC = () => {
         yPosition = 20;
       }
       
-      const category = categories.find(c => c.id === transaction.categoryId);
+      const category = categories.find(c => c.id === transaction.category_id);
       const typeText = transaction.type === TransactionType.INCOME ? 'Receita' : 'Despesa';
       
       doc.text(`${index + 1}. ${transaction.description}`, 20, yPosition);
       doc.text(`${typeText} - ${category?.name || 'Sem categoria'}`, 20, yPosition + 8);
-      doc.text(`${formatCurrency(transaction.amount)} - ${formatDate(transaction.date)}`, 20, yPosition + 16);
+      doc.text(`${formatCurrency(transaction.value)} - ${formatDate(transaction.date)}`, 20, yPosition + 16);
       
       yPosition += 25;
     });
@@ -243,7 +243,7 @@ const Reports: React.FC = () => {
           
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+              {typeof error === 'string' ? error : 'Erro inesperado'}
             </div>
           )}
           
@@ -252,62 +252,22 @@ const Reports: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Data Inicial</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !filters.startDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.startDate ? format(new Date(filters.startDate), "PPP", { locale: ptBR }) : "Selecione uma data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={filters.startDate ? new Date(filters.startDate) : undefined}
-                    onSelect={(date) => {
-                      if (date) {
-                        setFilters(prev => ({ ...prev, startDate: format(date, 'yyyy-MM-dd') }));
-                      }
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                className="w-full"
+              />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Data Final</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !filters.endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.endDate ? format(new Date(filters.endDate), "PPP", { locale: ptBR }) : "Selecione uma data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={filters.endDate ? new Date(filters.endDate) : undefined}
-                    onSelect={(date) => {
-                      if (date) {
-                        setFilters(prev => ({ ...prev, endDate: format(date, 'yyyy-MM-dd') }));
-                      }
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                className="w-full"
+              />
             </div>
 
             <div className="space-y-2">
@@ -433,7 +393,7 @@ const Reports: React.FC = () => {
                         {formatDate(transaction.date)}
                       </TableCell>
                       <TableCell>{transaction.description}</TableCell>
-                      <TableCell>{getCategoryName(transaction.categoryId)}</TableCell>
+                      <TableCell>{getCategoryName(transaction.category_id)}</TableCell>
                       <TableCell>
                          <Badge variant={transaction.type === TransactionType.INCOME ? "default" : "destructive"}>
                            {transaction.type === TransactionType.INCOME ? 'Receita' : 'Despesa'}
@@ -441,7 +401,7 @@ const Reports: React.FC = () => {
                        </TableCell>
                        <TableCell className="text-right font-medium">
                          <span className={transaction.type === TransactionType.INCOME ? 'text-green-600' : 'text-red-600'}>
-                           {formatCurrency(transaction.amount)}
+                           {formatCurrency(transaction.value)}
                          </span>
                        </TableCell>
                     </TableRow>

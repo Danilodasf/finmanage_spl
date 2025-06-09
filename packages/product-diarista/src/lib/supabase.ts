@@ -16,7 +16,21 @@ export function getSupabaseClient(): SupabaseClient {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
     
-    supabaseInstance = createClient(supabaseUrl, supabaseKey);
+    supabaseInstance = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+        storageKey: 'supabase.auth.token',
+        flowType: 'pkce'
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'finmanage-diarista'
+        }
+      }
+    });
     console.log('[Supabase] Cliente inicializado com URL:', supabaseUrl);
   }
   

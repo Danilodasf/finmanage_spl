@@ -13,8 +13,13 @@ export type CategoryType = 'receita' | 'despesa' | 'ambos' | 'investimento';
 /**
  * Categoria adaptada para usar a mesma estrutura do MEI
  */
-export interface CategoriaDiarista extends Omit<Category, 'type'> {
+export interface CategoriaDiarista {
+  id: string;
+  user_id: string;
+  name: string;
   type: CategoryType;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -41,9 +46,8 @@ export interface Cliente {
   email?: string;
   endereco?: string;
   localizacao?: string;
-  observacoes?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -72,9 +76,21 @@ export interface UpdateTransacaoDiaristaDTO extends Partial<CreateTransacaoDiari
 
 // DTOs removidos - usando interfaces padrão do core
 
-export interface CreateClienteDTO extends Omit<Cliente, 'id' | 'created_at' | 'updated_at'> {}
+export interface CreateClienteDTO {
+  nome: string;
+  telefone?: string;
+  email?: string;
+  endereco?: string;
+  localizacao?: string;
+}
 
-export interface UpdateClienteDTO extends Partial<CreateClienteDTO> {}
+export interface UpdateClienteDTO {
+  nome?: string;
+  telefone?: string;
+  email?: string;
+  endereco?: string;
+  localizacao?: string;
+}
 
 export interface CreateAgendamentoDTO extends Omit<Agendamento, 'id' | 'created_at' | 'updated_at'> {}
 
@@ -87,9 +103,10 @@ export interface Servico {
   id: string;
   user_id: string;
   cliente_id: string;
+  categoria_id?: string;
   data: string;
   valor: number;
-  status: 'pendente' | 'pago' | 'cancelado';
+  status: 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
   descricao?: string;
   localizacao?: string;
   created_at: string;
