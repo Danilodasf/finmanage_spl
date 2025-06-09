@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, DollarSign, User, MapPin, Plus, Edit, Trash2, Receipt } from 'lucide-react';
 import { Cliente, Servico, CreateClienteDTO, CreateServicoDTO, GastoServico, CreateGastoServicoDTO, CategoriaDiarista } from '../models/DiaristaModels';
+import { DICategoryController } from '../controllers/DICategoryController';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -10,6 +11,8 @@ import { useFormValidation, useCurrencyInput, usePhoneInput } from '../hooks/use
 import { validateEmail, validatePhone, validateCurrency, errorMessages } from '../utils/validations';
 import { DIClienteController } from '../controllers/DIClienteController';
 import { DIServicoController } from '../controllers/DIServicoController';
+import { DITransactionController } from '../controllers/DITransactionController';
+import { useAuthContext } from '../hooks/useAuth';
 
 // Interfaces removidas - agora usando as importadas de DiaristaModels.ts
 
@@ -31,6 +34,7 @@ interface ClientFormData {
 }
 
 const Services: React.FC = () => {
+  const { user, isAuthenticated } = useAuthContext();
   const [services, setServices] = useState<Servico[]>([]);
   const [clients, setClients] = useState<Cliente[]>([]);
   const [expenses, setExpenses] = useState<GastoServico[]>([]);
@@ -45,7 +49,9 @@ const Services: React.FC = () => {
 
   // Instanciar controladores DI
   const clienteController = new DIClienteController();
+  const transactionController = new DITransactionController();
   const servicoController = new DIServicoController();
+  const categoryController = new DICategoryController();
   
   const [serviceFormData, setServiceFormData] = useState<ServiceFormData>({
     data: new Date().toISOString().split('T')[0],
@@ -95,9 +101,13 @@ const Services: React.FC = () => {
         setClients(clientesResult.data);
       }
 
-      // TODO: Implementar carregamento de gastos e categorias
-      setExpenses([]);
-      setCategories([]);
+      // Carregar categorias
+     const categoryController = new DICategoryController();
+     const categoriesResult = await categoryController.getAllCategories();
+     if (categoriesResult.data) {
+       setCategories(categoriesResult.data);
+     }
+        setExpenses([]);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       setError('Erro ao carregar dados');
@@ -112,6 +122,11 @@ const Services: React.FC = () => {
     setError(null);
 
     try {
+      if (!isAuthenticated || !user) {
+        setError('Você precisa estar logado para criar um serviço');
+        return;
+      }
+
       const serviceData: CreateServicoDTO = {
         data: new Date(serviceFormData.data),
         valor: parseFloat(serviceFormData.valor),
@@ -119,16 +134,33 @@ const Services: React.FC = () => {
         status: serviceFormData.status,
         descricao: serviceFormData.descricao,
         localizacao: serviceFormData.localizacao,
-        user_id: '1' // Temporário
+        user_id: user.id
       };
 
       if (editingService) {
+        // Verificar se o status mudou para concluído
+        const wasCompleted = editingService.status === 'CONCLUIDO';
+        const isNowCompleted = serviceData.status === 'CONCLUIDO';
+        
         // Atualizar serviço existente
         const result = await servicoController.updateServico(editingService.id, serviceData);
         
         if (result.error) {
           setError(result.error);
           return;
+        }
+
+        // Criar transação se o serviço foi marcado como concluído
+        if (!wasCompleted && isNowCompleted) {
+          await createTransactionForService(result.data!);
+        }
+        // Remover transação se o serviço deixou de estar concluído
+        else if (wasCompleted && !isNowCompleted) {
+          await removeTransactionForService(editingService.id);
+        }
+        // Atualizar transação se o serviço já estava concluído e o valor mudou
+        else if (wasCompleted && isNowCompleted && editingService.valor !== serviceData.valor) {
+          await updateTransactionForService(result.data!);
         }
 
         // Atualizar lista local
@@ -143,6 +175,11 @@ const Services: React.FC = () => {
         if (result.error) {
           setError(result.error);
           return;
+        }
+
+        // Criar transação se o serviço foi criado como concluído
+        if (serviceData.status === 'CONCLUIDO') {
+          await createTransactionForService(result.data!);
         }
 
         // Adicionar à lista local
@@ -333,6 +370,124 @@ const Services: React.FC = () => {
     } catch (error) {
       console.error('Erro ao adicionar gasto:', error);
       setError('Erro ao adicionar gasto');
+    }
+  };
+
+  // Função para criar transação quando serviço é concluído
+  const createTransactionForService = async (servico: any) => {
+    if (!user) return;
+
+    try {
+      // Buscar a categoria "Serviços Realizados"
+      const categoriesResult = await categoryController.getCategoriesByType('income');
+      let servicosRealizadosCategoryId = null;
+      
+      if (categoriesResult.data) {
+        const servicosRealizadosCategory = categoriesResult.data.find(
+          cat => cat.name === 'Serviços Realizados'
+        );
+        servicosRealizadosCategoryId = servicosRealizadosCategory?.id;
+      }
+
+      // Se a categoria não existe, criar ela automaticamente
+      if (!servicosRealizadosCategoryId) {
+        console.log('Categoria "Serviços Realizados" não encontrada, criando automaticamente...');
+        const createCategoryResult = await categoryController.createCategory({
+          name: 'Serviços Realizados',
+          type: 'income'
+        });
+        
+        if (createCategoryResult.data) {
+          servicosRealizadosCategoryId = createCategoryResult.data.id;
+          console.log('Categoria "Serviços Realizados" criada com sucesso:', servicosRealizadosCategoryId);
+        } else {
+          console.error('Erro ao criar categoria "Serviços Realizados":', createCategoryResult.error);
+          return;
+        }
+      }
+
+      const transactionData = {
+        type: 'income' as const,
+        value: servico.valor,
+        date: new Date(servico.data),
+        description: `Serviço realizado - ${servico.descricao}`,
+        category_id: servicosRealizadosCategoryId,
+        servico_id: servico.id,
+        user_id: user!.id
+      };
+
+      const result = await transactionController.createTransaction(transactionData);
+      if (result.error) {
+        console.error('Erro ao criar transação para serviço:', result.error);
+      } else {
+        console.log('Transação criada automaticamente para serviço concluído:', result.data);
+      }
+    } catch (error) {
+      console.error('Erro ao criar transação para serviço:', error);
+    }
+  };
+
+  // Função para remover transação quando serviço deixa de estar concluído
+  const removeTransactionForService = async (servicoId: string) => {
+    try {
+      // Buscar transação relacionada ao serviço
+      const allTransactions = await transactionController.getAllTransactions();
+      if (allTransactions.error) {
+        console.error('Erro ao buscar transações:', allTransactions.error);
+        return;
+      }
+
+      const relatedTransaction = allTransactions.data?.find(
+        (transaction: any) => transaction.servico_id === servicoId
+      );
+
+      if (relatedTransaction) {
+        const result = await transactionController.deleteTransaction(relatedTransaction.id);
+        if (result.error) {
+          console.error('Erro ao remover transação do serviço:', result.error);
+        } else {
+          console.log('Transação removida automaticamente:', relatedTransaction.id);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao remover transação do serviço:', error);
+    }
+  };
+
+  // Função para atualizar transação quando valor do serviço concluído muda
+  const updateTransactionForService = async (servico: any) => {
+    try {
+      // Buscar transação relacionada ao serviço
+      const allTransactions = await transactionController.getAllTransactions();
+      if (allTransactions.error) {
+        console.error('Erro ao buscar transações:', allTransactions.error);
+        return;
+      }
+
+      const relatedTransaction = allTransactions.data?.find(
+        (transaction: any) => transaction.servico_id === servico.id
+      );
+
+      if (relatedTransaction) {
+        const updatedTransactionData = {
+          ...relatedTransaction,
+          value: servico.valor,
+          date: new Date(servico.data),
+          description: `Serviço realizado - ${servico.descricao}`
+        };
+
+        const result = await transactionController.updateTransaction(
+          relatedTransaction.id,
+          updatedTransactionData
+        );
+        if (result.error) {
+          console.error('Erro ao atualizar transação do serviço:', result.error);
+        } else {
+          console.log('Transação atualizada automaticamente:', result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar transação do serviço:', error);
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DITransactionController } from '../controllers/DITransactionController';
 import { DICategoryController } from '../controllers/DICategoryController';
+import { DIServicoController } from '../controllers/DIServicoController';
 import { Transaction, TransactionType, Category } from '../lib/core/services';
 import { useCurrencyInput } from '../hooks/useFormValidation';
 import { validateCurrency, errorMessages } from '../utils/validations';
@@ -34,6 +35,7 @@ const Transactions: React.FC = () => {
   // Instâncias dos controladores
   const [transactionController] = useState(() => new DITransactionController());
   const [categoryController] = useState(() => new DICategoryController());
+  const [servicoController] = useState(() => new DIServicoController());
 
   useEffect(() => {
     loadData();
@@ -126,6 +128,18 @@ const Transactions: React.FC = () => {
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Função para verificar se uma transação está relacionada a um serviço concluído
+  const isTransactionFromCompletedService = async (transaction: Transaction): Promise<boolean> => {
+    if (!transaction.servico_id) return false;
+    
+    try {
+      const servicoResult = await servicoController.getServicoById(transaction.servico_id);
+      return servicoResult.data?.status === 'concluido';
+    } catch {
+      return false;
     }
   };
 
@@ -398,20 +412,12 @@ const Transactions: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEdit(transaction)}
-                            className="text-emerald-600 hover:text-emerald-900 font-medium"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDelete(transaction.id)}
-                            className="text-red-600 hover:text-red-900 font-medium"
-                          >
-                            Excluir
-                          </button>
-                        </div>
+                        <TransactionActions 
+                          transaction={transaction} 
+                          onEdit={handleEdit} 
+                          onDelete={handleDelete}
+                          servicoController={servicoController}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -421,6 +427,91 @@ const Transactions: React.FC = () => {
           )}
         </div>
       </div>
+  );
+};
+
+// Componente para ações de transação com verificação de serviço concluído
+interface TransactionActionsProps {
+  transaction: Transaction;
+  onEdit: (transaction: Transaction) => void;
+  onDelete: (id: string) => void;
+  servicoController: DIServicoController;
+}
+
+const TransactionActions: React.FC<TransactionActionsProps> = ({ 
+  transaction, 
+  onEdit, 
+  onDelete, 
+  servicoController 
+}) => {
+  const [isFromCompletedService, setIsFromCompletedService] = useState<boolean>(false);
+  const [isChecking, setIsChecking] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkServiceStatus = async () => {
+      if (!transaction.servico_id) {
+        setIsFromCompletedService(false);
+        setIsChecking(false);
+        return;
+      }
+
+      try {
+        const servicoResult = await servicoController.getServicoById(transaction.servico_id);
+        setIsFromCompletedService(servicoResult.data?.status === 'concluido');
+      } catch {
+        setIsFromCompletedService(false);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkServiceStatus();
+  }, [transaction.servico_id, servicoController]);
+
+  if (isChecking) {
+    return (
+      <div className="flex gap-2">
+        <span className="text-gray-400 text-sm">Verificando...</span>
+      </div>
+    );
+  }
+
+  if (isFromCompletedService) {
+    return (
+      <div className="flex gap-2">
+        <button
+          disabled
+          className="text-gray-400 cursor-not-allowed font-medium"
+          title="Transações de serviços concluídos só podem ser editadas na tela 'Serviços'"
+        >
+          Editar
+        </button>
+        <button
+          disabled
+          className="text-gray-400 cursor-not-allowed font-medium"
+          title="Transações de serviços concluídos só podem ser excluídas na tela 'Serviços'"
+        >
+          Excluir
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2">
+      <button
+        onClick={() => onEdit(transaction)}
+        className="text-emerald-600 hover:text-emerald-900 font-medium"
+      >
+        Editar
+      </button>
+      <button
+        onClick={() => onDelete(transaction.id)}
+        className="text-red-600 hover:text-red-900 font-medium"
+      >
+        Excluir
+      </button>
+    </div>
   );
 };
 

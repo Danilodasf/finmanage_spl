@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, Plus, Eye, FileText, Calendar, User } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { Servico, Cliente, GastoServico, CreateGastoServicoDTO, CategoriaDiarista } from '../models/DiaristaModels';
+import { DICategoryController } from '../controllers/DICategoryController';
+import { DIServicoController } from '../controllers/DIServicoController';
 import AddExpenseModal from '../components/AddExpenseModal';
 
 // Interface removida - agora usando CreateGastoServicoDTO
@@ -18,7 +20,9 @@ const ServiceProfits: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
 
-  // Mock data - será substituído pela integração com Supabase
+  const [categoryController] = useState(() => new DICategoryController());
+  const [servicoController] = useState(() => new DIServicoController());
+
   useEffect(() => {
     loadData();
   }, []);
@@ -26,10 +30,26 @@ const ServiceProfits: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Simular carregamento de dados - apenas serviços com status 'paid'
-      setCompletedServices([]);
+      // Carregar serviços concluídos
+      const servicesResult = await servicoController.getServicosByStatus('CONCLUIDO');
+      if (servicesResult.error) {
+        setError(`Erro ao carregar serviços: ${servicesResult.error}`);
+        setCompletedServices([]);
+      } else {
+        setCompletedServices(servicesResult.data || []);
+      }
+      
+      // TODO: Carregar clientes e gastos reais
       setClients([]);
       setExpenses([]);
+      
+      // Carregar categorias
+      const categoriesResult = await categoryController.getAllCategories();
+      if (categoriesResult.error) {
+        setError(`Erro ao carregar categorias: ${categoriesResult.error}`);
+      } else if (categoriesResult.data) {
+        setCategories(categoriesResult.data);
+      }
     } catch (err) {
       setError('Erro ao carregar dados');
     } finally {
@@ -87,11 +107,10 @@ const ServiceProfits: React.FC = () => {
     return expenses.filter(expense => expense.servico_id === serviceId);
   };
 
-  const calculateServiceProfit = (service: Servico): number => {
+  const calculateServiceProfit = (service: any): number => {
     const serviceExpenses = getServiceExpenses(service.id);
     const totalExpenses = serviceExpenses.reduce((sum, expense) => sum + expense.valor, 0);
-    const transportCost = service.custo_transporte || 0;
-    return service.valor - totalExpenses - transportCost;
+    return service.valor - totalExpenses;
   };
 
   const calculateTotalRevenue = (): number => {
@@ -100,8 +119,7 @@ const ServiceProfits: React.FC = () => {
 
   const calculateTotalExpenses = (): number => {
     const serviceExpenses = expenses.reduce((sum, expense) => sum + expense.valor, 0);
-    const transportCosts = completedServices.reduce((sum, service) => sum + (service.custo_transporte || 0), 0);
-    return serviceExpenses + transportCosts;
+    return serviceExpenses;
   };
 
   const calculateTotalProfit = (): number => {
@@ -165,7 +183,7 @@ const ServiceProfits: React.FC = () => {
       doc.text(`Cliente: ${getClientName(service.cliente_id)}`, 25, yPosition + 10);
       doc.text(`Data: ${formatDate(new Date(service.data))}`, 25, yPosition + 20);
       doc.text(`Receita: ${formatCurrency(service.valor)}`, 25, yPosition + 30);
-      doc.text(`Gastos: ${formatCurrency(totalServiceExpenses + (service.custo_transporte || 0))}`, 25, yPosition + 40);
+      doc.text(`Gastos: ${formatCurrency(totalServiceExpenses)}`, 25, yPosition + 40);
       doc.text(`Lucro: ${formatCurrency(profit)}`, 25, yPosition + 50);
       
       yPosition += 65;
@@ -371,12 +389,7 @@ const ServiceProfits: React.FC = () => {
                   </span>
                 </div>
               </div>
-              {selectedService.custo_transporte && (
-                <div className="mt-2 text-sm">
-                  <span className="font-medium text-gray-700">Custo de locomoção:</span>
-                  <span className="ml-2 text-red-600">{formatCurrency(selectedService.custo_transporte)}</span>
-                </div>
-              )}
+
             </div>
 
             {/* Expenses List */}
@@ -402,8 +415,7 @@ const ServiceProfits: React.FC = () => {
                       <span>Total de Gastos:</span>
                       <span className="text-red-600">
                         {formatCurrency(
-                          getServiceExpenses(selectedService.id).reduce((sum, exp) => sum + exp.valor, 0) +
-                          (selectedService.custo_transporte || 0)
+                          getServiceExpenses(selectedService.id).reduce((sum, exp) => sum + exp.valor, 0)
                         )}
                       </span>
                     </div>
