@@ -8,7 +8,7 @@ import { CategoryService, Category } from '../lib/core/services';
 import { CATEGORY_SERVICE, AUTH_SERVICE } from '../lib/di/bootstrap';
 import { DiaristaCategoryService } from '../services/DiaristaCategoryService';
 import { DiaristaAuthService } from '../services/DiaristaAuthService';
-import { CategoriaDiarista, CreateCategoriaDiaristaDTO, UpdateCategoriaDiaristaDTO, TipoServicoDiarista } from '../models/DiaristaModels';
+import { CategoriaDiarista, CategoryType } from '../models/DiaristaModels';
 
 export class DICategoryController {
   private categoryService: DiaristaCategoryService;
@@ -188,9 +188,23 @@ export class DICategoryController {
   // Métodos específicos para diaristas
 
   /**
-   * Busca categorias por tipo (receita/despesa)
+   * Busca categorias de receita (serviços)
    */
-  async getCategoriesByType(type: 'receita' | 'despesa'): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
+  async getServiceCategories(): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
+    return this.getCategoriesByType('receita');
+  }
+
+  /**
+   * Busca categorias de despesa
+   */
+  async getExpenseCategories(): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
+    return this.getCategoriesByType('despesa');
+  }
+
+  /**
+   * Busca categorias por tipo (receita/despesa/ambos/investimento)
+   */
+  async getCategoriesByType(type: CategoryType): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
     try {
       if (!this.currentUser) {
         return { data: null, error: 'Usuário não autenticado' };
@@ -210,47 +224,6 @@ export class DICategoryController {
       return { data: userCategories, error: null };
     } catch (error) {
       console.error('Erro ao buscar categorias por tipo:', error);
-      return { data: null, error: 'Erro interno do servidor' };
-    }
-  }
-
-  /**
-   * Busca categorias de receita (serviços)
-   */
-  async getServiceCategories(): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
-    return this.getCategoriesByType('receita');
-  }
-
-  /**
-   * Busca categorias de despesa
-   */
-  async getExpenseCategories(): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
-    return this.getCategoriesByType('despesa');
-  }
-
-  /**
-   * Busca categorias por tipo de serviço específico
-   */
-  async getCategoriesByServiceType(tipoServico: TipoServicoDiarista): Promise<{ data: CategoriaDiarista[] | null; error: string | null }> {
-    try {
-      if (!this.currentUser) {
-        return { data: null, error: 'Usuário não autenticado' };
-      }
-
-      const result = await this.categoryService.getCategoriasPorTipoServico(tipoServico);
-      
-      if (result.error) {
-        return { data: null, error: result.error.message };
-      }
-
-      // Filtra categorias do usuário atual
-      const userCategories = result.data?.filter(
-        category => category.user_id === this.currentUser.id
-      ) || [];
-
-      return { data: userCategories, error: null };
-    } catch (error) {
-      console.error('Erro ao buscar categorias por tipo de serviço:', error);
       return { data: null, error: 'Erro interno do servidor' };
     }
   }
@@ -323,8 +296,8 @@ export class DICategoryController {
 
       const [allResult, receitaResult, despesaResult, mostUsedResult] = await Promise.all([
         this.getAllCategories(),
-        this.getCategoriesByType('receita'),
-        this.getCategoriesByType('despesa'),
+        this.getCategoriesByType('income'),
+      this.getCategoriesByType('expense'),
         this.getMostUsedCategories(3)
       ]);
 
@@ -380,7 +353,7 @@ export class DICategoryController {
   /**
    * Busca categorias para seleção em formulários
    */
-  async getCategoriesForSelect(type?: 'receita' | 'despesa'): Promise<{
+  async getCategoriesForSelect(type?: 'income' | 'expense'): Promise<{
     data: Array<{ value: string; label: string; color?: string; icon?: string }> | null;
     error: string | null;
   }> {

@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { DICategoryController } from '../controllers/DICategoryController';
-import { CategoriaDiarista, CreateCategoriaDTO, UpdateCategoriaDTO, TipoServicoDiarista } from '../models/DiaristaModels';
+import { CategoriaDiarista, CategoryType } from '../models/DiaristaModels';
 import { TransactionType } from '../lib/core/services';
 
 interface UseCategoriesState {
@@ -23,7 +23,7 @@ interface UseCategoriesActions {
   
   // Operações específicas
   loadCategoriesByType: (type: TransactionType) => Promise<void>;
-  loadCategoriesByServiceType: (serviceType: TipoServicoDiarista) => Promise<void>;
+  loadCategoriesByType: (type: CategoryType) => Promise<void>;
   createDefaultCategories: () => Promise<{ success: boolean; error?: string }>;
   
   // Utilitários
@@ -192,28 +192,28 @@ export function useCategories(): UseCategoriesReturn {
     }
   }, [controller, updateState]);
 
-  // Carrega categorias por tipo de serviço
-  const loadCategoriesByServiceType = useCallback(async (serviceType: TipoServicoDiarista) => {
+  // Carrega categorias por tipo
+  const loadCategoriesByType = useCallback(async (type: CategoryType) => {
     updateState({ loading: true, error: null });
     
     try {
-      const result = await controller.getCategoriesByServiceType(serviceType);
+      const result = await controller.getCategoriesByType(type);
       
-      if (result.success && result.data) {
+      if (result.data) {
         updateState({
           categories: result.data,
           loading: false
         });
       } else {
         updateState({
-          error: result.error || 'Erro ao carregar categorias por tipo de serviço',
+          error: result.error || 'Erro ao carregar categorias por tipo',
           loading: false
         });
       }
     } catch (error) {
-      console.error('Erro ao carregar categorias por tipo de serviço:', error);
+      console.error('Erro ao carregar categorias por tipo:', error);
       updateState({
-        error: 'Erro interno ao carregar categorias por tipo de serviço',
+        error: 'Erro interno ao carregar categorias por tipo',
         loading: false
       });
     }
@@ -264,8 +264,8 @@ export function useCategories(): UseCategoriesReturn {
   }, [loadCategories]);
 
   // Categorias filtradas por tipo
-  const incomeCategories = state.categories.filter(cat => cat.type === 'income');
-  const expenseCategories = state.categories.filter(cat => cat.type === 'expense');
+  const incomeCategories = state.categories.filter(cat => cat.type === 'receita');
+  const expenseCategories = state.categories.filter(cat => cat.type === 'despesa');
 
   return {
     // Estado
@@ -283,7 +283,6 @@ export function useCategories(): UseCategoriesReturn {
     updateCategory,
     deleteCategory,
     loadCategoriesByType,
-    loadCategoriesByServiceType,
     createDefaultCategories,
     refreshCategories,
     clearError
@@ -361,7 +360,7 @@ export function useCategoriesForSelect(type?: TransactionType) {
   const [categories, setCategories] = useState<Array<{
     value: string;
     label: string;
-    serviceType?: TipoServicoDiarista;
+    type?: CategoryType;
   }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

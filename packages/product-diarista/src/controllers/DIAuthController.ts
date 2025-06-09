@@ -13,36 +13,46 @@ import { DiaristaAuthService } from '../services/DiaristaAuthService';
 import { DiaristaCategoryService } from '../services/DiaristaCategoryService';
 
 export class DIAuthController {
-  private authService: DiaristaAuthService;
-  private categoryService: DiaristaCategoryService;
-
-  constructor() {
+  /**
+   * Obtém o serviço de autenticação do container de DI
+   */
+  private static getAuthService(): DiaristaAuthService {
     const container = DIContainer.getInstance();
+    const authService = container.get(AUTH_SERVICE) as DiaristaAuthService;
     
-    // Obtém os serviços do container DI
-    this.authService = container.get(AUTH_SERVICE) as DiaristaAuthService;
-    this.categoryService = container.get(CATEGORY_SERVICE) as DiaristaCategoryService;
-    
-    if (!this.authService) {
+    if (!authService) {
       throw new Error('AuthService não encontrado no container DI');
     }
     
-    if (!this.categoryService) {
+    return authService;
+  }
+
+  /**
+   * Obtém o serviço de categorias do container de DI
+   */
+  private static getCategoryService(): DiaristaCategoryService {
+    const container = DIContainer.getInstance();
+    const categoryService = container.get(CATEGORY_SERVICE) as DiaristaCategoryService;
+    
+    if (!categoryService) {
       throw new Error('CategoryService não encontrado no container DI');
     }
+    
+    return categoryService;
   }
 
   /**
    * Realiza login do usuário
    */
-  async login(email: string, password: string): Promise<{
+  static async login(email: string, password: string): Promise<{
     success: boolean;
     user: any | null;
     error: string | null;
   }> {
+    console.log('[DIAuthController] Método login chamado com email:', email);
     try {
-      // Validações básicas - aceita qualquer informação por enquanto
       if (!email || !password) {
+        console.error('[DIAuthController] Email ou senha não fornecidos');
         return {
           success: false,
           user: null,
@@ -50,10 +60,16 @@ export class DIAuthController {
         };
       }
       
-      // Usar o serviço de autenticação real
-      const result = await this.authService.login(email.trim(), password);
+      console.log('[DIAuthController] Obtendo AuthService...');
+      const authService = this.getAuthService();
+      console.log('[DIAuthController] AuthService obtido:', authService);
+      
+      console.log('[DIAuthController] Chamando authService.login...');
+      const result = await authService.login(email.trim(), password);
+      console.log('[DIAuthController] Resultado do authService.login:', result);
       
       if (!result.success) {
+        console.error('[DIAuthController] Login falhou:', result.error);
         return {
           success: false,
           user: null,
@@ -63,18 +79,21 @@ export class DIAuthController {
 
       // Armazenar dados de autenticação no localStorage
       if (result.user) {
+        console.log('[DIAuthController] Salvando dados no localStorage...');
         localStorage.setItem('user', JSON.stringify(result.user));
         localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('auth_token', 'authenticated'); // Token para verificação de autenticação
+        localStorage.setItem('auth_token', 'authenticated');
+        console.log('[DIAuthController] Dados salvos no localStorage');
       }
 
+      console.log('[DIAuthController] Login bem-sucedido');
       return {
         success: true,
         user: result.user,
         error: null
       };
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('[DIAuthController] Erro no login:', error);
       return {
         success: false,
         user: null,
@@ -86,14 +105,24 @@ export class DIAuthController {
   /**
    * Realiza registro de novo usuário
    */
-  async register(email: string, password: string, name: string, createDefaultCategories: boolean = true): Promise<{
+  static async register(email: string, password: string, name: string, createDefaultCategories: boolean = true): Promise<{
     success: boolean;
     user: any | null;
     error: string | null;
   }> {
+    console.log('[DIAuthController] ========================================');
+    console.log('[DIAuthController] Método register chamado');
+    console.log('[DIAuthController] Parâmetros:', { 
+      email, 
+      name, 
+      passwordLength: password.length,
+      createDefaultCategories 
+    });
+    
     try {
       // Validações básicas
       if (!email || !password || !name) {
+        console.error('[DIAuthController] Dados obrigatórios não fornecidos');
         return {
           success: false,
           user: null,
@@ -103,6 +132,7 @@ export class DIAuthController {
 
       // Validações específicas
       if (name.trim().length < 2) {
+        console.error('[DIAuthController] Nome muito curto');
         return {
           success: false,
           user: null,
@@ -128,9 +158,21 @@ export class DIAuthController {
       }
 
       // Realiza o registro
-      const result = await this.authService.register(email.trim(), password, name.trim());
+      console.log('[DIAuthController] Obtendo authService...');
+      const authService = this.getAuthService();
+      console.log('[DIAuthController] AuthService obtido, chamando register...');
+      
+      const result = await authService.register(email.trim(), password, name.trim());
+      
+      console.log('[DIAuthController] Resultado do authService.register:', {
+        success: result.success,
+        error: result.error,
+        hasUser: !!result.user,
+        userId: result.user?.id
+      });
       
       if (!result.success) {
+        console.log('[DIAuthController] Registro falhou no authService');
         return {
           success: false,
           user: null,
@@ -139,37 +181,57 @@ export class DIAuthController {
       }
 
       // Se o registro foi bem-sucedido e deve criar categorias padrão
+      console.log('[DIAuthController] Registro bem-sucedido, verificando criação de categorias...');
       if (result.user && createDefaultCategories) {
         try {
-          await this.categoryService.createDefaultCategories(result.user.id);
-          console.log('Categorias padrão criadas para o novo usuário');
+          console.log('[DIAuthController] Criando categorias padrão para usuário:', result.user.id);
+          const categoryService = this.getCategoryService();
+          await categoryService.createDefaultCategories(result.user.id);
+          console.log('[DIAuthController] Categorias padrão criadas para o novo usuário');
         } catch (error) {
           console.warn('Erro ao criar categorias padrão:', error);
           // Não falha o registro por causa das categorias
         }
       }
 
-      return {
+      const finalResult = {
         success: true,
         user: result.user,
         error: null
       };
+      
+      console.log('[DIAuthController] Retornando resultado final:', {
+        success: finalResult.success,
+        hasUser: !!finalResult.user,
+        userId: finalResult.user?.id
+      });
+      console.log('[DIAuthController] ========================================');
+      
+      return finalResult;
     } catch (error) {
-      console.error('Erro no registro:', error);
-      return {
+      console.error('[DIAuthController] ❌ Erro crítico no registro:', error);
+      console.error('[DIAuthController] Stack trace:', error instanceof Error ? error.stack : 'N/A');
+      
+      const errorResult = {
         success: false,
         user: null,
         error: 'Erro interno do servidor'
       };
+      
+      console.log('[DIAuthController] Retornando resultado de erro:', errorResult);
+      console.log('[DIAuthController] ========================================');
+      
+      return errorResult;
     }
   }
 
   /**
    * Realiza logout do usuário
    */
-  async logout(): Promise<{ success: boolean; error: string | null }> {
+  static async logout(): Promise<{ success: boolean; error: string | null }> {
     try {
-      const result = await this.authService.logout();
+      const authService = this.getAuthService();
+      const result = await authService.logout();
       
       if (!result.success) {
         return {
@@ -194,9 +256,10 @@ export class DIAuthController {
   /**
    * Busca o usuário atual
    */
-  async getCurrentUser(): Promise<{ user: any | null; error: string | null }> {
+  static async getCurrentUser(): Promise<{ user: any | null; error: string | null }> {
     try {
-      const result = await this.authService.getCurrentUser();
+      const authService = this.getAuthService();
+      const result = await authService.getCurrentUser();
       
       if (result.error) {
         return {
@@ -221,7 +284,7 @@ export class DIAuthController {
   /**
    * Verifica se o usuário está autenticado
    */
-  async isAuthenticated(): Promise<{ isAuthenticated: boolean; user: any | null }> {
+  static async isAuthenticated(): Promise<{ isAuthenticated: boolean; user: any | null }> {
     try {
       const result = await this.getCurrentUser();
       
@@ -364,7 +427,7 @@ export class DIAuthController {
   /**
    * Valida dados de perfil antes de salvar
    */
-  validateProfileData(profileData: {
+  static validateProfileData(profileData: {
     name?: string;
     phone?: string;
     address?: string;

@@ -70,7 +70,7 @@ export class DiaristaTransactionService implements TransactionService {
   async create(transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: Transaction | null; error: Error | null }> {
     try {
       // Validações específicas para diaristas
-      if (transactionData.type === 'receita' && !transactionData.category_id) {
+      if (transactionData.type === 'income' && !transactionData.category_id) {
         return { data: null, error: new Error('Categoria é obrigatória para receitas de serviços') };
       }
       
@@ -184,7 +184,7 @@ export class DiaristaTransactionService implements TransactionService {
       }
       
       const total = transactions
-        .filter(t => t.type === 'receita')
+        .filter(t => t.type === 'income')
         .reduce((sum, t) => sum + t.value, 0);
       
       return { data: total, error: null };
@@ -212,7 +212,7 @@ export class DiaristaTransactionService implements TransactionService {
       }
       
       const total = transactions
-        .filter(t => t.type === 'despesa')
+        .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + t.value, 0);
       
       return { data: total, error: null };

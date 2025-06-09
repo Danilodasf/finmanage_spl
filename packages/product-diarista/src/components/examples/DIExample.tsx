@@ -8,7 +8,7 @@ import { useTransactions, useFinancialSummary } from '../../hooks/useTransaction
 import { useCategories, useCategoryStats } from '../../hooks/useCategories';
 import { useAuth } from '../../hooks/useAuth';
 import { TransactionType } from '../../lib/core/services';
-import { TipoServicoDiarista } from '../../models/DiaristaModels';
+import { CategoryType } from '../../models/DiaristaModels';
 
 // Componente principal de exemplo
 export function DIExample() {
@@ -411,8 +411,9 @@ function CategoriesExample() {
   
   const [newCategory, setNewCategory] = useState({
     name: '',
-    type: 'income' as TransactionType,
-    service_type: 'limpeza_residencial' as TipoServicoDiarista
+    type: 'receita' as CategoryType,
+    color: '#3B82F6',
+    icon: 'default'
   });
 
   const handleCreateCategory = async (e: React.FormEvent) => {
@@ -420,14 +421,16 @@ function CategoriesExample() {
     const result = await createCategory({
       name: newCategory.name,
       type: newCategory.type,
-      service_type: newCategory.service_type
+      color: newCategory.color,
+      icon: newCategory.icon
     });
     
     if (result.success) {
       setNewCategory({
         name: '',
-        type: 'income',
-        service_type: 'limpeza_residencial'
+        type: 'receita',
+        color: '#3B82F6',
+        icon: 'default'
       });
     }
   };
@@ -483,24 +486,28 @@ function CategoriesExample() {
         />
         <select
           value={newCategory.type}
-          onChange={(e) => setNewCategory(prev => ({ ...prev, type: e.target.value as TransactionType }))}
+          onChange={(e) => setNewCategory(prev => ({ ...prev, type: e.target.value as CategoryType }))}
           className="w-full p-2 border rounded"
         >
-          <option value="income">Receita</option>
-          <option value="expense">Despesa</option>
+          <option value="receita">Receita</option>
+          <option value="despesa">Despesa</option>
+          <option value="ambos">Ambos</option>
+          <option value="investimento">Investimento</option>
         </select>
-        <select
-          value={newCategory.service_type}
-          onChange={(e) => setNewCategory(prev => ({ ...prev, service_type: e.target.value as TipoServicoDiarista }))}
+        <input
+          type="color"
+          value={newCategory.color}
+          onChange={(e) => setNewCategory(prev => ({ ...prev, color: e.target.value }))}
+          className="w-full p-2 border rounded h-10"
+          title="Cor da categoria"
+        />
+        <input
+          type="text"
+          placeholder="Ícone da categoria"
+          value={newCategory.icon}
+          onChange={(e) => setNewCategory(prev => ({ ...prev, icon: e.target.value }))}
           className="w-full p-2 border rounded"
-        >
-          <option value="limpeza_residencial">Limpeza Residencial</option>
-          <option value="limpeza_comercial">Limpeza Comercial</option>
-          <option value="limpeza_pos_obra">Limpeza Pós-Obra</option>
-          <option value="organizacao">Organização</option>
-          <option value="passadoria">Passadoria</option>
-          <option value="cuidados_especiais">Cuidados Especiais</option>
-        </select>
+        />
         <button 
           type="submit" 
           disabled={loading}

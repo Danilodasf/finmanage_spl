@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { AuthLayout } from '../../components/Layout/AuthLayout';
-import { DIAuthController } from '../../controllers/DIAuthController';
+import { useAuthContext } from '../../hooks/useAuth';
 
 interface RegisterData {
   name: string;
@@ -15,6 +15,7 @@ interface RegisterData {
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { register } = useAuthContext();
   const [formData, setFormData] = useState<RegisterData>({
     name: '',
     email: '',
@@ -35,13 +36,57 @@ const Register: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const { confirmPassword, ...registerData } = formData;
-    const result = await DIAuthController.register(registerData);
-    
-    if (result.success) {
-      navigate('/login');
+    try {
+      console.log('[Register] =================================');
+      console.log('[Register] Iniciando processo de registro');
+      console.log('[Register] Dados do formulário:', { 
+        name: formData.name, 
+        email: formData.email, 
+        passwordLength: formData.password.length,
+        confirmPasswordLength: formData.confirmPassword.length
+      });
+      
+      // Validação de confirmação de senha
+      if (formData.password !== formData.confirmPassword) {
+        console.error('[Register] Senhas não coincidem');
+        alert('As senhas não coincidem');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('[Register] Validações básicas passaram');
+      console.log('[Register] Chamando register do hook...');
+      
+      const result = await register(
+        formData.email,
+        formData.password,
+        formData.name
+      );
+      
+      console.log('[Register] Resultado completo do registro:', {
+        success: result.success,
+        error: result.error,
+        hasUser: !!result.user,
+        userId: result.user?.id
+      });
+      
+      if (result.success) {
+        console.log('[Register] ✅ Registro bem-sucedido!');
+        console.log('[Register] Usuário criado:', result.user);
+        alert('Usuário criado com sucesso! Redirecionando para login...');
+        navigate('/login');
+      } else {
+        console.error('[Register] ❌ Falha no registro:', result.error);
+        alert(result.error || 'Erro ao criar usuário');
+      }
+    } catch (error) {
+      console.error('[Register] ❌ Erro crítico no registro:', error);
+      console.error('[Register] Stack trace:', error instanceof Error ? error.stack : 'N/A');
+      alert('Erro interno. Tente novamente.');
     }
     
+    console.log('[Register] Finalizando processo de registro');
+    console.log('[Register] =================================');
     setIsLoading(false);
   };
 

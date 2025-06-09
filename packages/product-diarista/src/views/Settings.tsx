@@ -232,10 +232,11 @@ const Settings: React.FC = () => {
                       type="email"
                       name="email"
                       value={profileData.email}
-                      onChange={handleProfileChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      readOnly
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-gray-500 cursor-not-allowed"
                       required
                     />
+                    <p className="text-xs text-gray-500 mt-1">O email não pode ser alterado</p>
                   </div>
                   
                   <button

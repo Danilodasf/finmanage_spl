@@ -57,7 +57,8 @@ const Dashboard: React.FC = () => {
     setIsLoading(true);
     try {
       // Buscar transações
-      const transactionsResult = await DITransactionController.getTransactions();
+      const transactionController = new DITransactionController();
+      const transactionsResult = await transactionController.getAllTransactions();
       
       if (transactionsResult.success && transactionsResult.data) {
         const transactions = transactionsResult.data;

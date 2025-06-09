@@ -15,20 +15,12 @@ import ServiceProfits from '../views/ServiceProfits';
 // Componente de layout principal
 import Layout from '../components/Layout';
 
-// Hook para verificar autenticação (simulado)
+// Importar o hook de autenticação correto
+import { useAuthContext } from '../hooks/useAuth';
+
+// Hook para verificar autenticação
 const useAuth = () => {
-  // Por enquanto, vamos simular que o usuário não está autenticado inicialmente
-  // Na integração com Supabase, isso seria substituído por:
-  // const { user } = useSupabaseAuth();
-  // return { isAuthenticated: !!user, user };
-  
-  // Verificar se há um token de autenticação no localStorage
-  const token = localStorage.getItem('auth_token');
-  
-  return { 
-    isAuthenticated: !!token, // Usuário autenticado apenas se houver token
-    user: token ? { id: '1', name: 'Usuário Diarista', email: 'usuario@exemplo.com' } : null
-  };
+  return useAuthContext();
 };
 
 // Componente para rotas protegidas
@@ -68,7 +60,12 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
 // Componente principal de roteamento
 const AppRoutes: React.FC = () => {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         {/* Rotas Públicas (Autenticação) */}
         <Route 

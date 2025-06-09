@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { AuthLayout } from '../../components/Layout/AuthLayout';
-import { DIAuthController } from '../../controllers/DIAuthController';
+import { useAuthContext } from '../../hooks/useAuth';
 
 interface LoginCredentials {
   email: string;
@@ -13,6 +13,7 @@ interface LoginCredentials {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuthContext();
   const [formData, setFormData] = useState<LoginCredentials>({
     email: '',
     password: '',
@@ -31,11 +32,22 @@ const Login: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const controller = new DIAuthController();
-    const result = await controller.login(formData.email, formData.password);
+    console.log('[Login] Iniciando processo de login com:', { email: formData.email, password: '***' });
     
-    if (result.success) {
-      navigate('/dashboard');
+    try {
+      const result = await login(formData.email, formData.password);
+      console.log('[Login] Resultado do login:', result);
+      
+      if (result.success) {
+        console.log('[Login] Login bem-sucedido, navegando para dashboard');
+        navigate('/dashboard');
+      } else {
+        console.error('[Login] Falha no login:', result.error);
+        alert(result.error || 'Erro no login');
+      }
+    } catch (error) {
+      console.error('[Login] Erro durante o login:', error);
+      alert('Erro interno. Tente novamente.');
     }
     
     setIsLoading(false);

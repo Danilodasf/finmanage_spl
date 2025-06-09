@@ -4,6 +4,7 @@
  */
 
 import { AuthService, ServiceResult, User, Session } from '../lib/core/services';
+import { getSupabaseClient } from '../lib/supabase';
 
 type AuthResult<T> = ServiceResult<T>;
 import { databaseAdapter } from '../lib/database/DatabaseAdapter';
@@ -11,7 +12,7 @@ import { databaseAdapter } from '../lib/database/DatabaseAdapter';
 interface DiaristaUser {
   id: string;
   email: string;
-  password: string;
+  password?: string;
   name: string;
   phone?: string;
   address?: string;
@@ -24,155 +25,101 @@ interface DiaristaUser {
   updated_at: string;
 }
 
-interface DiaristaSession {
-  id: string;
-  user_id: string;
-  token: string;
-  expires_at: string;
-  created_at: string;
-}
-
 export class DiaristaAuthService implements AuthService {
-  private readonly usersTable = 'users';
-  private readonly sessionsTable = 'sessions';
+  private readonly usersTable = 'profiles';
   private currentUser: DiaristaUser | null = null;
-  private currentSession: DiaristaSession | null = null;
+  private readonly db = databaseAdapter;
+  private supabase: any;
 
-  /**
-   * Gera um token simples para sessão (em produção, usar JWT ou similar)
-   */
-  private generateToken(): string {
-    return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  constructor() {
+    this.supabase = getSupabaseClient();
   }
 
-  /**
-   * Hash simples da senha (em produção, usar bcrypt ou similar)
-   */
-  private hashPassword(password: string): string {
-    // Implementação simples para demonstração
-    // Em produção, usar uma biblioteca de hash segura
-    return btoa(password + 'salt_diarista');
-  }
 
-  /**
-   * Verifica se a senha está correta
-   */
-  private verifyPassword(password: string, hashedPassword: string): boolean {
-    return this.hashPassword(password) === hashedPassword;
-  }
 
-  /**
-   * Valida formato do email
-   */
-  private isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
+  async login(email: string, password: string): Promise<ServiceResult<{ user: User; session: Session }>> {
+    console.log('[DiaristaAuthService] Método login chamado com email:', email);
+    
+    // Validações básicas
+    if (!email || !password) {
+      console.error('[DiaristaAuthService] Email ou senha não fornecidos');
+      return {
+        success: false,
+        error: 'Email e senha são obrigatórios'
+      };
+    }
 
-  /**
-   * Valida força da senha
-   */
-  private isValidPassword(password: string): boolean {
-    // Mínimo 6 caracteres
-    return password.length >= 6;
-  }
+    // Validação básica de email
+    if (!email.includes('@')) {
+      console.error('[DiaristaAuthService] Email inválido:', email);
+      return {
+        success: false,
+        error: 'Email inválido'
+      };
+    }
 
-  async login(email: string, password: string): Promise<AuthResult> {
     try {
-      // Validações básicas
-      if (!email || !password) {
-        return {
-          success: false,
-          error: 'Email e senha são obrigatórios',
-          user: null
-        };
-      }
-
-      if (!this.isValidEmail(email)) {
-        return {
-          success: false,
-          error: 'Formato de email inválido',
-          user: null
-        };
-      }
-
-      // Busca o usuário pelo email
-      const userResult = await databaseAdapter.findWhere<DiaristaUser>(this.usersTable, {
-        email: email.toLowerCase()
+      console.log('[DiaristaAuthService] Fazendo login com Supabase Auth...');
+      
+      // Fazer login com Supabase Auth
+      const { data: authData, error: authError } = await this.supabase.auth.signInWithPassword({
+        email,
+        password
       });
 
-      if (userResult.error) {
+      if (authError) {
+        console.error('[DiaristaAuthService] Erro no login:', authError.message);
         return {
           success: false,
-          error: 'Erro interno do servidor',
-          user: null
+          error: authError.message === 'Invalid login credentials' ? 'Email ou senha inválidos' : authError.message
         };
       }
 
-      const users = userResult.data || [];
-      if (users.length === 0) {
+      if (!authData.user) {
+        console.error('[DiaristaAuthService] Usuário não retornado pelo Supabase');
         return {
           success: false,
-          error: 'Email ou senha incorretos',
-          user: null
+          error: 'Erro ao fazer login'
         };
       }
 
-      const user = users[0];
+      console.log('[DiaristaAuthService] Login realizado com sucesso:', authData.user.id);
 
-      // Verifica a senha
-      if (!this.verifyPassword(password, user.password)) {
+      // Buscar dados do perfil do usuário
+      console.log('[DiaristaAuthService] Buscando perfil do usuário...');
+      const profileResult = await this.db.getById('profiles', authData.user.id);
+      
+      if (profileResult.error || !profileResult.data) {
+        console.error('[DiaristaAuthService] Erro ao buscar perfil:', profileResult.error);
         return {
           success: false,
-          error: 'Email ou senha incorretos',
-          user: null
+          error: 'Perfil do usuário não encontrado'
         };
       }
 
-      // Cria uma nova sessão
-      const token = this.generateToken();
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24); // 24 horas
+      const userProfile = profileResult.data as DiaristaUser;
+      this.currentUser = userProfile;
 
-      const sessionData = {
-        user_id: user.id,
-        token: token,
-        expires_at: expiresAt.toISOString()
-      };
-
-      const sessionResult = await databaseAdapter.create<DiaristaSession>(this.sessionsTable, sessionData);
-
-      if (sessionResult.error) {
-        return {
-          success: false,
-          error: 'Erro ao criar sessão',
-          user: null
-        };
-      }
-
-      // Armazena o usuário e sessão atuais
-      this.currentUser = user;
-      this.currentSession = sessionResult.data!;
-
-      // Salva no localStorage para persistência
-      localStorage.setItem('diarista_auth_token', token);
-      localStorage.setItem('diarista_user_id', user.id);
-
+      console.log('[DiaristaAuthService] Login concluído com sucesso');
       return {
         success: true,
-        error: null,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name
+          id: userProfile.id,
+          email: userProfile.email,
+          name: userProfile.name
+        },
+        session: {
+          id: authData.session?.access_token || '',
+          user_id: userProfile.id,
+          token: authData.session?.access_token || '',
+          expires_at: authData.session?.expires_at ? new Date(authData.session.expires_at * 1000).toISOString() : ''
         }
       };
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('[DiaristaAuthService] Erro no login:', error);
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        user: null
+        error: 'Erro interno do servidor'
       };
     }
   }
@@ -183,71 +130,48 @@ export class DiaristaAuthService implements AuthService {
       if (!email || !password || !name) {
         return {
           success: false,
-          error: 'Email, senha e nome são obrigatórios',
+          error: 'Todos os campos são obrigatórios',
           user: null
         };
       }
 
-      if (!this.isValidEmail(email)) {
+      if (password.length < 6) {
         return {
           success: false,
-          error: 'Formato de email inválido',
+          error: 'A senha deve ter pelo menos 6 caracteres',
           user: null
         };
       }
 
-      if (!this.isValidPassword(password)) {
+      if (!email.includes('@')) {
         return {
           success: false,
-          error: 'Senha deve ter pelo menos 6 caracteres',
+          error: 'Email inválido',
           user: null
         };
       }
 
-      if (name.trim().length < 2) {
-        return {
-          success: false,
-          error: 'Nome deve ter pelo menos 2 caracteres',
-          user: null
-        };
-      }
+      console.log('[DiaristaAuthService] Iniciando registro para:', email);
 
-      // Verifica se o email já está em uso
-      const existingUserResult = await databaseAdapter.findWhere<DiaristaUser>(this.usersTable, {
-        email: email.toLowerCase()
+      console.log('[DiaristaAuthService] Criando usuário no Supabase Auth...');
+      
+      // Criar usuário no Supabase Auth
+      const { data: authData, error: authError } = await this.supabase.auth.signUp({
+        email,
+        password
       });
 
-      if (existingUserResult.error) {
+      if (authError) {
+        console.error('[DiaristaAuthService] Erro ao criar usuário no Supabase Auth:', authError);
         return {
           success: false,
-          error: 'Erro interno do servidor',
+          error: authError.message === 'User already registered' ? 'Este email já está em uso' : authError.message,
           user: null
         };
       }
 
-      if (existingUserResult.data && existingUserResult.data.length > 0) {
-        return {
-          success: false,
-          error: 'Este email já está cadastrado',
-          user: null
-        };
-      }
-
-      // Cria o novo usuário
-      const userData = {
-        email: email.toLowerCase(),
-        password: this.hashPassword(password),
-        name: name.trim(),
-        specialties: [],
-        hourly_rate: 0,
-        availability: [],
-        rating: 0,
-        total_services: 0
-      };
-
-      const userResult = await databaseAdapter.create<DiaristaUser>(this.usersTable, userData);
-
-      if (userResult.error) {
+      if (!authData.user) {
+        console.error('[DiaristaAuthService] Usuário não retornado pelo Supabase Auth');
         return {
           success: false,
           error: 'Erro ao criar usuário',
@@ -255,10 +179,57 @@ export class DiaristaAuthService implements AuthService {
         };
       }
 
-      const newUser = userResult.data!;
+      console.log('[DiaristaAuthService] Usuário criado no Supabase Auth:', authData.user.id);
 
-      // Faz login automático após o registro
-      return await this.login(email, password);
+      // Criar perfil na tabela profiles
+      console.log('[DiaristaAuthService] Criando perfil na tabela profiles...');
+      const profileData = {
+        id: authData.user.id, // Usar o ID do Supabase Auth
+        email,
+        name,
+        phone: '',
+        address: '',
+        specialties: [],
+        hourly_rate: 0,
+        availability: [],
+        rating: 0,
+        total_services: 0
+      };
+
+      const userResult = await this.db.create('profiles', profileData);
+      console.log('[DiaristaAuthService] Resultado da criação do perfil:', userResult);
+
+      if (userResult.error) {
+        console.error('[DiaristaAuthService] Erro ao criar perfil:', userResult.error);
+        return {
+          success: false,
+          error: 'Erro ao criar perfil do usuário',
+          user: null
+        };
+      }
+
+      if (!userResult.data) {
+        console.error('[DiaristaAuthService] Usuário criado mas dados não retornados');
+        return {
+          success: false,
+          user: null,
+          error: 'Erro ao criar usuário'
+        };
+      }
+
+      const newUser = userResult.data;
+      console.log('[DiaristaAuthService] Usuário criado com sucesso:', newUser.id);
+
+      // Retorna sucesso sem fazer login automático
+      return {
+        success: true,
+        error: null,
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name
+        }
+      };
     } catch (error) {
       console.error('Erro no registro:', error);
       return {
@@ -271,22 +242,20 @@ export class DiaristaAuthService implements AuthService {
 
   async logout(): Promise<{ success: boolean; error: string | null }> {
     try {
-      // Remove a sessão do banco de dados
-      if (this.currentSession) {
-        await databaseAdapter.delete(this.sessionsTable, this.currentSession.id);
+      console.log('[DiaristaAuthService] Fazendo logout...');
+      
+      // Fazer logout no Supabase Auth
+      const { error } = await this.supabase.auth.signOut();
+      
+      if (error) {
+        console.error('[DiaristaAuthService] Erro ao fazer logout no Supabase:', error);
+        // Continua com o logout local mesmo se houver erro no Supabase
       }
 
       // Limpa o estado local
       this.currentUser = null;
-      this.currentSession = null;
 
-      // Remove do localStorage - limpar todos os tokens de autenticação
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('diarista_auth_token');
-      localStorage.removeItem('diarista_user_id');
-
+      console.log('[DiaristaAuthService] Logout concluído com sucesso');
       return {
         success: true,
         error: null
@@ -314,65 +283,76 @@ export class DiaristaAuthService implements AuthService {
         };
       }
 
-      // Tenta recuperar do localStorage
-      const token = localStorage.getItem('diarista_auth_token');
-      const userId = localStorage.getItem('diarista_user_id');
+      // Verifica se há dados salvos no localStorage
+      const savedUser = localStorage.getItem('user');
+      const savedAuth = localStorage.getItem('isAuthenticated');
+      
+      if (savedUser && savedAuth === 'true') {
+        try {
+          const userData = JSON.parse(savedUser);
+          console.log('[DiaristaAuthService] Usuário encontrado no localStorage:', userData.id);
+          
+          // Define o usuário atual a partir do localStorage
+          this.currentUser = userData;
+          
+          return {
+            user: {
+              id: userData.id,
+              email: userData.email,
+              name: userData.name
+            },
+            error: null
+          };
+        } catch (parseError) {
+          console.error('[DiaristaAuthService] Erro ao fazer parse dos dados do localStorage:', parseError);
+          // Remove dados corrompidos
+          localStorage.removeItem('user');
+          localStorage.removeItem('isAuthenticated');
+        }
+      }
 
-      if (!token || !userId) {
+      console.log('[DiaristaAuthService] Verificando usuário autenticado no Supabase...');
+      
+      // Verifica se há um usuário autenticado no Supabase
+      const { data: { user }, error } = await this.supabase.auth.getUser();
+      
+      if (error) {
+        console.error('[DiaristaAuthService] Erro ao verificar usuário:', error);
         return {
           user: null,
           error: null
         };
       }
 
-      // Verifica se a sessão ainda é válida
-      const sessionResult = await databaseAdapter.findWhere<DiaristaSession>(this.sessionsTable, {
-        token: token,
-        user_id: userId
-      });
-
-      if (sessionResult.error || !sessionResult.data || sessionResult.data.length === 0) {
-        // Sessão inválida, limpa o localStorage
-        localStorage.removeItem('diarista_auth_token');
-        localStorage.removeItem('diarista_user_id');
+      if (!user) {
+        console.log('[DiaristaAuthService] Nenhum usuário autenticado');
         return {
           user: null,
           error: null
         };
       }
 
-      const session = sessionResult.data[0];
+      console.log('[DiaristaAuthService] Usuário autenticado encontrado:', user.id);
 
-      // Verifica se a sessão não expirou
-      if (new Date(session.expires_at) < new Date()) {
-        // Sessão expirada, remove
-        await databaseAdapter.delete(this.sessionsTable, session.id);
-        localStorage.removeItem('diarista_auth_token');
-        localStorage.removeItem('diarista_user_id');
+      // Busca os dados do perfil do usuário
+      const profileResult = await this.db.getById('profiles', user.id);
+
+      if (profileResult.error || !profileResult.data) {
+        console.error('[DiaristaAuthService] Erro ao buscar perfil:', profileResult.error);
         return {
           user: null,
-          error: null
+          error: 'Perfil do usuário não encontrado'
         };
       }
 
-      // Busca os dados do usuário
-      const userResult = await databaseAdapter.getById<DiaristaUser>(this.usersTable, userId);
-
-      if (userResult.error || !userResult.data) {
-        return {
-          user: null,
-          error: 'Usuário não encontrado'
-        };
-      }
-
-      this.currentUser = userResult.data;
-      this.currentSession = session;
+      const userProfile = profileResult.data as DiaristaUser;
+      this.currentUser = userProfile;
 
       return {
         user: {
-          id: this.currentUser.id,
-          email: this.currentUser.email,
-          name: this.currentUser.name
+          id: userProfile.id,
+          email: userProfile.email,
+          name: userProfile.name
         },
         error: null
       };
