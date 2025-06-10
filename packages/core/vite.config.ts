@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => ({
       exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.stories.ts', 'src/**/*.stories.tsx'],
       outDir: 'dist',
     }),
-    // Nota: O Stagewise Toolbar é inicializado no arquivo main.tsx apenas em desenvolvimento
+    
   ].filter(Boolean),
   resolve: {
     alias: {
