@@ -94,10 +94,3 @@ export class DITransactionController {
 3. **Flexibilidade**: Permite trocar implementações de serviços sem afetar os componentes UI
 4. **Manutenibilidade**: Centraliza a lógica de acesso a serviços nos controladores
 5. **Consistência**: Estabelece um padrão consistente para toda a aplicação
-
-## Limitações e Considerações
-
-- O sistema de DI é dependente do `DIContainer` do core
-- Os serviços precisam ser registrados antes de serem utilizados
-- Apenas funcionalidades compatíveis com o core devem utilizar este padrão (auth, transactions, categories, reports, settings)
-- Funcionalidades específicas do produto personal devem seguir padrões próprios de implementação 

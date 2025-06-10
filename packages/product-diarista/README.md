@@ -43,7 +43,6 @@ O FinManage Diarista é uma aplicação web desenvolvida em React que oferece fe
 - **ESLint** `^8.57.0` - Linter para JavaScript/TypeScript
 - **PostCSS** `^8.4.38` - Processador de CSS
 - **Autoprefixer** `^10.4.19` - Plugin PostCSS para prefixos CSS
-- **@stagewise/toolbar-react** `^0.1.2` - Toolbar de desenvolvimento
 
 ## 📁 Estrutura de Pastas
 
