@@ -3,6 +3,7 @@
  * Gerencia operações de autenticação específicas para diaristas
  */
 
+// Importa o container DI do core
 import { DIContainer } from '../lib/core/di';
 import { AuthService, ServiceResult, User, Session } from '../lib/core/services';
 

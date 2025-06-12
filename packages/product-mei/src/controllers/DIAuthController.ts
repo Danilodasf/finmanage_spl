@@ -1,3 +1,4 @@
+// Importa o container de injeção de dependências (DI) do core
 import { DIContainer, AUTH_SERVICE, AuthService, LoginCredentials, RegisterData, toast } from '../lib/core-exports';
 
 /**

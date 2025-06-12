@@ -1,3 +1,4 @@
+// Importa o container de injeção de dependências (DI) do core
 import { DIContainer, CATEGORY_SERVICE, CategoryService, Category, toast } from '../lib/core-exports';
 import { SupabaseMeiCategoryService } from '../lib/services/SupabaseMeiCategoryService';
 
@@ -220,4 +221,4 @@ export class DICategoryController {
       return false;
     }
   }
-} 
+}

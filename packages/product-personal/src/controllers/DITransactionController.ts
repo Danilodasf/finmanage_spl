@@ -1,3 +1,4 @@
+// Importa o container de injeção de dependências (DI) do core
 import { DIContainer, TRANSACTION_SERVICE } from '@finmanage/core/di';
 import { TransactionService, Transaction } from '@finmanage/core/services';
 import { toast } from '@/hooks/use-toast';
@@ -320,4 +321,4 @@ export class DITransactionController {
       return [];
     }
   }
-} 
+}

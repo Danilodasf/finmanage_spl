@@ -1,3 +1,4 @@
+// Este arquivo inicializa e registra os serviços específicos do produto Personal no container de injeção de dependências (DI)
 import { DIContainer, TRANSACTION_SERVICE, CATEGORY_SERVICE, BUDGET_SERVICE, GOAL_SERVICE, INVESTMENT_SERVICE, AUTH_SERVICE } from '@finmanage/core/di';
 import { PersonalTransactionService } from '../services/PersonalTransactionService';
 import { PersonalCategoryService } from '../services/PersonalCategoryService';
@@ -42,4 +43,4 @@ export function bootstrapPersonalDI(): void {
   } catch (error) {
     console.error('Erro durante o bootstrap do container de DI:', error);
   }
-} 
+}

@@ -1,3 +1,4 @@
+// Importa o container de injeção de dependências (DI) do core
 import { DIContainer, REPORT_SERVICE, ReportService, ReportData, Transaction, toast } from '../lib/core-exports';
 import jsPDF from 'jspdf';
 
@@ -114,4 +115,4 @@ export class DIReportController {
       };
     }
   }
-} 
+}

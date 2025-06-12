@@ -1,7 +1,4 @@
-/**
- * Tokens para injeção de dependências
- * Usados para identificar serviços no container de DI
- */
+// Tokens usados para identificar serviços no container DI
 
 // Tokens de serviços de entidades
 export const TRANSACTION_SERVICE = 'TRANSACTION_SERVICE';
@@ -19,4 +16,4 @@ export const LOCAL_STORAGE_SERVICE = 'LOCAL_STORAGE_SERVICE';
 
 // Tokens de serviços de API
 export const API_SERVICE = 'API_SERVICE';
-export const HTTP_CLIENT = 'HTTP_CLIENT'; 
+export const HTTP_CLIENT = 'HTTP_CLIENT';

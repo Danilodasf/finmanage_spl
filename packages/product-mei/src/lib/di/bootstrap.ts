@@ -1,3 +1,4 @@
+// Este arquivo inicializa e registra os serviços específicos do produto MEI no container de injeção de dependências (DI)
 import { DIContainer, CATEGORY_SERVICE, AUTH_SERVICE, REPORT_SERVICE, TRANSACTION_SERVICE } from '../core-exports';
 import { SupabaseMeiCategoryService } from '../services/SupabaseMeiCategoryService';
 import { MeiAuthService } from '../services/MeiAuthService';
@@ -46,4 +47,4 @@ export function bootstrapMeiDI(): void {
   } catch (error) {
     console.error('Erro durante o bootstrap do container de DI:', error);
   }
-} 
+}

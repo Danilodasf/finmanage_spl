@@ -2,8 +2,8 @@ import { DIContainer } from './container';
 import { ServiceProvider } from './types';
 
 /**
- * Inicializa o container de DI com os provedores fornecidos
- * @param providers Lista de provedores de serviços
+ * Inicializa o container DI e registra os provedores.
+ * Suporta useValue, useClass, useFactory, dependências e singleton.
  */
 export function bootstrapDI(providers: ServiceProvider<any>[]): void {
   // Limpar o container antes de inicializar
@@ -42,9 +42,8 @@ export function bootstrapDI(providers: ServiceProvider<any>[]): void {
 }
 
 /**
- * Registra um módulo de DI no container
- * @param module Módulo de DI
+ * Registra um módulo DI com seus provedores.
  */
 export function registerModule(module: { providers: ServiceProvider<any>[] }): void {
   bootstrapDI(module.providers);
-} 
+}

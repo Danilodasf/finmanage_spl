@@ -3,6 +3,7 @@
  * Configura e registra todos os serviços específicos do produto
  */
 
+// Importa o container DI do core
 import { DIContainer } from '../core/di';
 import {
   TRANSACTION_SERVICE,

@@ -1,8 +1,15 @@
 import { supabase } from '../supabase';
 import { getCurrentUserId } from '../supabase';
 
-// TODO: Remover quando o Supabase estiver configurado
-// Dados mock para desenvolvimento sem banco de dados
+/**
+ * Dados mockados para desenvolvimento e testes
+ * 
+ * IMPORTANTE: Estes dados devem ser removidos quando a integração
+ * com o Supabase estiver completa e funcionando corretamente.
+ * 
+ * Contém categorias padrão para receitas e despesas com cores
+ * pré-definidas para facilitar o desenvolvimento da interface.
+ */
 const mockCategories: Category[] = [
   {
     id: 'cat-1',
@@ -63,42 +70,78 @@ const mockCategories: Category[] = [
 let mockCategoryIdCounter = 7;
 
 /**
- * Interface para representar uma categoria
+ * Interface que representa uma categoria de transação
+ * 
+ * Define a estrutura de dados para categorias que podem ser
+ * utilizadas para classificar receitas, despesas ou ambos.
  */
 export interface Category {
+  /** Identificador único da categoria */
   id: string;
+  /** ID do usuário proprietário da categoria */
   user_id: string;
+  /** Nome descritivo da categoria */
   name: string;
+  /** Tipo da categoria: receita, despesa ou ambos */
   type: 'receita' | 'despesa' | 'ambos';
+  /** Cor em hexadecimal para identificação visual (opcional) */
   color: string | null;
+  /** Data de criação da categoria */
   created_at?: string;
+  /** Data da última atualização */
   updated_at?: string;
 }
 
 /**
- * Interface para criar uma nova categoria
+ * DTO para criação de uma nova categoria
+ * 
+ * Contém apenas os campos obrigatórios e opcionais
+ * necessários para criar uma categoria.
  */
 export interface CreateCategoryDTO {
+  /** Nome da categoria (obrigatório) */
   name: string;
+  /** Tipo da categoria (obrigatório) */
   type: 'receita' | 'despesa' | 'ambos';
+  /** Cor em hexadecimal (opcional, padrão será aplicado) */
   color?: string;
 }
 
 /**
- * Interface para atualizar uma categoria existente
+ * DTO para atualização de uma categoria existente
+ * 
+ * Todos os campos são opcionais, permitindo atualizações
+ * parciais da categoria.
  */
 export interface UpdateCategoryDTO {
+  /** Novo nome da categoria (opcional) */
   name?: string;
+  /** Novo tipo da categoria (opcional) */
   type?: 'receita' | 'despesa' | 'ambos';
+  /** Nova cor da categoria (opcional) */
   color?: string;
 }
 
 /**
- * Implementação do serviço de categorias usando Supabase
+ * Serviço responsável pelo gerenciamento de categorias de transações
+ * 
+ * Fornece métodos para operações CRUD (Create, Read, Update, Delete)
+ * de categorias, incluindo funcionalidades específicas como busca por tipo,
+ * garantia de categorias padrão e filtragem por receitas/despesas.
+ * 
+ * Atualmente utiliza dados mockados para desenvolvimento, mas está
+ * preparado para integração com Supabase quando configurado.
  */
 export class CategoryService {
   /**
    * Busca todas as categorias do usuário atual
+   * 
+   * Retorna uma lista ordenada alfabeticamente de todas as categorias
+   * disponíveis para o usuário autenticado. Inclui categorias padrão
+   * e personalizadas criadas pelo usuário.
+   * 
+   * @returns Promise<Category[]> Lista de categorias ordenadas por nome
+   * @throws Error se o usuário não estiver autenticado (versão Supabase)
    */
   static async getAll(): Promise<Category[]> {
     try {
@@ -134,8 +177,14 @@ export class CategoryService {
   }
   
   /**
-   * Busca uma categoria pelo ID
-   * @param id ID da categoria
+   * Busca uma categoria específica pelo seu identificador único
+   * 
+   * Localiza e retorna uma categoria baseada no ID fornecido,
+   * garantindo que pertença ao usuário autenticado atual.
+   * 
+   * @param id - Identificador único da categoria a ser buscada
+   * @returns Promise<Category | null> A categoria encontrada ou null se não existir
+   * @throws Error se o usuário não estiver autenticado (versão Supabase)
    */
   static async getById(id: string): Promise<Category | null> {
     try {
@@ -172,8 +221,15 @@ export class CategoryService {
   }
   
   /**
-   * Cria uma nova categoria
-   * @param category Dados da categoria
+   * Cria uma nova categoria para o usuário atual
+   * 
+   * Adiciona uma nova categoria ao sistema com os dados fornecidos.
+   * Se a cor não for especificada, uma cor padrão será aplicada.
+   * A categoria será associada automaticamente ao usuário autenticado.
+   * 
+   * @param category - Dados da categoria a ser criada (nome, tipo e cor opcional)
+   * @returns Promise<Category | null> A categoria criada ou null em caso de erro
+   * @throws Error se o usuário não estiver autenticado (versão Supabase)
    */
   static async create(category: CreateCategoryDTO): Promise<Category | null> {
     try {
@@ -224,9 +280,16 @@ export class CategoryService {
   }
   
   /**
-   * Atualiza uma categoria existente
-   * @param id ID da categoria
-   * @param category Dados para atualização
+   * Atualiza uma categoria existente do usuário
+   * 
+   * Modifica os dados de uma categoria específica com as informações
+   * fornecidas. Apenas os campos especificados serão atualizados,
+   * mantendo os demais valores inalterados.
+   * 
+   * @param id - Identificador único da categoria a ser atualizada
+   * @param category - Dados parciais para atualização (nome, tipo ou cor)
+   * @returns Promise<Category | null> A categoria atualizada ou null se não encontrada
+   * @throws Error se o usuário não estiver autenticado (versão Supabase)
    */
   static async update(id: string, category: UpdateCategoryDTO): Promise<Category | null> {
     try {
@@ -277,8 +340,15 @@ export class CategoryService {
   }
   
   /**
-   * Remove uma categoria
-   * @param id ID da categoria
+   * Remove uma categoria do usuário
+   * 
+   * Exclui permanentemente uma categoria específica do sistema.
+   * ATENÇÃO: Esta operação é irreversível e pode afetar transações
+   * que utilizam esta categoria.
+   * 
+   * @param id - Identificador único da categoria a ser removida
+   * @returns Promise<boolean> true se removida com sucesso, false caso contrário
+   * @throws Error se o usuário não estiver autenticado (versão Supabase)
    */
   static async delete(id: string): Promise<boolean> {
     try {
@@ -321,8 +391,15 @@ export class CategoryService {
   }
   
   /**
-   * Busca categorias filtradas por tipo
-   * @param type Tipo da categoria
+   * Busca categorias filtradas por tipo específico
+   * 
+   * Retorna apenas as categorias que correspondem ao tipo especificado
+   * (receita, despesa ou ambos), útil para filtrar opções em formulários
+   * de transações.
+   * 
+   * @param type - Tipo de categoria a ser filtrado ('receita', 'despesa' ou 'ambos')
+   * @returns Promise<Category[]> Lista de categorias do tipo especificado
+   * @throws Error se o usuário não estiver autenticado
    */
   static async getByType(type: 'receita' | 'despesa' | 'ambos'): Promise<Category[]> {
     try {
@@ -352,7 +429,14 @@ export class CategoryService {
   }
   
   /**
-   * Busca categorias de receita (type = 'receita' ou 'ambos')
+   * Busca todas as categorias aplicáveis a receitas
+   * 
+   * Retorna categorias com tipo 'receita' ou 'ambos', ordenadas
+   * alfabeticamente. Útil para popular dropdowns em formulários
+   * de criação/edição de receitas.
+   * 
+   * @returns Promise<Category[]> Lista de categorias para receitas
+   * @throws Error se o usuário não estiver autenticado (versão Supabase)
    */
   static async getIncomeCategories(): Promise<Category[]> {
     try {
@@ -392,7 +476,14 @@ export class CategoryService {
   }
   
   /**
-   * Busca categorias de despesa (type = 'despesa' ou 'ambos')
+   * Busca todas as categorias aplicáveis a despesas
+   * 
+   * Retorna categorias com tipo 'despesa' ou 'ambos', ordenadas
+   * alfabeticamente. Útil para popular dropdowns em formulários
+   * de criação/edição de despesas.
+   * 
+   * @returns Promise<Category[]> Lista de categorias para despesas
+   * @throws Error se o usuário não estiver autenticado (versão Supabase)
    */
   static async getExpenseCategories(): Promise<Category[]> {
     try {
@@ -433,6 +524,18 @@ export class CategoryService {
   
   /**
    * Garante que as categorias padrão existam para o usuário atual
+   * 
+   * Verifica se o usuário possui categorias cadastradas e, caso não tenha,
+   * cria automaticamente um conjunto de categorias padrão para receitas
+   * e despesas. Este método é útil para novos usuários que precisam de
+   * categorias básicas para começar a usar o sistema.
+   * 
+   * Categorias padrão incluem:
+   * - Receitas: Vendas, Serviços, Outros
+   * - Despesas: Impostos, Aluguel, Materiais, Transporte, Alimentação, Outros
+   * 
+   * @returns Promise<void> Não retorna valor, apenas garante a criação
+   * @throws Error se o usuário não estiver autenticado (versão Supabase)
    */
   static async ensureDefaultCategories(): Promise<void> {
     try {

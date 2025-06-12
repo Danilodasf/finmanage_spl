@@ -3,6 +3,7 @@
  * Gerencia operações de transações específicas para diaristas
  */
 
+// Importa o container DI do core
 import { DIContainer } from '../lib/core/di';
 import { TransactionService, Transaction } from '../lib/core/services';
 import { TRANSACTION_SERVICE, AUTH_SERVICE } from '../lib/di/bootstrap';

@@ -2,7 +2,15 @@ import { BaseEntityService } from './base';
 import { supabase } from '../supabase';
 import { getCurrentUserId } from '../supabase';
 
-// Mock data para desenvolvimento (remover quando o Supabase estiver configurado)
+/**
+ * Dados mockados para desenvolvimento e testes
+ * 
+ * IMPORTANTE: Estes dados devem ser removidos quando a integração
+ * com Supabase estiver completamente configurada e funcionando.
+ * 
+ * Os dados simulam transações típicas de um usuário para permitir
+ * desenvolvimento e testes das funcionalidades sem dependência do banco.
+ */
 let mockTransactionIdCounter = 1;
 const mockTransactions: Transaction[] = [
   {
@@ -44,49 +52,112 @@ const mockTransactions: Transaction[] = [
 ];
 
 /**
- * Interface para representar uma transação
+ * Interface que representa uma transação financeira completa no sistema
+ * 
+ * Esta interface define a estrutura de dados para transações que serão
+ * armazenadas no banco de dados (Supabase) e inclui metadados de auditoria.
  */
 export interface Transaction {
+  /** Identificador único da transação */
   id: string;
+  
+  /** ID do usuário proprietário da transação */
   user_id: string;
+  
+  /** Tipo da transação: 'receita' (entrada) ou 'despesa' (saída) */
   type: 'receita' | 'despesa';
+  
+  /** ID da categoria à qual esta transação pertence */
   category_id: string;
+  
+  /** Descrição detalhada da transação */
   description: string;
+  
+  /** Valor monetário da transação */
   value: number;
+  
+  /** Data da transação no formato ISO string */
   date: string;
+  
+  /** Método de pagamento utilizado (opcional) */
   payment_method?: string;
+  
+  /** Timestamp de criação do registro (ISO string) */
   created_at?: string;
+  
+  /** Timestamp da última atualização do registro (ISO string) */
   updated_at?: string;
 }
 
 /**
- * Interface para criar uma nova transação
+ * DTO (Data Transfer Object) para criação de uma nova transação
+ * 
+ * Contém apenas os campos necessários para criar uma transação.
+ * Os campos id, user_id, created_at e updated_at são gerados automaticamente.
  */
 export interface CreateTransactionDTO {
+  /** Tipo da transação: 'receita' (entrada) ou 'despesa' (saída) */
   type: 'receita' | 'despesa';
+  
+  /** ID da categoria à qual esta transação pertence */
   category_id: string;
+  
+  /** Descrição detalhada da transação */
   description: string;
+  
+  /** Valor monetário da transação */
   value: number;
+  
+  /** Data da transação no formato ISO string */
   date: string;
+  
+  /** Método de pagamento utilizado (opcional) */
   payment_method?: string;
 }
 
 /**
- * Interface para atualizar uma transação existente
+ * DTO (Data Transfer Object) para atualização de uma transação existente
+ * 
+ * Todos os campos são opcionais, permitindo atualizações parciais.
+ * O campo updated_at é atualizado automaticamente pelo sistema.
  */
 export interface UpdateTransactionDTO {
+  /** Tipo da transação: 'receita' (entrada) ou 'despesa' (saída) */
   type?: 'receita' | 'despesa';
+  
+  /** ID da categoria à qual esta transação pertence */
   category_id?: string;
+  
+  /** Descrição detalhada da transação */
   description?: string;
+  
+  /** Valor monetário da transação */
   value?: number;
+  
+  /** Data da transação no formato ISO string */
   date?: string;
+  
+  /** Método de pagamento utilizado (opcional) */
   payment_method?: string;
 }
 
 /**
- * Interface para o serviço de transações
+ * Interface que define o contrato para serviços de transação
+ * 
+ * Esta interface estabelece os métodos que qualquer implementação
+ * de serviço de transação deve fornecer, garantindo consistência
+ * entre diferentes implementações (localStorage, Supabase, etc.)
  */
-export interface TransactionService extends BaseEntityService<Transaction> {
+export interface TransactionServiceInterface {
+  /** Busca todas as transações do usuário */
+  getTransactions(): Promise<Transaction[]>;
+  
+  /** Cria uma nova transação */
+  createTransaction(transaction: Omit<Transaction, 'id'>): Promise<Transaction>;
+  
+  /** Atualiza uma transação existente */
+  updateTransaction(id: string, transaction: Partial<Transaction>): Promise<Transaction>;
+  
   /**
    * Busca transações por período
    * @param startDate Data inicial
@@ -118,15 +189,31 @@ export interface TransactionService extends BaseEntityService<Transaction> {
 }
 
 /**
- * Implementação do serviço de transações usando Supabase
+ * Implementação do serviço de transações
+ * 
+ * Esta classe fornece métodos para gerenciar transações financeiras.
+ * Atualmente utiliza dados mockados para desenvolvimento, mas está
+ * preparada para integração com Supabase quando configurado.
+ * 
+ * Funcionalidades principais:
+ * - CRUD completo de transações
+ * - Filtros por período e tipo
+ * - Cálculos de resumos financeiros
+ * - Validações de dados
  */
 export class TransactionService {
   /**
    * Busca todas as transações do usuário atual
+   * 
+   * Durante o desenvolvimento, retorna dados mockados com um delay
+   * simulado para testar estados de carregamento. Em produção,
+   * fará consulta real ao Supabase.
+   * 
+   * @returns Promise com array de transações ordenadas por data (mais recentes primeiro)
    */
   static async getAll(): Promise<Transaction[]> {
     try {
-      // Mock: retornar transações fictícias
+      // Simula delay de rede para testar estados de carregamento
       await new Promise(resolve => setTimeout(resolve, 300));
       
       return mockTransactions
@@ -160,12 +247,17 @@ export class TransactionService {
   }
   
   /**
-   * Busca uma transação pelo ID
-   * @param id ID da transação
+   * Busca uma transação específica pelo seu ID
+   * 
+   * Verifica se o usuário está autenticado e se a transação
+   * pertence ao usuário atual antes de retorná-la.
+   * 
+   * @param id - Identificador único da transação
+   * @returns Promise com a transação encontrada ou null se não existir
    */
   static async getById(id: string): Promise<Transaction | null> {
     try {
-      // Mock: buscar transação fictícia por ID
+      // Simula delay de rede para busca específica
       await new Promise(resolve => setTimeout(resolve, 200));
       
       const transaction = mockTransactions.find(t => t.id === id);
@@ -200,12 +292,17 @@ export class TransactionService {
   }
   
   /**
-   * Cria uma nova transação
-   * @param transaction Dados da transação
+   * Cria uma nova transação no sistema
+   * 
+   * Valida os dados fornecidos, gera um ID único e timestamps,
+   * associa a transação ao usuário atual e persiste no banco.
+   * 
+   * @param transaction - Dados da transação a ser criada (sem ID)
+   * @returns Promise com a transação criada ou null em caso de erro
    */
   static async create(transaction: CreateTransactionDTO): Promise<Transaction | null> {
     try {
-      // Mock: criar transação fictícia
+      // Simula delay de rede para operação de criação
       await new Promise(resolve => setTimeout(resolve, 300));
       
       mockTransactionIdCounter++;
@@ -252,12 +349,18 @@ export class TransactionService {
   
   /**
    * Atualiza uma transação existente
-   * @param id ID da transação
-   * @param transaction Dados para atualização
+   * 
+   * Permite atualização parcial dos dados da transação.
+   * Verifica se a transação existe e pertence ao usuário atual
+   * antes de aplicar as modificações.
+   * 
+   * @param id - Identificador único da transação a ser atualizada
+   * @param transaction - Dados parciais para atualização
+   * @returns Promise com a transação atualizada ou null se não encontrada
    */
   static async update(id: string, transaction: UpdateTransactionDTO): Promise<Transaction | null> {
     try {
-      // Mock: atualizar transação fictícia
+      // Simula delay de rede para operação de atualização
       await new Promise(resolve => setTimeout(resolve, 250));
       
       const transactionIndex = mockTransactions.findIndex(t => t.id === id);
@@ -304,12 +407,17 @@ export class TransactionService {
   }
   
   /**
-   * Remove uma transação
-   * @param id ID da transação
+   * Remove uma transação do sistema
+   * 
+   * Verifica se a transação existe e pertence ao usuário atual
+   * antes de removê-la permanentemente do banco de dados.
+   * 
+   * @param id - Identificador único da transação a ser removida
+   * @returns Promise com true se removida com sucesso, false caso contrário
    */
   static async delete(id: string): Promise<boolean> {
     try {
-      // Mock: remover transação fictícia
+      // Simula delay de rede para operação de remoção
       await new Promise(resolve => setTimeout(resolve, 200));
       
       const transactionIndex = mockTransactions.findIndex(t => t.id === id);
@@ -348,11 +456,16 @@ export class TransactionService {
   }
   
   /**
-   * Busca transações filtradas por tipo, categoria e/ou intervalo de datas
-   * @param type Tipo da transação (receita ou despesa)
-   * @param categoryId ID da categoria
-   * @param startDate Data inicial
-   * @param endDate Data final
+   * Busca transações com filtros avançados
+   * 
+   * Permite filtrar transações por múltiplos critérios simultaneamente.
+   * Todos os parâmetros são opcionais, permitindo combinações flexíveis.
+   * 
+   * @param type - Tipo da transação ('receita' ou 'despesa') - opcional
+   * @param categoryId - ID da categoria para filtrar - opcional
+   * @param startDate - Data inicial do período (ISO string) - opcional
+   * @param endDate - Data final do período (ISO string) - opcional
+   * @returns Promise com array de transações que atendem aos critérios
    */
   static async getFiltered(
     type?: 'receita' | 'despesa', 
@@ -403,7 +516,12 @@ export class TransactionService {
   }
   
   /**
-   * Retorna o saldo atual (receitas - despesas)
+   * Calcula o saldo atual do usuário
+   * 
+   * Soma todas as receitas e subtrai todas as despesas para
+   * determinar o saldo líquido disponível.
+   * 
+   * @returns Promise com o saldo atual (pode ser negativo)
    */
   static async getBalance(): Promise<number> {
     try {
@@ -425,9 +543,14 @@ export class TransactionService {
   }
   
   /**
-   * Retorna o total de receitas no período
-   * @param startDate Data inicial
-   * @param endDate Data final
+   * Calcula o total de receitas em um período específico
+   * 
+   * Se as datas não forem fornecidas, considera todas as receitas.
+   * Útil para relatórios e análises financeiras.
+   * 
+   * @param startDate - Data inicial do período (ISO string) - opcional
+   * @param endDate - Data final do período (ISO string) - opcional
+   * @returns Promise com o valor total das receitas no período
    */
   static async getTotalIncome(startDate?: string, endDate?: string): Promise<number> {
     try {
@@ -443,9 +566,14 @@ export class TransactionService {
   }
   
   /**
-   * Retorna o total de despesas no período
-   * @param startDate Data inicial
-   * @param endDate Data final
+   * Calcula o total de despesas em um período específico
+   * 
+   * Se as datas não forem fornecidas, considera todas as despesas.
+   * Útil para controle de gastos e análises financeiras.
+   * 
+   * @param startDate - Data inicial do período (ISO string) - opcional
+   * @param endDate - Data final do período (ISO string) - opcional
+   * @returns Promise com o valor total das despesas no período
    */
   static async getTotalExpenses(startDate?: string, endDate?: string): Promise<number> {
     try {

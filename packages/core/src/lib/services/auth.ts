@@ -2,37 +2,68 @@ import { LoginCredentials, RegisterData, User } from '../../models/User';
 import { supabase } from '../supabase';
 
 /**
- * Interface para o resultado de operações de autenticação
+ * Interface que define o resultado de operações de autenticação
+ * 
+ * Padroniza o retorno de todas as operações de autenticação,
+ * fornecendo informações sobre sucesso/falha, erros e dados do usuário.
  */
 export interface AuthResult {
+  /** Indica se a operação foi bem-sucedida */
   success: boolean;
+  /** Informações de erro, se houver */
   error?: {
+    /** Mensagem descritiva do erro */
     message: string;
+    /** Código específico do erro (opcional) */
     code?: string;
   };
+  /** Dados do usuário autenticado (quando aplicável) */
   user?: User;
 }
 
 /**
- * Interface para o serviço de autenticação
+ * Interface que define o contrato do serviço de autenticação
+ * 
+ * Especifica todos os métodos necessários para gerenciar
+ * autenticação de usuários, incluindo login, registro,
+ * atualização de perfil e verificação de estado.
  */
 export interface AuthService {
+  /** Autentica um usuário com email e senha */
   login(credentials: LoginCredentials): Promise<AuthResult>;
+  /** Registra um novo usuário no sistema */
   register(data: RegisterData): Promise<AuthResult>;
+  /** Encerra a sessão do usuário atual */
   logout(): Promise<AuthResult>;
+  /** Obtém os dados do usuário autenticado */
   getCurrentUser(): Promise<User | null>;
+  /** Atualiza o nome do perfil do usuário */
   updateProfile(name: string): Promise<AuthResult>;
+  /** Altera a senha do usuário autenticado */
   updatePassword(currentPassword: string, newPassword: string): Promise<AuthResult>;
+  /** Verifica se existe uma sessão ativa */
   isAuthenticated(): Promise<boolean>;
 }
 
 /**
- * Implementação do serviço de autenticação usando Supabase
+ * Implementação do serviço de autenticação utilizando Supabase
+ * 
+ * Fornece funcionalidades completas de autenticação incluindo login,
+ * registro, logout, atualização de perfil e gerenciamento de sessões.
+ * Integra-se com o sistema de autenticação do Supabase e gerencia
+ * dados adicionais do usuário na tabela 'users'.
  */
 export class SupabaseAuthService implements AuthService {
   /**
-   * Realiza o login do usuário
-   * @param credentials Credenciais de login
+   * Autentica um usuário no sistema
+   * 
+   * Realiza o login utilizando email e senha, buscando dados adicionais
+   * do usuário na tabela 'users'. Em caso de falha na busca dos dados
+   * adicionais, ainda considera o login como bem-sucedido mas retorna
+   * apenas informações básicas do perfil.
+   * 
+   * @param credentials - Objeto contendo email e senha do usuário
+   * @returns Promise<AuthResult> Resultado da operação com dados do usuário
    */
   async login(credentials: LoginCredentials): Promise<AuthResult> {
     try {
@@ -102,8 +133,14 @@ export class SupabaseAuthService implements AuthService {
   }
 
   /**
-   * Registra um novo usuário
-   * @param data Dados do registro
+   * Registra um novo usuário no sistema
+   * 
+   * Cria uma nova conta de usuário validando os dados fornecidos,
+   * verificando se as senhas coincidem e criando registros tanto
+   * no sistema de autenticação quanto na tabela de usuários.
+   * 
+   * @param data - Dados do registro incluindo email, senha, confirmação e nome
+   * @returns Promise<AuthResult> Resultado da operação de registro
    */
   async register(data: RegisterData): Promise<AuthResult> {
     try {
@@ -187,7 +224,13 @@ export class SupabaseAuthService implements AuthService {
   }
 
   /**
-   * Realiza o logout do usuário
+   * Encerra a sessão do usuário atual
+   * 
+   * Remove a sessão ativa do usuário, desconectando-o do sistema.
+   * Após o logout, o usuário precisará fazer login novamente para
+   * acessar funcionalidades protegidas.
+   * 
+   * @returns Promise<AuthResult> Resultado da operação de logout
    */
   async logout(): Promise<AuthResult> {
     try {
@@ -218,7 +261,14 @@ export class SupabaseAuthService implements AuthService {
   }
 
   /**
-   * Obtém o usuário atual
+   * Obtém os dados do usuário autenticado atualmente
+   * 
+   * Busca informações completas do usuário logado, incluindo dados
+   * adicionais armazenados na tabela 'users'. Se não conseguir
+   * acessar os dados adicionais, retorna informações básicas
+   * do perfil de autenticação.
+   * 
+   * @returns Promise<User | null> Dados do usuário ou null se não autenticado
    */
   async getCurrentUser(): Promise<User | null> {
     try {
@@ -258,8 +308,14 @@ export class SupabaseAuthService implements AuthService {
   }
 
   /**
-   * Atualiza o perfil do usuário
+   * Atualiza o perfil do usuário autenticado
+   * 
+   * Modifica o nome do usuário tanto nos metadados de autenticação
+   * quanto no registro da tabela 'users'. A operação é atômica
+   * e falha se qualquer uma das atualizações não for bem-sucedida.
+   * 
    * @param name Novo nome do usuário
+   * @returns Promise<AuthResult> Resultado da operação de atualização
    */
   async updateProfile(name: string): Promise<AuthResult> {
     try {
@@ -320,9 +376,15 @@ export class SupabaseAuthService implements AuthService {
   }
 
   /**
-   * Atualiza a senha do usuário
-   * @param currentPassword Senha atual
-   * @param newPassword Nova senha
+   * Atualiza a senha do usuário autenticado
+   * 
+   * Altera a senha do usuário após verificar a senha atual.
+   * Por segurança, reautentica o usuário com a senha atual
+   * antes de permitir a alteração para a nova senha.
+   * 
+   * @param currentPassword Senha atual do usuário para verificação
+   * @param newPassword Nova senha a ser definida
+   * @returns Promise<AuthResult> Resultado da operação de atualização
    */
   async updatePassword(currentPassword: string, newPassword: string): Promise<AuthResult> {
     try {
@@ -384,10 +446,15 @@ export class SupabaseAuthService implements AuthService {
   }
 
   /**
-   * Verifica se o usuário está autenticado
+   * Verifica se existe um usuário autenticado atualmente
+   * 
+   * Consulta a sessão ativa do Supabase para determinar
+   * se há um usuário logado no sistema.
+   * 
+   * @returns Promise<boolean> true se há usuário autenticado, false caso contrário
    */
   async isAuthenticated(): Promise<boolean> {
     const { data, error } = await supabase.auth.getSession();
     return !error && data?.session !== null;
   }
-} 
+}

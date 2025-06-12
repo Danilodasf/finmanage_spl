@@ -1,3 +1,4 @@
+// Importa o container de injeção de dependências (DI) do core
 import { DIContainer, TRANSACTION_SERVICE, TransactionService, Transaction, CreateTransactionData, toast } from '../lib/core-exports';
 
 /**

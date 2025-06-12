@@ -1,3 +1,4 @@
+// Importa o container de injeção de dependências (DI) do core
 import { DIContainer, AUTH_SERVICE } from '@finmanage/core/di';
 import { AuthService } from '@finmanage/core/services';
 import { toast } from '@/hooks/use-toast';
