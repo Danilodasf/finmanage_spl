@@ -16,8 +16,10 @@
     "build:mei": "cd packages/product-mei && npm run build",
     "dev:diarista": "cd packages/product-diarista && npm run dev",
     "build:diarista": "cd packages/product-diarista && npm run build",
+    "test:diarista": "cd packages/product-diarista && npm test",
+    "test:mei": "cd packages/product-mei && npm test",
     "install:all": "npm install && cd packages/core && npm install && cd ../product-personal && npm install && cd ../product-mei && npm install && cd ../product-diarista && npm install",
-    "test:all": "npm run test:core && npm run test:personal"
+    "test:all": "npm run test:core && npm run test:personal && npm run test:diarista && npm run test:mei"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.10"
