@@ -1,5 +1,3 @@
-Em Desenvolvimento...
-
 # FinManage Diarista
 
 > Sistema de gestão financeira especializado para profissionais diaristas e prestadores de serviços domésticos.
@@ -243,7 +241,7 @@ npm run lint
 | autoprefixer | ^10.4.19 | Plugin PostCSS para prefixos |
 | postcss | ^8.4.38 | Processador de CSS |
 
-## 🌟 Funcionalidades
+##  Funcionalidades
 
 ### Gestão de Serviços
 - Cadastro e controle de serviços prestados
@@ -261,31 +259,94 @@ npm run lint
 - Gestão de perfil
 - Controle de sessão
 
-### Relatórios
-- Relatórios de lucro por período
-- Análise de categorias de gastos
-- Exportação para PDF
-- Gráficos interativos
+### Relatórios e Analytics
+- **Relatórios Financeiros**: Receitas, despesas e lucro
+- **Análise de Performance**: Métricas de produtividade
+- **Exportação**: PDF, Excel, CSV
+- **Dashboards Visuais**: Gráficos e métricas em tempo real
+- **Histórico de Trabalhos**: Acompanhamento completo de serviços
 
-## 🔒 Segurança
+## Como Usar o Sistema
 
-- **Autenticação** via Supabase Auth
-- **Autorização** baseada em usuário
-- **Validação** de dados no frontend e backend
-- **Sanitização** de inputs
-- **HTTPS** obrigatório em produção
+### Primeiros Passos
 
-## 📱 Responsividade
+1. **Acesse o Sistema**
+   - Abra o navegador e acesse a aplicação
+   - Faça login com suas credenciais ou registre-se
 
-- **Mobile First** - Design otimizado para dispositivos móveis
-- **Breakpoints** responsivos com Tailwind CSS
-- **Touch-friendly** - Interface adaptada para touch
-- **PWA Ready** - Preparado para Progressive Web App
+2. **Configure seu Perfil**
+   - Vá em "Configurações" no menu lateral
+   - Preencha seus dados pessoais e profissionais
+   - Configure suas preferências de trabalho e notificações
 
-## 🧪 Testes
-...
+### Gestão de Clientes
 
-## 🚀 Deploy
+1. **Cadastrar Novo Cliente**
+   - Acesse "Clientes" no menu
+   - Clique em "Novo Cliente"
+   - Preencha: Nome, Endereço, Telefone, Email
+   - Adicione observações especiais sobre a casa/apartamento
+   - Salve as informações
 
-### Vercel
-...
+2. **Gerenciar Clientes Existentes**
+   - Use a barra de pesquisa para localizar clientes
+   - Visualize histórico de trabalhos realizados
+   - Edite informações e preferências do cliente
+   - Marque clientes como favoritos ou inativos
+
+### Agendamento de Trabalhos
+
+1. **Criar Novo Agendamento**
+   - Acesse "Agenda" no menu
+   - Clique em "Novo Trabalho"
+   - Selecione o cliente e tipo de serviço
+   - Defina data, horário e duração estimada
+   - Adicione observações específicas
+
+2. **Gerenciar Agenda**
+   - Visualize trabalhos por dia, semana ou mês
+   - Reagende trabalhos quando necessário
+   - Marque trabalhos como concluídos
+   - Acompanhe status de pagamento
+
+### Controle Financeiro
+
+1. **Registrar Receitas**
+   - Registre pagamentos recebidos por trabalho
+   - Categorize por tipo de serviço
+   - Acompanhe formas de pagamento (dinheiro, PIX, cartão)
+   - Controle trabalhos em aberto
+
+2. **Controlar Despesas**
+   - Registre gastos com materiais de limpeza
+   - Controle custos de transporte
+   - Categorize despesas profissionais
+   - Mantenha comprovantes organizados
+
+### Gestão de Serviços
+
+1. **Tipos de Serviço**
+   - Configure diferentes tipos de limpeza
+   - Defina preços por tipo de serviço
+   - Estabeleça tempo estimado para cada tipo
+   - Crie pacotes promocionais
+
+2. **Histórico de Trabalhos**
+   - Acompanhe todos os serviços realizados
+   - Avalie satisfação do cliente
+   - Identifique serviços mais rentáveis
+   - Analise produtividade por período
+
+### Relatórios e Análises
+
+1. **Relatórios Financeiros**
+   - Acesse "Relatórios" no menu
+   - Visualize receitas e despesas por período
+   - Acompanhe evolução do faturamento
+   - Exporte dados para contabilidade
+
+2. **Análise de Performance**
+   - Monitore quantidade de trabalhos por mês
+   - Identifique clientes mais frequentes
+   - Analise sazonalidade do negócio
+   - Acompanhe crescimento da carteira de clientes

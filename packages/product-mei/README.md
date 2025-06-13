@@ -20,8 +20,6 @@
 - [🧪 Testes](#-testes)
 - [📦 Estrutura do Projeto](#-estrutura-do-projeto)
 - [🔄 Integração com o Core](#-integração-com-o-core)
-- [📚 Documentação Técnica](#-documentação-técnica)
-- [🤝 Contribuição](#-contribuição)
 
 ## 📱 Visão Geral
 
@@ -148,6 +146,95 @@ O sistema utiliza **Supabase** como backend, oferecendo:
 
 ### 📈 Relatórios e Analytics
 - **Relatórios Fiscais**: Preparados para contabilidade
+- **Análise de Faturamento**: Acompanhamento do limite MEI
+- **Exportação de Dados**: PDF, Excel e CSV
+- **Dashboards Visuais**: Gráficos e métricas em tempo real
+
+## Como Usar o Sistema
+
+### Primeiros Passos
+
+1. **Acesse o Sistema**
+   - Abra o navegador e acesse a aplicação
+   - Faça login com suas credenciais ou registre-se
+
+2. **Configure seu Perfil**
+   - Vá em "Configurações" no menu lateral
+   - Preencha seus dados pessoais e informações do MEI
+   - Configure suas preferências de notificação
+
+### Gestão de Clientes
+
+1. **Cadastrar Novo Cliente**
+   - Acesse "Clientes" no menu
+   - Clique em "Novo Cliente"
+   - Preencha: Nome, Email, Telefone, CPF/CNPJ, Endereço
+   - Salve as informações
+
+2. **Buscar e Editar Clientes**
+   - Use a barra de pesquisa para localizar clientes
+   - Clique no cliente para ver histórico de vendas
+   - Use o botão "Editar" para atualizar informações
+
+### Registrar Vendas
+
+1. **Nova Venda**
+   - Acesse "Vendas" no menu
+   - Clique em "Nova Venda"
+   - Selecione o cliente (ou cadastre um novo)
+   - Preencha: Descrição, Valor, Forma de Pagamento
+   - Confirme a venda
+
+2. **Acompanhar Vendas**
+   - Visualize todas as vendas na lista principal
+   - Use filtros por período, cliente ou valor
+   - Exporte relatórios quando necessário
+
+### Controle Financeiro
+
+1. **Dashboard Principal**
+   - Visualize resumo mensal de receitas e despesas
+   - Acompanhe o progresso do limite MEI (R$ 81.000/ano)
+   - Monitore gráficos de faturamento
+
+2. **Transações**
+   - Registre receitas e despesas do negócio
+   - Categorize as transações adequadamente
+   - Mantenha separação entre finanças pessoais e empresariais
+
+### Gestão do DAS
+
+1. **Configurar DAS**
+   - Acesse "Impostos" > "DAS"
+   - Configure sua atividade principal (Comércio, Indústria ou Serviços)
+   - Defina o faturamento mensal
+
+2. **Acompanhar Pagamentos**
+   - Visualize DAS em aberto e pagos
+   - Receba lembretes de vencimento
+   - Registre comprovantes de pagamento
+
+### Relatórios
+
+1. **Relatórios Fiscais**
+   - Acesse "Relatórios"
+   - Selecione o período desejado
+   - Gere relatórios para sua contabilidade
+   - Exporte em PDF ou Excel
+
+2. **Análises de Performance**
+   - Acompanhe evolução mensal do faturamento
+   - Identifique seus melhores clientes
+   - Analise sazonalidade do negócio
+
+### Dicas Importantes
+
+- **Registre todas as vendas**: Mantenha controle total do faturamento
+- **Separe finanças**: Não misture gastos pessoais com empresariais
+- **Monitore o limite**: Fique atento ao limite anual de R$ 81.000
+- **Pague o DAS em dia**: Evite multas e juros
+- **Mantenha backup**: Exporte relatórios regularmente
+- **Use categorias**: Organize transações para melhor controle
 - **Análise de Faturamento**: Acompanhamento do limite MEI
 - **Fluxo de Caixa**: Entradas e saídas detalhadas
 - **Exportação**: PDF, Excel, CSV
@@ -423,46 +510,3 @@ import { BaseEntityService } from '../../../core/src/lib/services/base';
 - **SupabaseMeiServices**: Implementações com Supabase
 - **DAS Controllers**: Controle específico de impostos MEI
 - **Validações MEI**: CPF, CNPJ, limites de faturamento
-
-## 📚 Documentação Técnica
-
-### Padrões de Código
-
-- **TypeScript**: Tipagem forte em todo o projeto
-- **ESLint**: Regras de qualidade de código
-- **Prettier**: Formatação consistente
-- **Conventional Commits**: Padronização de commits
-
-### Arquitetura de Componentes
-
-```typescript
-// Exemplo de componente com DI
-const DashboardDI: React.FC = () => {
-  const [summary, setSummary] = useState();
-  
-  useEffect(() => {
-    const fetchData = async () => {
-      // Utilizando DI para obter dados
-      const data = await DITransactionController.getFinancialSummary();
-      setSummary(data);
-    };
-    fetchData();
-  }, []);
-  
-  return <MainLayout>{/* conteúdo */}</MainLayout>;
-};
-```
-
-### Gerenciamento de Estado
-
-- **React Query**: Cache e sincronização com servidor
-- **React Context**: Estado global de autenticação
-- **Local State**: Estado local dos componentes
-- **Event Bus**: Comunicação entre componentes
-
-### Segurança
-
-- **Row Level Security**: Isolamento de dados por usuário
-- **Autenticação JWT**: Tokens seguros do Supabase
-- **Validação de Entrada**: Sanitização de dados
-- **HTTPS**: Comunicação criptografada
