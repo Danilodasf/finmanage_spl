@@ -109,27 +109,63 @@ Cálculo e Controle do Imposto DAS: O sistema calcula automaticamente o valor do
 ## Telas
 Abaixo estão algumas telas que demonstram a interface e a experiência de usuário da versão atual do core.
 
-Tela de Login e Cadastro
+### Telas do Core
+
+#### Telas de Login e Cadastro
 ![login](https://github.com/user-attachments/assets/effa1648-41ae-43a6-a28a-d5c32409b38d)
 ![cadastro](https://github.com/user-attachments/assets/57561d6f-76b0-437d-874f-1719f3fe7030)
 
-
-Dashboard Principal
+#### Dashboard Principal
 ![dashboard](https://github.com/user-attachments/assets/3ec20d5a-27dd-4b68-aa03-5804d3e17a90)
 
-
-Tela de Transações
+#### Tela de Transações
 ![transações](https://github.com/user-attachments/assets/35e3282b-7fba-49ac-ac8e-611ab0b547cf)
 
-
-Tela de Categorias
+#### Tela de Categorias
 ![categorias](https://github.com/user-attachments/assets/77c2b4c7-1cca-483e-b908-bbeffec28989)
 
-Tela de Relatórios
+#### Tela de Relatórios
 ![relatorios](https://github.com/user-attachments/assets/fc5c1f97-7571-4f92-a4e9-d85e9f108619)
 
-
-Tela de Configurações
+#### Tela de Configurações
 ![configurações](https://github.com/user-attachments/assets/5014780a-fab9-4295-8bc7-24c25e1953e9)
 
+---
+
+### Telas Exclusivas dos Produtos
+
+#### FinManage Personal
+<!-- Espaço reservado para imagens das telas do FinManage Personal -->
+
+#### FinManage Diarista
+<!-- Espaço reservado para imagens das telas do FinManage Diarista -->
+
+#### FinManage MEI
+<!-- Espaço reservado para imagens das telas do FinManage MEI -->
+
+---
+
+## Diferenças dos Produtos em Relação ao Core
+
+Cada produto da linha FinManage estende as funcionalidades básicas do core com recursos específicos.
+
+### FinManage Personal
+O **FinManage Personal** adiciona funcionalidades voltadas para o planejamento financeiro pessoal que não estão presentes no core:
+- **Telas de Investimentos**: Acompanhamento e gestão de carteira de investimentos
+- **Cadastro de Rendimentos**: Registro de rendimentos de investimentos e outras fontes passivas
+- **Orçamentos (Budgets)**: Criação e controle de orçamentos mensais por categoria
+- **Objetivos Financeiros (Goals)**: Definição e acompanhamento de metas de economia para objetivos específicos
+
+### FinManage Diarista
+O **FinManage Diarista** incorpora funcionalidades específicas para profissionais autônomos da área de limpeza:
+- **Gestão de Clientes**: Cadastro e controle detalhado de clientes
+- **Lançamento de Serviços**: Registro de serviços prestados com associação a clientes
+- **Controle de Gastos Operacionais**: Gestão de despesas específicas do trabalho (produtos de limpeza, transporte)
+- **Cálculo de Lucratividade por Serviço**: Análise de rentabilidade individual de cada serviço prestado
+
+### FinManage MEI
+O **FinManage MEI** oferece recursos essenciais para Microempreendedores Individuais:
+- **Gestão Avançada de Clientes**: Cadastro empresarial de clientes com dados fiscais
+- **Controle de Vendas**: Registro detalhado de vendas de produtos e serviços
+- **Gestão do DAS**: Cálculo automático e controle de pagamento do Documento de Arrecadação do Simples Nacional (DAS).
 
