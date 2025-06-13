@@ -19,9 +19,6 @@
 - [💻 Scripts Disponíveis](#-scripts-disponíveis)
 - [🧪 Testes](#-testes)
 - [📦 Estrutura do Projeto](#-estrutura-do-projeto)
-- [🔄 Integração com o Core](#-integração-com-o-core)
-- [📚 Documentação Técnica](#-documentação-técnica)
-- [🤝 Contribuição](#-contribuição)
 
 ## 📱 Visão Geral
 
@@ -163,11 +160,126 @@ O sistema utiliza **Supabase** como backend, oferecendo:
 - **Períodos Flexíveis**: Orçamentos mensais e anuais
 - **Análise de Desvios**: Comparação planejado vs real
 
-### 📈 Relatórios e Analytics
-- **Análise de Padrões**: Identificação de tendências
-- **Fluxo de Caixa**: Entradas e saídas detalhadas
-- **Comparativos**: Evolução mês a mês
+### Relatórios e Analytics
+- **Relatórios Financeiros**: Receitas, despesas e patrimônio
+- **Análise de Gastos**: Por categoria e período
+- **Metas Financeiras**: Acompanhamento de objetivos
 - **Exportação**: PDF, Excel, CSV
+- **Dashboards Visuais**: Gráficos e métricas em tempo real
+- **Histórico Completo**: Acompanhamento de todas as transações
+
+## Como Usar o Sistema
+
+### Primeiros Passos
+
+1. **Acesse o Sistema**
+   - Abra o navegador e acesse a aplicação
+   - Faça login com suas credenciais ou registre-se
+
+2. **Configure seu Perfil**
+   - Vá em "Configurações" no menu lateral
+   - Preencha seus dados pessoais
+   - Configure suas preferências financeiras
+   - Defina sua moeda principal
+
+### Gestão de Transações
+
+1. **Registrar Nova Transação**
+   - Acesse "Transações" no menu
+   - Clique em "Nova Transação"
+   - Escolha o tipo: Receita ou Despesa
+   - Preencha: Descrição, Valor, Categoria, Data
+   - Adicione observações se necessário
+   - Salve a transação
+
+2. **Gerenciar Transações Existentes**
+   - Visualize todas as transações na lista principal
+   - Use filtros por período, categoria ou tipo
+   - Edite transações clicando no ícone de edição
+   - Exclua transações desnecessárias
+   - Marque transações como recorrentes
+
+### Controle de Categorias
+
+1. **Criar Categorias Personalizadas**
+   - Acesse "Categorias" no menu
+   - Clique em "Nova Categoria"
+   - Defina nome e cor da categoria
+   - Escolha se é para receitas ou despesas
+   - Configure limites de gastos (opcional)
+
+2. **Organizar Categorias**
+   - Edite nomes e cores das categorias existentes
+   - Defina orçamentos mensais por categoria
+   - Monitore gastos vs. orçamento planejado
+   - Desative categorias não utilizadas
+
+### Planejamento Financeiro
+
+1. **Definir Orçamento Mensal**
+   - Acesse "Orçamento" no menu
+   - Configure limites para cada categoria de despesa
+   - Defina metas de economia
+   - Estabeleça alertas de gastos
+
+2. **Acompanhar Metas**
+   - Monitore progresso das metas financeiras
+   - Visualize quanto falta para atingir objetivos
+   - Ajuste metas conforme necessário
+   - Comemore conquistas alcançadas
+
+### Análise Financeira
+
+1. **Dashboard Principal**
+   - Visualize resumo mensal de receitas e despesas
+   - Acompanhe saldo atual e evolução patrimonial
+   - Monitore gráficos de gastos por categoria
+   - Veja alertas de orçamento ultrapassado
+
+2. **Relatórios Detalhados**
+   - Gere relatórios por período específico
+   - Compare gastos entre diferentes meses
+   - Analise tendências de consumo
+   - Identifique oportunidades de economia
+
+### Ferramentas Avançadas
+
+1. **Transações Recorrentes**
+   - Configure receitas e despesas que se repetem
+   - Defina frequência (mensal, semanal, anual)
+   - Automatize lançamentos regulares
+   - Edite ou cancele recorrências quando necessário
+
+2. **Importação de Dados**
+   - Importe extratos bancários (CSV, OFX)
+   - Sincronize com contas bancárias (quando disponível)
+   - Faça backup e restauração de dados
+   - Exporte dados para outras ferramentas
+
+### Relatórios e Exportação
+
+1. **Gerar Relatórios**
+   - Acesse "Relatórios" no menu
+   - Selecione período e categorias desejadas
+   - Escolha formato: PDF, Excel ou CSV
+   - Personalize campos a serem incluídos
+
+2. **Análises Visuais**
+   - Visualize gráficos de pizza por categoria
+   - Acompanhe evolução temporal dos gastos
+   - Compare receitas vs. despesas
+   - Analise distribuição percentual dos gastos
+
+### Dicas Importantes
+
+- **Registre tudo**: Anote todas as receitas e despesas, por menores que sejam
+- **Categorize corretamente**: Use categorias consistentes para melhor análise
+- **Revise regularmente**: Faça uma revisão semanal das suas finanças
+- **Defina metas realistas**: Estabeleça objetivos alcançáveis
+- **Monitore orçamento**: Acompanhe seus limites de gastos
+- **Faça backup**: Exporte seus dados regularmente
+- **Seja consistente**: Mantenha o hábito de registrar transações diariamente
+- **Analise tendências**: Use relatórios para identificar padrões de gastos
 
 ## 📱 Telas do Sistema
 
@@ -426,63 +538,3 @@ src/
 ├── assets/             # Recursos estáticos
 └── main.tsx           # Ponto de entrada
 ```
-
-## 🔄 Integração com o Core
-
-### Importações do Core
-
-```typescript
-// Componentes UI compartilhados
-import { Button, Input, Card } from '@finmanage/core/components'
-
-// Utilitários compartilhados
-import { formatCurrency, validateCPF } from '@finmanage/core/utils'
-
-// Hooks compartilhados
-import { useAuth, useLocalStorage } from '@finmanage/core/hooks'
-
-// Tipos compartilhados
-import type { User, Transaction } from '@finmanage/core/types'
-```
-
-### Serviços Compartilhados
-
-O core fornece interfaces que são implementadas no produto:
-
-```typescript
-// Core: Interface
-export interface ITransactionService {
-  create(transaction: Transaction): Promise<Transaction>
-  findByUser(userId: string): Promise<Transaction[]>
-  update(id: string, data: Partial<Transaction>): Promise<Transaction>
-  delete(id: string): Promise<void>
-}
-
-// Personal: Implementação
-export class PersonalTransactionService implements ITransactionService {
-  // Implementação específica para finanças pessoais
-}
-```
-
-### Extensões Específicas do Personal
-
-- **PersonalDashboard**: Dashboard adaptado para finanças pessoais
-- **PersonalBudgetService**: Gestão de orçamentos pessoais
-- **PersonalGoalService**: Controle de metas financeiras
-- **PersonalInvestmentService**: Gestão de carteira de investimentos
-
-## 📚 Documentação Técnica
-
-### Padrões de Código
-
-- **ESLint**: Configuração rigorosa para qualidade
-- **Prettier**: Formatação automática de código
-- **TypeScript**: Tipagem estática obrigatória
-- **Conventional Commits**: Padrão de commits semânticos
-  
-### Segurança
-
-- **Row Level Security**: Isolamento de dados por usuário
-- **JWT Tokens**: Autenticação segura
-- **HTTPS**: Comunicação criptografada
-- **Sanitização**: Prevenção de XSS e SQL Injection
