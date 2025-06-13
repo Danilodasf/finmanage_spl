@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DIContainer } from '../src/lib/core/di';
-import { toast } from '@/hooks/use-toast';
-import { StatusServico } from '../src/models/Servico';
+import { DIContainer } from '../../src/lib/core/di';
+import { toast } from '../../src/hooks/use-toast';
+import { StatusServico } from '../../src/models/Servico';
 
 // Mock do container DI
-vi.mock('../src/lib/core/di', () => ({
+vi.mock('../../src/lib/core/di', () => ({
   DIContainer: {
     getInstance: vi.fn(() => ({
       get: vi.fn()
@@ -13,7 +13,7 @@ vi.mock('../src/lib/core/di', () => ({
 }));
 
 // Mock do toast
-vi.mock('@/hooks/use-toast', () => ({
+vi.mock('../../src/hooks/use-toast', () => ({
   toast: vi.fn()
 }));
 
