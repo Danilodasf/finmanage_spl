@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DIContainer } from '../lib/core-exports';
-import { toast } from '@/hooks/use-toast';
+import { DIContainer } from '../../src/lib/core-exports';
+import { toast } from '../../src/hooks/use-toast';
 
 // Mock do container DI
-vi.mock('../lib/core-exports', () => ({
+vi.mock('../../src/lib/core-exports', () => ({
   DIContainer: {
     get: vi.fn()
   }
 }));
 
 // Mock do toast
-vi.mock('@/hooks/use-toast', () => ({
+vi.mock('../../src/hooks/use-toast', () => ({
   toast: vi.fn()
 }));
 

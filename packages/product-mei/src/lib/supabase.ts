@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Configuração do Supabase
-// Usando variáveis de ambiente ou valores padrão
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qvtniooiarxjczikmiui.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2dG5pb29pYXJ4amN6aWttaXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNjEwNjgsImV4cCI6MjA2NDYzNzA2OH0.aNl9IBCYvzOEAQpHZkeWh14jY5OmLpXcIANvoDah7kg';
+// Usando variáveis de ambiente obrigatórias
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Verificar se as variáveis de ambiente estão configuradas
 if (!supabaseUrl || !supabaseAnonKey) {

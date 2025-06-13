@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run build:with-core",
+  "outputDirectory": "dist",
+  "installCommand": "npm install && cd ../core && npm install && npm run build && cd ../product-diarista && npm install",
+  "framework": "vite"
+}

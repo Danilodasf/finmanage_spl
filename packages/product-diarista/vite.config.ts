@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
@@ -7,6 +8,11 @@ export default defineConfig({
     historyApiFallback: true,
     port: 5173,
     host: true
+  },
+  resolve: {
+    alias: {
+      '@finmanage/core': path.resolve(__dirname, '../core/dist/finmanage-core.es.js')
+    }
   },
   build: {
     target: 'es2020',

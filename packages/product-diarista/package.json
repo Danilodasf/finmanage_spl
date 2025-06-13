@@ -6,9 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:with-core": "cd ../core && npm run build && cd ../product-diarista && npm run build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
+    "test:watch": "vitest",
+    "test:unit:watch": "vitest test/unit",
+    "test:integration:watch": "vitest test/integration",
     "setup-triggers": "tsx src/lib/migrations/setupTriggers.ts",
     "remove-triggers": "tsx src/lib/migrations/setupTriggers.ts --remove"
   },
