@@ -135,15 +135,45 @@ Abaixo estão algumas telas que demonstram a interface e a experiência de usuá
 ### Telas Exclusivas dos Produtos
 
 #### FinManage Personal
-<!-- Espaço reservado para imagens das telas do FinManage Personal -->
+
+Tela de Investimentos
+![investimentos_personal](https://github.com/user-attachments/assets/f12e7c84-a8ed-43d1-ac59-3f18b74fb287)
+
+Tela de Cadastro de Rendimentos
+![redimentos_personal](https://github.com/user-attachments/assets/6ea23cba-d08b-4038-af8f-5dbffccfd222)
+
+Tela de Objetivos Financeiros
+![objetivos_personal](https://github.com/user-attachments/assets/7ceed6c0-8842-4ab7-8f7a-69f98a9c3318)
+
+Tela de Orçamentos
+![orcamentos_personal](https://github.com/user-attachments/assets/c40e11f6-7053-431a-9e3f-a189c2ef2e1c)
 
 #### FinManage Diarista
-<!-- Espaço reservado para imagens das telas do FinManage Diarista -->
+
+Tela de Cadastro de Clientes
+![clientes_diarista](https://github.com/user-attachments/assets/992a7845-be6c-42bc-aa4a-6291b0914c1e)
+
+Tela de Cadastro de Serviços
+![servicos_diarista](https://github.com/user-attachments/assets/db385522-f8af-47f8-82c0-e333877be95b)
+
+Tela de Cadastro de Gasto Adicional por Serviço
+![cadastrodegastoadicional_diarista](https://github.com/user-attachments/assets/17a3a400-7241-4c21-8cd9-7c49b0d424ff)
+
+Tela de Detalhamento de Lucro por Serviço
+![lucro_servico-diarista](https://github.com/user-attachments/assets/46d9fe72-f447-4398-b44f-912eb11d606c)
 
 #### FinManage MEI
-<!-- Espaço reservado para imagens das telas do FinManage MEI -->
+Tela de Cadastro de Clientes
+![clientes](https://github.com/user-attachments/assets/efecf170-9d9c-4468-8719-50a4cc1d158f)
 
----
+Tela de Cadastro de Vendas
+![venda](https://github.com/user-attachments/assets/467eb230-e420-42f4-aab7-b38c8a98a1c4)
+
+Tela da Calculadora de Imposto DAS
+![calculadora das](https://github.com/user-attachments/assets/05b8eb3e-ec9a-4992-9231-135055e5c062)
+
+Tela de Cadastro de Novo Imposto DAS
+![registro de das](https://github.com/user-attachments/assets/5551d184-fc10-411f-b1a8-81cea32af0c2)
 
 ## Diferenças dos Produtos em Relação ao Core
 
