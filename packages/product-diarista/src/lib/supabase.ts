@@ -13,8 +13,8 @@ let supabaseInstance: SupabaseClient | null = null;
  */
 export function getSupabaseClient(): SupabaseClient {
   if (!supabaseInstance) {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xyekrwayznhdcpaluono.supabase.co';
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5ZWtyd2F5em5oZGNwYWx1b25vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MDY1NTIsImV4cCI6MjA2NDk4MjU1Mn0.UPW7525WhuTTyvYne1mOJTiomVkHw74XrW6kY2MvM6g';
     
     supabaseInstance = createClient(supabaseUrl, supabaseKey, {
       auth: {
