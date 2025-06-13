@@ -86,6 +86,7 @@ Funcionalidades Exclusivas:
 Gestão de Orçamentos (Budgets): Crie orçamentos mensais por categoria para acompanhar seus gastos e garantir que você não ultrapasse seus limites.
 Metas Financeiras (Goals): Defina metas de economia para objetivos específicos, como uma viagem ou a compra de um bem, e acompanhe seu progresso ao longo do tempo.
 Acompanhamento de Investimentos (Investments): Monitore o desempenho de seus investimentos, permitindo uma visão consolidada de seu patrimônio e sua evolução.
+
 [FinManage-Personal](https://finmanage-spl-product-personal.vercel.app/)
 
 ## 2. FinManage Diarista
@@ -97,6 +98,7 @@ Cadastro de Clientes: Mantenha um registro organizado de todos os seus clientes.
 Lançamento de Serviços: Registre cada serviço prestado, associando-o a um cliente e definindo o valor cobrado.
 Controle de Gastos Operacionais: Adicione despesas relacionadas ao trabalho, como a compra de produtos de limpeza e custos de transporte.
 Cálculo de Lucratividade por Serviço: Visualize de forma clara o lucro obtido em cada serviço, subtraindo os gastos associados do valor recebido.
+
 [FinManage-Diarista](https://finmanage-diarista.vercel.app/)
 
 ## 3. FinManage MEI
@@ -107,6 +109,7 @@ Funcionalidades Exclusivas:
 Gestão de Clientes: Cadastre e gerencie as informações dos seus clientes de forma centralizada.
 Controle de Vendas: Registre todas as vendas de produtos ou serviços, facilitando o acompanhamento do faturamento mensal.
 Cálculo e Controle do Imposto DAS: O sistema calcula automaticamente o valor do Documento de Arrecadação do Simples Nacional (DAS) com base nas vendas e permite registrar os pagamentos para manter as obrigações fiscais em dia.
+
 [FinManage-MEI](https://finmanage-mei.vercel.app/)
 ## Telas
 Abaixo estão algumas telas que demonstram a interface e a experiência de usuário da versão atual do core.
