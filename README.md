@@ -1,6 +1,5 @@
 # FinManage SPL
 
-![CI - Testes](https://github.com/Danilodasf/finmanage-spl/workflows/CI%20-%20Testes%20Automatizados/badge.svg)
 
 ## Descrição Geral
 
