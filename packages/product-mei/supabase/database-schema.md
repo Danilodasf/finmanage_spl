@@ -292,6 +292,7 @@ CREATE TABLE IF NOT EXISTS imposto_das (
   numero_das TEXT,
   data_pagamento DATE,
   status TEXT NOT NULL CHECK (status IN ('Pago', 'Pendente')),
+  comprovante_url TEXT,
   transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -424,7 +425,48 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-## 10. Índices para Performance
+## 10. Configuração do Supabase Storage
+
+### 10.1. Criação do Bucket para Comprovantes
+
+```sql
+-- Criar bucket para armazenar comprovantes de pagamento
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('comprovantes', 'comprovantes', false);
+```
+
+### 10.2. Políticas de Segurança para Storage
+
+```sql
+-- Política para permitir que usuários vejam apenas seus próprios comprovantes
+CREATE POLICY "Usuários podem ver apenas seus próprios comprovantes"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'comprovantes' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Política para permitir que usuários façam upload de seus próprios comprovantes
+CREATE POLICY "Usuários podem fazer upload de seus próprios comprovantes"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'comprovantes' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Política para permitir que usuários atualizem seus próprios comprovantes
+CREATE POLICY "Usuários podem atualizar seus próprios comprovantes"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'comprovantes' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Política para permitir que usuários deletem seus próprios comprovantes
+CREATE POLICY "Usuários podem deletar seus próprios comprovantes"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'comprovantes' AND auth.uid()::text = (storage.foldername(name))[1]);
+```
+
+### 10.3. Tipos de Arquivo Permitidos
+
+O bucket `comprovantes` aceita os seguintes tipos de arquivo:
+- **Imagens**: JPG, JPEG, PNG, WebP
+- **Documentos**: PDF
+- **Tamanho máximo**: 5MB por arquivo
+
+## 11. Índices para Performance
 
 ```sql
 -- Índices para melhorar a performance das consultas
@@ -437,6 +479,7 @@ CREATE INDEX IF NOT EXISTS idx_vendas_user_id ON vendas(user_id);
 CREATE INDEX IF NOT EXISTS idx_vendas_cliente_id ON vendas(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_imposto_das_user_id ON imposto_das(user_id);
 CREATE INDEX IF NOT EXISTS idx_imposto_das_competencia ON imposto_das(competencia);
+CREATE INDEX IF NOT EXISTS idx_imposto_das_comprovante ON imposto_das(comprovante_url);
 ```
 
 ## Observações Importantes

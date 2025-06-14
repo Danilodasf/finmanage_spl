@@ -93,3 +93,95 @@ const { data, error } = await supabase
   `)
   .order('data_venda', { ascending: false })
 ```
+
+#### Gerenciar Pagamentos DAS
+```typescript
+// Inserir pagamento DAS
+const { data, error } = await supabase
+  .from('imposto_das')
+  .insert({
+    competencia: '2024-01',
+    vencimento: '2024-02-20',
+    valor: 66.60,
+    status: 'Pendente'
+  })
+
+// Atualizar com comprovante
+const { data, error } = await supabase
+  .from('imposto_das')
+  .update({
+    status: 'Pago',
+    data_pagamento: '2024-02-15',
+    comprovante_url: 'url-do-comprovante'
+  })
+  .eq('id', 'uuid-do-pagamento')
+```
+
+## Supabase Storage
+
+### Configuração do Storage
+
+O sistema utiliza o Supabase Storage para armazenar comprovantes de pagamento do DAS. O bucket `comprovantes` está configurado com:
+
+- **Acesso privado**: Apenas usuários autenticados podem acessar
+- **Políticas RLS**: Usuários só podem acessar seus próprios arquivos
+- **Tipos permitidos**: JPG, JPEG, PNG, WebP, PDF
+- **Tamanho máximo**: 5MB por arquivo
+
+### Operações com Storage
+
+#### Upload de Comprovante
+```typescript
+// Upload de arquivo
+const file = event.target.files[0]
+const fileName = `${user.id}/${Date.now()}_${file.name}`
+
+const { data, error } = await supabase.storage
+  .from('comprovantes')
+  .upload(fileName, file)
+
+if (data) {
+  const publicUrl = supabase.storage
+    .from('comprovantes')
+    .getPublicUrl(fileName).data.publicUrl
+}
+```
+
+#### Obter URL Assinada
+```typescript
+// Para visualizar arquivo privado
+const { data, error } = await supabase.storage
+  .from('comprovantes')
+  .createSignedUrl(fileName, 3600) // 1 hora de validade
+
+if (data) {
+  window.open(data.signedUrl, '_blank')
+}
+```
+
+#### Deletar Comprovante
+```typescript
+// Deletar arquivo do storage
+const { error } = await supabase.storage
+  .from('comprovantes')
+  .remove([fileName])
+```
+
+### Estrutura de Pastas
+
+Os arquivos são organizados por usuário:
+```
+comprovantes/
+├── {user_id}/
+│   ├── {timestamp}_comprovante_das_2024_01.pdf
+│   ├── {timestamp}_comprovante_das_2024_02.jpg
+│   └── ...
+```
+
+### Validações
+
+O sistema implementa as seguintes validações:
+- **Tipo de arquivo**: Apenas imagens (JPG, JPEG, PNG, WebP) e PDFs
+- **Tamanho**: Máximo 5MB
+- **Segurança**: RLS garante isolamento entre usuários
+- **Nomenclatura**: Inclui timestamp para evitar conflitos

@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { CalendarIcon, FileText, Save, Edit, Trash2, CheckCircle, Calculator, AlertTriangle, Truck, AlertCircle } from 'lucide-react';
+import { CalendarIcon, FileText, Save, Edit, Trash2, CheckCircle, Calculator, AlertTriangle, Truck, AlertCircle, Paperclip, Upload, Eye } from 'lucide-react';
 import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { format } from 'date-fns';
@@ -18,6 +18,7 @@ import { DeleteConfirmation } from '../components/ui/DeleteConfirmation';
 import { isValidMoneyValue, formatMoneyValue } from '../utils/validation';
 import { DIDASController } from '../controllers/DIDASController';
 import { DASPayment } from '../lib/services/SupabaseMeiDASService';
+import { SupabaseStorageService } from '../lib/services/SupabaseStorageService';
 import { SupabaseMeiTransactionService } from '../lib/services/SupabaseMeiTransactionService';
 import { eventBus, EVENTS } from '../utils/eventBus';
 import { NotificationCenter } from '../components/ui/notification';
@@ -75,6 +76,12 @@ const ImpostoDAS: React.FC = () => {
   const [isDeleteDASDialogOpen, setIsDeleteDASDialogOpen] = useState(false);
   const [dasParaDeletar, setDasParaDeletar] = useState<string | null>(null);
 
+  // Estados para upload de comprovante
+  const [isComprovanteDialogOpen, setIsComprovanteDialogOpen] = useState(false);
+  const [pagamentoParaComprovante, setPagamentoParaComprovante] = useState<string | null>(null);
+  const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
+  const [isUploadingComprovante, setIsUploadingComprovante] = useState(false);
+
   // Função para carregar o saldo disponível
   const loadSaldoDisponivel = async () => {
     try {
@@ -84,6 +91,104 @@ const ImpostoDAS: React.FC = () => {
     } catch (error) {
       console.error('Erro ao carregar saldo disponível:', error);
       setSaldoDisponivel(0);
+    }
+  };
+
+  // Função para lidar com clique no botão de comprovante
+  const handleComprovanteClick = async (pagamentoId: string, comprovanteUrl?: string) => {
+    if (comprovanteUrl) {
+      try {
+        // Obter URL assinada para visualização segura
+        const { signedUrl, error } = await SupabaseStorageService.getSignedUrl(comprovanteUrl);
+        
+        if (error || !signedUrl) {
+          throw new Error(error || 'Erro ao obter URL do comprovante');
+        }
+        
+        // Abrir comprovante em nova aba
+        window.open(signedUrl, '_blank');
+      } catch (error) {
+        console.error('Erro ao visualizar comprovante:', error);
+        toast({
+          title: "Erro ao visualizar comprovante",
+          description: `Não foi possível abrir o comprovante: ${(error as Error).message}`,
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Se não existe, abrir diálogo para upload
+      setPagamentoParaComprovante(pagamentoId);
+      setIsComprovanteDialogOpen(true);
+    }
+  };
+
+  // Função para lidar com seleção de arquivo
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validar tipo de arquivo (apenas imagens e PDFs)
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Tipo de arquivo não suportado",
+          description: "Por favor, selecione uma imagem (JPG, PNG, GIF) ou PDF.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validar tamanho do arquivo (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Arquivo muito grande",
+          description: "O arquivo deve ter no máximo 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setComprovanteFile(file);
+    }
+  };
+
+  // Função para fazer upload do comprovante
+  const handleUploadComprovante = async () => {
+    if (!comprovanteFile || !pagamentoParaComprovante) return;
+
+    setIsUploadingComprovante(true);
+    try {
+      // Fazer upload do arquivo para o Supabase Storage
+      const { url, error } = await SupabaseStorageService.uploadComprovante(
+        comprovanteFile, 
+        pagamentoParaComprovante
+      );
+      
+      if (error || !url) {
+        throw new Error(error || 'Erro no upload do arquivo');
+      }
+      
+      // Atualizar o pagamento com a URL do comprovante
+      await DIDASController.updatePaymentComprovante(pagamentoParaComprovante, url);
+      
+      toast({
+        title: "Comprovante anexado com sucesso!",
+        description: "O comprovante foi salvo e pode ser visualizado a qualquer momento.",
+      });
+      
+      // Recarregar os pagamentos e fechar o diálogo
+      await loadPayments();
+      setIsComprovanteDialogOpen(false);
+      setComprovanteFile(null);
+      setPagamentoParaComprovante(null);
+    } catch (error) {
+      console.error('Erro ao fazer upload do comprovante:', error);
+      toast({
+        title: "Erro ao anexar comprovante",
+        description: `Ocorreu um erro ao salvar o comprovante: ${(error as Error).message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingComprovante(false);
     }
   };
 
@@ -935,6 +1040,15 @@ const ImpostoDAS: React.FC = () => {
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleComprovanteClick(pagamento.id, pagamento.comprovante_url)}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              title={pagamento.comprovante_url ? "Visualizar comprovante" : "Anexar comprovante"}
+                            >
+                              {pagamento.comprovante_url ? <Eye className="h-4 w-4" /> : <Paperclip className="h-4 w-4" />}
+                            </Button>
                             {pagamento.status === 'Pendente' && (
                               <Button
                                 variant="ghost"
@@ -1133,6 +1247,83 @@ const ImpostoDAS: React.FC = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCalculadoraOpen(false)}>
               Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para upload de comprovante */}
+      <Dialog open={isComprovanteDialogOpen} onOpenChange={setIsComprovanteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Anexar Comprovante de Pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="comprovanteFile">Selecionar Arquivo</Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input
+                  id="comprovanteFile"
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <div className="space-y-2">
+                  <Upload className="h-8 w-8 mx-auto text-gray-400" />
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('comprovanteFile')?.click()}
+                    >
+                      Escolher Arquivo
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Formatos aceitos: JPG, PNG, GIF, PDF (máx. 5MB)
+                  </p>
+                </div>
+              </div>
+              {comprovanteFile && (
+                <div className="mt-2 p-2 bg-gray-50 rounded border">
+                  <p className="text-sm text-gray-700">
+                    <strong>Arquivo selecionado:</strong> {comprovanteFile.name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Tamanho: {(comprovanteFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsComprovanteDialogOpen(false);
+                setComprovanteFile(null);
+                setPagamentoParaComprovante(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleUploadComprovante}
+              disabled={!comprovanteFile || isUploadingComprovante}
+              className="bg-emerald-800 hover:bg-emerald-700"
+            >
+              {isUploadingComprovante ? (
+                <>
+                  <Upload className="h-4 w-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Anexar Comprovante
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
