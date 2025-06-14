@@ -13,6 +13,7 @@ export interface DASPayment {
   data_pagamento?: string;
   status: 'Pago' | 'Pendente';
   transaction_id?: string | null;
+  comprovante_url?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -424,6 +425,42 @@ export class SupabaseMeiDASService {
       }
     } catch (error) {
       console.error('[SupabaseMeiDASService] manageAssociatedTransaction - Erro:', error);
+    }
+  }
+
+  /**
+   * Atualiza a URL do comprovante de um pagamento DAS
+   * @param id ID do pagamento DAS
+   * @param comprovanteUrl URL do comprovante
+   */
+  async updateComprovante(id: string, comprovanteUrl: string): Promise<{ data: DASPayment | null; error: Error | null }> {
+    try {
+      console.log(`[SupabaseMeiDASService] updateComprovante - Atualizando comprovante do DAS ${id}`);
+      
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        console.error('[SupabaseMeiDASService] updateComprovante - Usuário não autenticado');
+        return { data: null, error: new Error('Usuário não autenticado') };
+      }
+
+      const { data, error } = await supabase
+        .from('imposto_das')
+        .update({ comprovante_url: comprovanteUrl })
+        .eq('id', id)
+        .eq('user_id', user.user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(`[SupabaseMeiDASService] updateComprovante - Erro ao atualizar comprovante:`, error);
+        return { data: null, error: new Error(error.message) };
+      }
+
+      console.log(`[SupabaseMeiDASService] updateComprovante - Comprovante atualizado com sucesso`);
+      return { data, error: null };
+    } catch (error) {
+      console.error(`[SupabaseMeiDASService] updateComprovante - Erro inesperado:`, error);
+      return { data: null, error: error as Error };
     }
   }
 }

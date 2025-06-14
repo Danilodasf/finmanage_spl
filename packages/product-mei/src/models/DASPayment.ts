@@ -6,6 +6,7 @@ export interface DASPayment {
   numeroDAS: string;
   dataPagamento?: Date;
   status: 'Pendente' | 'Pago' | 'Vencido';
+  comprovanteUrl?: string;
 }
 
 export interface CreateDASPaymentData {
@@ -15,4 +16,5 @@ export interface CreateDASPaymentData {
   numeroDAS: string;
   dataPagamento?: Date;
   status: 'Pendente' | 'Pago' | 'Vencido';
+  comprovanteUrl?: string;
 }

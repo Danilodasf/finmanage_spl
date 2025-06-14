@@ -1,5 +1,5 @@
-import { toast } from '@/hooks/use-toast';
 import { supabase } from '../lib/supabase';
+import { toast } from '../hooks/use-toast';
 import { SupabaseMeiDASService, DASPayment } from '../lib/services/SupabaseMeiDASService';
 import { SupabaseMeiTransactionService } from '../lib/services/SupabaseMeiTransactionService';
 // Importação do DIContainer comentada temporariamente até encontrar o caminho correto
@@ -327,6 +327,26 @@ export class DIDASController {
         variant: "destructive",
       });
       return null;
+    }
+  }
+
+  /**
+   * Atualiza a URL do comprovante de um pagamento DAS
+   * @param paymentId ID do pagamento DAS
+   * @param comprovanteUrl URL do comprovante
+   * @returns void
+   */
+  static async updatePaymentComprovante(paymentId: string, comprovanteUrl: string): Promise<void> {
+    try {
+      const dasService = this.getDASService();
+      const result = await dasService.updateComprovante(paymentId, comprovanteUrl);
+      
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar comprovante:', error);
+      throw error;
     }
   }
 }
