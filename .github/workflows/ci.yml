@@ -1,0 +1,54 @@
+name: CI - Testes Automatizados
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Instalar dependências
+      run: |
+        npm ci
+        npm run install:all
+    
+    - name: Build core package
+      run: npm run build:core
+    
+    - name: Executar testes unitários
+      run: npm run test:unit:all
+    
+    - name: Executar testes de integração
+      run: npm run test:integration:all
+    
+    - name: ✅ Testes concluídos com sucesso
+      run: echo "Todos os testes passaram! PR pode ser merged."
+
+  # Job que bloqueia merge se os testes falharem
+  merge-gate:
+    runs-on: ubuntu-latest
+    needs: tests
+    if: always()
+    
+    steps:
+    - name: Verificar status dos testes
+      run: |
+        if [ "${{ needs.tests.result }}" != "success" ]; then
+          echo "❌ Testes falharam. Merge bloqueado."
+          exit 1
+        else
+          echo "✅ Testes passaram. Merge liberado."
+        fi

@@ -19,7 +19,19 @@
     "test:diarista": "cd packages/product-diarista && npm test",
     "test:mei": "cd packages/product-mei && npm test",
     "install:all": "npm install && cd packages/core && npm install && cd ../product-personal && npm install && cd ../product-mei && npm install && cd ../product-diarista && npm install",
-    "test:all": "npm run test:core && npm run test:personal && npm run test:diarista && npm run test:mei"
+    "test:all": "npm run test:core && npm run test:personal && npm run test:diarista && npm run test:mei",
+    "test:unit:all": "cd packages/core && npm run test:unit && cd ../product-personal && npm run test:unit && cd ../product-diarista && npm run test:unit && cd ../product-mei && npm run test:unit",
+    "test:integration:all": "cd packages/core && npm run test:integration && cd ../product-personal && npm run test:integration && cd ../product-diarista && npm run test:integration && cd ../product-mei && npm run test:integration",
+    "lint:all": "cd packages/core && npm run lint && cd ../product-personal && npm run lint && cd ../product-diarista && npm run lint && cd ../product-mei && npm run lint",
+    "build:all": "npm run build:core && npm run build:personal && npm run build:diarista && npm run build:mei",
+    "clean:all": "cd packages/core && rm -rf dist node_modules && cd ../product-personal && rm -rf dist build node_modules && cd ../product-diarista && rm -rf dist build node_modules && cd ../product-mei && rm -rf dist build node_modules && rm -rf node_modules",
+    "ci:test": "npm run install:all && npm run build:core && npm run test:all",
+    "ci:lint": "npm run install:all && npm run lint:all",
+    "ci:build": "npm run install:all && npm run build:all",
+    "coverage:all": "cd packages/core && npm run test -- --coverage && cd ../product-personal && npm run test -- --coverage && cd ../product-diarista && npm run test -- --coverage && cd ../product-mei && npm run test -- --coverage",
+    "setup:ci": "node scripts/setup-ci.js",
+    "setup:ci:full": "node scripts/setup-ci.js --with-tests",
+    "validate:ci": "npm run ci:lint && npm run ci:build && npm run ci:test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.10"
