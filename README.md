@@ -205,3 +205,4 @@ O **FinManage MEI** oferece recursos essenciais para Microempreendedores Individ
 - **Controle de Vendas**: Registro detalhado de vendas de produtos e serviços
 - **Gestão do DAS**: Cálculo automático e controle de pagamento do Documento de Arrecadação do Simples Nacional (DAS).
 
+# finmanage_spl
