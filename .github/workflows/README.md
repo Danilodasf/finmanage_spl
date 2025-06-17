@@ -24,30 +24,6 @@ O workflow executa automaticamente quando:
 - Você faz push para as branches `main` ou `develop`
 - Você abre um Pull Request para essas branches
 
-### Execução Manual
-Você pode executar o workflow manualmente:
-1. Vá para a aba "Actions" do repositório
-2. Selecione "CI - Testes Automatizados"
-3. Clique em "Run workflow"
-
-## Proteção de Branch
-
-Para garantir que apenas código testado seja merged:
-1. Vá em Settings > Branches no GitHub
-2. Adicione uma regra para `main` e `develop`
-3. Marque "Require status checks to pass before merging"
-4. Selecione "merge-gate" como check obrigatório
-
-## Status do Workflow
-
-Adicione este badge ao README principal:
-
-```markdown
-![CI](https://github.com/seu-usuario/finmanage-spl/workflows/CI%20-%20Testes%20Automatizados/badge.svg)
-```
-
-### Executar Testes Localmente
-
 Antes de fazer push, você pode executar os mesmos comandos que os workflows:
 
 ```bash
